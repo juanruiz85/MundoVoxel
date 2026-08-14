@@ -28,6 +28,7 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(Chat), "Chat")]
 [JsonDerivedType(typeof(BorrarMundo), "BorrarMundo")]
 [JsonDerivedType(typeof(MundoBorrado), "MundoBorrado")]
+[JsonDerivedType(typeof(Mobs), "Mobs")]
 public abstract class Mensaje
 {
 }
@@ -70,6 +71,8 @@ public sealed class BloqueCambio : Mensaje { public int X { get; set; } public i
 public sealed class Chat : Mensaje { public string Nombre { get; set; } = ""; public string Texto { get; set; } = ""; }
 public sealed class BorrarMundo : Mensaje { public string Id { get; set; } = ""; }
 public sealed class MundoBorrado : Mensaje { public string Id { get; set; } = ""; }
+public sealed class MobEstado { public int Id { get; set; } public byte Tipo { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } public float Ry { get; set; } }
+public sealed class Mobs : Mensaje { public List<MobEstado> Lista { get; set; } = new(); }
 
 public static class Protocolo
 {

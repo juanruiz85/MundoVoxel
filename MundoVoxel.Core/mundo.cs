@@ -40,6 +40,15 @@ public class Mundo
         return new Vector3(cx + 0.5f, Alto * 0.7f, cz + 0.5f);
     }
 
+    /// <summary>Altura (Y) de la superficie en (x, z): el primer bloque libre sobre el suelo.</summary>
+    public int Superficie(int x, int z)
+    {
+        for (int y = Alto - 1; y > 0; y--)
+            if (Bloques.EsSolido(Obtener(x, y, z)))
+                return y + 1;
+        return 1;
+    }
+
     public static Mundo Generar(int semilla, int ancho = 64, int alto = 40, int profundo = 64)
     {
         var m = new Mundo(ancho, alto, profundo, semilla);

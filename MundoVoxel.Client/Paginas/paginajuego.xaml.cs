@@ -203,18 +203,28 @@ public partial class PaginaJuego : ContentPage
         var camPos = _vista.Cam.Pos;
         var yaw = _vista.Cam.Yaw;
         var pitch = _vista.Cam.Pitch;
-        var cajas = _vista.Remotos.Values
-            .Select(j => new VistaJuego.CajaJugador(
+        var cajas = new List<VistaJuego.CajaJugador>();
+        foreach (var j in _vista.Remotos.Values)
+            cajas.Add(new VistaJuego.CajaJugador(
                 new Vector3(j.Pos.X - 0.3f, j.Pos.Y, j.Pos.Z - 0.3f),
                 new Vector3(j.Pos.X + 0.3f, j.Pos.Y + 1.8f, j.Pos.Z + 0.3f),
-                j.Color))
-            .ToArray();
+                j.Color));
+        foreach (var m in _vista.Mobs.Values)
+        {
+            var info = MobsInfo.Datos(m.Tipo);
+            float a = info.Ancho * 0.5f;
+            cajas.Add(new VistaJuego.CajaJugador(
+                new Vector3(m.Pos.X - a, m.Pos.Y, m.Pos.Z - a),
+                new Vector3(m.Pos.X + a, m.Pos.Y + info.Alto, m.Pos.Z + a),
+                VistaJuego.ColorMob(m.Tipo)));
+        }
+        var cajasArr = cajas.ToArray();
 
         _ = Task.Run(() =>
         {
             try
             {
-                var bmp = _vista.RenderFrame(rw, rh, camPos, yaw, pitch, cajas);
+                var bmp = _vista.RenderFrame(rw, rh, camPos, yaw, pitch, cajasArr);
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     try
@@ -270,6 +280,12 @@ public partial class PaginaJuego : ContentPage
                 _nombres.Remove(js.Id);
                 _vista.Remotos.Remove(js.Id);
                 AgregarChat(_idioma.O("chat.salio", js.Nombre));
+                break;
+
+            case Mobs ms:
+                _vista.Mobs.Clear();
+                foreach (var e in ms.Lista)
+                    _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz));
                 break;
 
             case Chat ch:

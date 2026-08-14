@@ -36,6 +36,30 @@ public sealed class VistaJuego : IDrawable
     public sealed record JugadorRemoto(int Id, string Nombre, Vector3 Pos, float Ry, float Pitch, Color Color);
     public readonly Dictionary<int, JugadorRemoto> Remotos = new();
 
+    // Mobs remotos (estado autoritativo del servidor)
+    public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos);
+    public readonly Dictionary<int, MobRemoto> Mobs = new();
+
+    public static Color ColorMob(TipoMob t) => t switch
+    {
+        TipoMob.Cerdo => Color.FromArgb("#e79a9a"),
+        TipoMob.Vaca => Color.FromArgb("#8b5a2b"),
+        TipoMob.Oveja => Color.FromArgb("#e6e6e6"),
+        TipoMob.Zombi => Color.FromArgb("#4e9a4e"),
+        TipoMob.Creeper => Color.FromArgb("#5fbf5f"),
+        _ => Color.FromArgb("#3a3a3a"),
+    };
+
+    public static string NombreMob(TipoMob t) => t switch
+    {
+        TipoMob.Cerdo => "Cerdo",
+        TipoMob.Vaca => "Vaca",
+        TipoMob.Oveja => "Oveja",
+        TipoMob.Zombi => "Zombi",
+        TipoMob.Creeper => "Creeper",
+        _ => "Esqueleto",
+    };
+
     /// <summary>Caja (AABB + color) de un jugador/mob para rasterizar en segundo plano.</summary>
     public readonly record struct CajaJugador(Vector3 Min, Vector3 Max, Color Color);
 
@@ -174,6 +198,12 @@ public sealed class VistaJuego : IDrawable
         {
             var pos = j.Pos;
             DibujarNombre(c, w, h, pos + new Vector3(0, 2.1f, 0), j.Nombre);
+        }
+
+        foreach (var m in Mobs.Values)
+        {
+            var alto = MobsInfo.Datos(m.Tipo).Alto;
+            DibujarNombre(c, w, h, m.Pos + new Vector3(0, alto + 0.3f, 0), NombreMob(m.Tipo));
         }
 
         DibujarHud(c, w, h);

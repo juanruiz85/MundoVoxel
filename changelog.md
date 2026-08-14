@@ -2,6 +2,16 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.3.0] - 2026-08-14
+
+### Añadido
+- **Mobs** (adaptación 3D de los 6 mobs de la referencia MinecraftJS): cerdo, vaca, oveja (pasivos, deambulan) y zombi, creeper y esqueleto wither (hostiles, persiguen al jugador en un radio de 11 bloques).
+  - `MundoVoxel.Core/mobs.cs`: tipos, datos estáticos (tamaño, velocidad, hostilidad) y estado simulado.
+  - `GameServer`: genera 9 mobs por mundo cerca del spawn y los simula/difunde a ~4 Hz (mensaje `Mobs`).
+  - Cliente: los mobs se muestran como cajas de color con etiqueta (reutilizando el renderizador de cajas); colores distintivos por tipo.
+  - Prueba automática añadida: se verifican mobs difundidos, posiciones válidas y variedad de tipos.
+- **Compilación Android operativa**: JDK 17 (Microsoft OpenJDK), Android SDK (`platforms;android-36`, `build-tools;36.0.0`, `platform-tools`) y workload `maui-android` instalados; `dotnet build -f net10.0-android` genera el APK firmado (`com.mundovoxel.app-Signed.apk`).
+
 ## [0.2.1] - 2026-08-14
 
 ### Corregido

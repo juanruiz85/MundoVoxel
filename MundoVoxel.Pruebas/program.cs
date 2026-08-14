@@ -61,6 +61,13 @@ await c1.Enviar(new Unirse { Id = idPrivado, Pin = "1234" });
 var unidoPriv = await c1.LeerHasta<Unido>();
 Comprobar(unidoPriv?.Id == idPrivado, "Ana entra con la clave correcta");
 
+// ---------- mobs ----------
+Console.WriteLine("Mobs: el servidor genera y difunde mobs en el mundo.");
+var mobs = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
+Comprobar(mobs != null && mobs.Lista.Count > 0, $"mobs difundidos ({mobs?.Lista.Count ?? 0})");
+Comprobar(mobs != null && mobs.Lista.All(m => m.Px >= 0 && m.Px < 64 && m.Pz >= 0 && m.Pz < 64 && m.Py >= 1), "posiciones de mobs dentro del mundo");
+Comprobar(mobs != null && mobs.Lista.Select(m => m.Tipo).Distinct().Count() >= 3, "hay variedad de tipos de mob");
+
 // ---------- romper y colocar bloques ----------
 Console.WriteLine("Bloques: romper y colocar con difusion.");
 var aparicionPriv = unidoPriv!;

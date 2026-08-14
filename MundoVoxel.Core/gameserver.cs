@@ -52,6 +52,7 @@ public sealed class GameServer : IAsyncDisposable
         Log($"Servidor Â«{NombreServidor}Â» escuchando en el puerto {Puerto}. Mundos en memoria: {MaxMundos} mÃ¡x., {MaxJugadoresPorMundo} jugadores por mundo.");
         _ = AceptarCicloAsync(_cts.Token);
         _ = CicloPosicionesAsync(_cts.Token);
+        _ = CicloMobsAsync(_cts.Token);
     }
 
     public async Task DetenerAsync()
@@ -97,6 +98,8 @@ public sealed class GameServer : IAsyncDisposable
         public int IdDueno;
         public string NombreDueno = "";
         public readonly Dictionary<int, ConexionJugador> Jugadores = new();
+        public readonly List<Mob> Mobs = new();
+        public int SiguienteMobId;
         public int Conteo => Jugadores.Count;
     }
 
@@ -265,6 +268,7 @@ public sealed class GameServer : IAsyncDisposable
                 NombreDueno = c.Nombre,
                 Mundo = Mundo.Generar((int)(DateTime.UtcNow.Ticks & 0x7FFFFFFF)),
             };
+            GenerarMobs(mundo);
             _mundos[mundo.Id] = mundo;
             Log($"{c.Nombre} creÃ³ el mundo Â«{nombre}Â» ({(cm.Abierto ? "pÃºblico" : "privado")}).");
             Enviar(c, new MundoCreado { Id = mundo.Id });
@@ -433,6 +437,133 @@ public sealed class GameServer : IAsyncDisposable
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------------ mobs
+
+    async Task CicloMobsAsync(CancellationToken ct)
+    {
+        const float dt = 0.25f;
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(250, ct); }
+            catch (OperationCanceledException) { break; }
+            lock (_cerrojo)
+            {
+                foreach (var mundo in _mundos.Values)
+                {
+                    if (mundo.Conteo == 0) continue; // no simular mundos vacios
+                    ActualizarMobs(mundo, dt);
+                    if (mundo.Mobs.Count == 0) continue;
+                    var msg = new Mobs
+                    {
+                        Lista = mundo.Mobs.Select(m => new MobEstado
+                        {
+                            Id = m.Id,
+                            Tipo = (byte)m.Tipo,
+                            Px = m.Px, Py = m.Py, Pz = m.Pz, Ry = m.Ry,
+                        }).ToList(),
+                    };
+                    foreach (var j in mundo.Jugadores.Values) Enviar(j, msg);
+                }
+            }
+        }
+    }
+
+    void GenerarMobs(MundoServidor mundo)
+    {
+        var m = mundo.Mundo;
+        var rnd = new Random(m.Semilla ^ 0x51A7);
+        int n = 9;
+        int cx = m.Ancho / 2, cz = m.Profundo / 2;
+        for (int i = 0; i < n; i++)
+        {
+            int x = Math.Clamp(cx + rnd.Next(-14, 15), 1, m.Ancho - 2);
+            int z = Math.Clamp(cz + rnd.Next(-14, 15), 1, m.Profundo - 2);
+            int y = m.Superficie(x, z);
+            var tipo = (TipoMob)rnd.Next(6);
+            mundo.Mobs.Add(new Mob
+            {
+                Id = ++mundo.SiguienteMobId,
+                Tipo = tipo,
+                Px = x + 0.5f, Py = y, Pz = z + 0.5f,
+                Ry = 0,
+                TiempoCambio = (float)rnd.NextDouble() * 3f,
+                Salud = 20,
+            });
+        }
+    }
+
+    void ActualizarMobs(MundoServidor mundo, float dt)
+    {
+        var m = mundo.Mundo;
+        foreach (var mob in mundo.Mobs)
+        {
+            var info = MobsInfo.Datos(mob.Tipo);
+            mob.TiempoCambio -= dt;
+
+            Vector3? objetivo = null;
+            if (info.Hostil)
+                objetivo = JugadorMasCercano(mundo, mob.Px, mob.Pz, info.AreaAgresion);
+
+            if (objetivo is { } o)
+            {
+                var dx = o.X - mob.Px;
+                var dz = o.Z - mob.Pz;
+                float dist = MathF.Sqrt(dx * dx + dz * dz);
+                if (dist > 0.7f) { mob.VelX = dx / dist * info.Velocidad; mob.VelZ = dz / dist * info.Velocidad; }
+                else { mob.VelX = 0; mob.VelZ = 0; }
+                mob.TiempoCambio = 0.3f;
+            }
+            else if (mob.TiempoCambio <= 0)
+            {
+                var rnd = Random.Shared;
+                if (rnd.NextDouble() < 0.3f) { mob.VelX = 0; mob.VelZ = 0; }
+                else
+                {
+                    float ang = (float)(rnd.NextDouble() * Math.PI * 2);
+                    mob.VelX = MathF.Cos(ang) * info.Velocidad;
+                    mob.VelZ = MathF.Sin(ang) * info.Velocidad;
+                }
+                mob.TiempoCambio = 2f + (float)rnd.NextDouble() * 4f;
+            }
+
+            float nx = mob.Px + mob.VelX * dt;
+            float nz = mob.Pz + mob.VelZ * dt;
+            if (PuedeMoverse(m, nx, nz, info, out int ySup))
+            {
+                mob.Px = nx; mob.Pz = nz; mob.Py = ySup;
+                if (mob.VelX != 0 || mob.VelZ != 0) mob.Ry = MathF.Atan2(mob.VelX, -mob.VelZ);
+            }
+            else
+            {
+                mob.VelX = -mob.VelX; mob.VelZ = -mob.VelZ; mob.TiempoCambio = 0.5f;
+            }
+        }
+    }
+
+    Vector3? JugadorMasCercano(MundoServidor mundo, float x, float z, float area)
+    {
+        Vector3? mejor = null;
+        float mejorD = area * area;
+        foreach (var j in mundo.Jugadores.Values)
+        {
+            var dx = j.Pos.X - x;
+            var dz = j.Pos.Z - z;
+            float d = dx * dx + dz * dz;
+            if (d < mejorD) { mejorD = d; mejor = j.Pos; }
+        }
+        return mejor;
+    }
+
+    bool PuedeMoverse(Mundo m, float x, float z, InfoMob info, out int ySup)
+    {
+        int bx = (int)MathF.Floor(x), bz = (int)MathF.Floor(z);
+        ySup = m.Superficie(bx, bz);
+        int alto = Math.Max(1, (int)MathF.Ceiling(info.Alto));
+        for (int yy = ySup; yy < ySup + alto && yy < m.Alto; yy++)
+            if (Bloques.EsSolido(m.Obtener(bx, yy, bz))) return false;
+        return true;
     }
 
     // ------------------------------------------------------------------ envÃ­o
