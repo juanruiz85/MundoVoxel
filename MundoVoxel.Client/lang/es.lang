@@ -1,0 +1,110 @@
+# Archivo de idioma de MundoVoxel (español)
+# Formato: clave=texto  ·  '#' para comentarios  ·  {0}, {1}... para valores dinámicos
+# Si falta una clave se muestra la propia clave (fallback), la interfaz nunca se rompe.
+
+app.titulo=MundoVoxel
+
+# ---- Menú principal ----
+menu.titulo=MundoVoxel
+menu.subtitulo=Juego de bloques multijugador
+menu.nombre=Nombre de jugador
+menu.ip=Dirección del servidor (IP)
+menu.puerto=Puerto
+menu.jugar_solo=Jugar solo (servidor local)
+menu.conectar=Conectar a un servidor
+menu.conectando=Conectando…
+menu.error_conexion=No se pudo conectar: {0}
+menu.servidor_local_ok=Servidor local iniciado en el puerto {0}
+menu.nombre_vacio=El nombre no puede estar vacío.
+menu.ip_vacia=Escribe la IP del servidor.
+menu.controles_titulo=Controles
+menu.controles_desc=WASD moverse · Espacio saltar · F volar · T chat · Esc pausa · Clic colocar · Doble clic / R romper · 1-9 bloques · Arrastrar mirar
+
+# ---- Lista de mundos ----
+mundos.titulo=Mundos en {0}
+mundos.vacio=No hay mundos todavía. ¡Crea el primero!
+mundos.refrescar=Actualizar
+mundos.desconectar=Desconectar
+mundos.crear=Crear mundo
+mundos.crear_titulo=Nuevo mundo
+mundos.nombre_nuevo=Nombre del mundo
+mundos.publico=Público: cualquiera puede unirse
+mundos.privado=Privado: requiere clave
+mundos.clave=Clave (4 dígitos)
+mundos.clave_invalida=La clave debe tener exactamente 4 dígitos.
+mundos.cancelar=Cancelar
+mundos.nombre_vacio=El nombre del mundo no puede estar vacío.
+mundos.unirse=Unirse
+mundos.borrar=Borrar
+mundos.borrar_confirmar=¿Borrar el mundo «{0}»? Esta acción no se puede deshacer.
+mundos.estado_publico=Público
+mundos.estado_privado=Privado
+mundos.jugadores={0}/{1} jugadores
+mundos.dueno=Creado por {0}
+mundos.creando=Creando mundo…
+mundos.pedir_clave=Este mundo es privado. Escribe la clave de 4 dígitos:
+mundos.conectando=Conectando…
+
+# ---- Errores del servidor (mapeados por código) ----
+error.pin_incorrecto=Clave incorrecta.
+error.lleno=El mundo está lleno.
+error.no_existe=El mundo ya no existe.
+error.no_dueno=Solo el creador puede borrar el mundo.
+error.pin_invalido=La clave debe tener exactamente 4 dígitos.
+error.limite_mundos=El servidor llegó al límite de mundos.
+error.mundo_borrado=El mundo fue borrado por su creador.
+error.nombre_vacio=El nombre del mundo no puede estar vacío.
+error.desconectado=Te desconectaste del servidor.
+
+# ---- Juego ----
+juego.bienvenido=¡Bienvenido a {0}!
+juego.volando=Volar: {0}
+juego.si=Sí
+juego.no=No
+juego.distancia=Renderizado: {0}
+juego.distancia_baja=Bajo
+juego.distancia_media=Medio
+juego.distancia_alta=Alto
+juego.mundo_descargando=Descargando mundo…
+juego.tu=Tú
+juego.jugadores_conectados=Jugadores: {0}
+juego.coordenadas=X {0:F1} · Y {1:F1} · Z {2:F1}
+juego.fps={0} FPS
+
+# ---- Pausa ----
+pausa.titulo=Pausa
+pausa.reanudar=Reanudar
+pausa.volar=Volar: {0}
+pausa.salir_mundo=Salir del mundo
+pausa.desconectar=Desconectar
+pausa.borrar_mundo=Borrar este mundo
+pausa.solo_dueno=(solo el creador)
+pausa.controles=Controles: WASD mover · Espacio saltar · F volar · T chat · 1-9 bloques · Clic colocar · Doble clic o R romper
+
+# ---- Chat ----
+chat.placeholder=Escribe un mensaje…
+chat.entro={0} entró al mundo
+chat.salio={0} salió del mundo
+chat.sistema=» {0}
+
+# ---- Botones táctiles ----
+boton.romper=Romper
+boton.colocar=Colocar
+boton.saltar=⤒
+boton.volar=Volar
+boton.chat=Chat
+boton.menu=☰
+
+# ---- Bloques ----
+bloque.aire=Aire
+bloque.tierra=Tierra
+bloque.piedra=Piedra
+bloque.madera=Madera
+bloque.arena=Arena
+bloque.agua=Agua
+bloque.cesped=Césped
+bloque.grava=Grava
+bloque.ladrillo=Ladrillo
+bloque.hoja=Hojas
+bloque.cristal=Cristal
+bloque.lecho=Roca base

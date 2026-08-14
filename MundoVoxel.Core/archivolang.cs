@@ -24,6 +24,8 @@ public sealed class ArchivoLang
     public string O(string clave, params object[] args)
         => _textos.TryGetValue(clave, out var t) ? string.Format(t, args) : clave;
 
+    public bool Contiene(string clave) => _textos.ContainsKey(clave);
+
     public static ArchivoLang? CargarArchivo(string ruta)
     {
         if (string.IsNullOrEmpty(ruta) || !File.Exists(ruta)) return null;

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="MundoVoxel.Client.Paginas.PaginaJuego"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="Black">
+
+    <Grid x:Name="Raiz">
+        <GraphicsView x:Name="Vista" />
+
+        <!-- HUD superior -->
+        <VerticalStackLayout Padding="12,10" Spacing="2" HorizontalOptions="Start" VerticalOptions="Start" IsHitTestVisible="False">
+            <Label x:Name="LblMundo" FontSize="15" FontAttributes="Bold" TextColor="White" />
+            <Label x:Name="LblJugadores" FontSize="12" TextColor="#cfe0f0" />
+            <Label x:Name="LblCoordenadas" FontSize="12" TextColor="#cfe0f0" />
+            <Label x:Name="LblFps" FontSize="12" TextColor="#cfe0f0" />
+            <Label x:Name="LblBloque" FontSize="13" TextColor="White" Margin="0,6,0,0" />
+        </VerticalStackLayout>
+
+        <Button x:Name="BtnMenu" Text="☰" Clicked="OnPausa" HorizontalOptions="End" VerticalOptions="Start"
+                Margin="0,10,10,0" WidthRequest="46" HeightRequest="46" BackgroundColor="#55000000"
+                TextColor="White" FontSize="20" Padding="0" />
+
+        <!-- Chat -->
+        <Grid VerticalOptions="End" HorizontalOptions="Start" Margin="12,0,0,14" WidthRequest="430" MaximumWidthRequest="82%">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <CollectionView x:Name="Chat" Grid.Row="0" HeightRequest="170" MaximumHeightRequest="200"
+                            ItemsUpdatingScrollMode="KeepLastItemInView" IsHitTestVisible="False" />
+            <Grid Grid.Row="1" Margin="0,6,0,0">
+                <Entry x:Name="EntradaChat" ReturnType="Send" Completed="OnChatEnviado" IsVisible="False"
+                       BackgroundColor="#cc10161f" TextColor="White" />
+            </Grid>
+        </Grid>
+
+        <!-- Controles táctiles (Android) -->
+        <VerticalStackLayout x:Name="PanelMovil" HorizontalOptions="End" VerticalOptions="Center" Spacing="8"
+                             Margin="0,0,12,0" WidthRequest="96" IsVisible="False">
+            <Button x:Name="BtnRomper" Clicked="OnBtnRomper" HeightRequest="44" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnColocar" Clicked="OnBtnColocar" HeightRequest="44" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnSaltar" Pressed="OnSaltarPulsado" Released="OnSaltarSoltado" HeightRequest="52" FontSize="18" Padding="0" />
+            <Button x:Name="BtnVolar" Clicked="OnBtnVolar" HeightRequest="44" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnChat" Clicked="OnBtnChat" HeightRequest="44" FontSize="13" Padding="4,0" />
+        </VerticalStackLayout>
+
+        <!-- Pausa -->
+        <Border x:Name="Pausa" BackgroundColor="#cc10161f" IsVisible="False" StrokeThickness="0">
+            <ScrollView>
+                <VerticalStackLayout Padding="26" Spacing="8" WidthRequest="340" MaximumWidthRequest="92%"
+                                     HorizontalOptions="Center" VerticalOptions="Center">
+                    <Label x:Name="LblPausaTitulo" FontSize="26" FontAttributes="Bold" HorizontalOptions="Center" />
+                    <Button x:Name="BtnReanudar" Clicked="OnPausa" />
+                    <Button x:Name="BtnPausaVolar" Style="{StaticResource BtnSecundario}" Clicked="OnBtnVolar" />
+                    <Button x:Name="BtnDistancia" Style="{StaticResource BtnSecundario}" Clicked="OnCambiarDistancia" />
+                    <Button x:Name="BtnBorrarMundo" Style="{StaticResource BtnPeligro}" Clicked="OnBorrarMundo" />
+                    <Button x:Name="BtnSalirMundo" Style="{StaticResource BtnSecundario}" Clicked="OnSalirMundo" />
+                    <Button x:Name="BtnDesconectar" Style="{StaticResource BtnSecundario}" Clicked="OnDesconectar" />
+                    <Label x:Name="LblControlesPausa" FontSize="11" TextColor="{StaticResource TextoSuave}" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+    </Grid>
+</ContentPage>

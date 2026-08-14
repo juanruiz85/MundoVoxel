@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>MundoVoxel.Client</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <ApplicationTitle>MundoVoxel</ApplicationTitle>
+    <ApplicationId>com.mundovoxel.app</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+
+    <!-- Ejecutable independiente del paquete MSIX (más fácil de probar) -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Referencias de MAUI (en .NET 8+ UseMaui no incluye los paquetes automáticamente) -->
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Icono y pantalla de inicio -->
+    <MauiIcon Include="Recursos\AppIcon\appicon.png" />
+    <MauiSplashScreen Include="Recursos\Splash\splash.png" Color="#10161f" BaseSize="128,128" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Textos del juego incrustados (fallback; en Windows se puede sobrescribir con lang/es.lang junto al exe) -->
+    <EmbeddedResource Include="lang\es.lang" LogicalName="lang.es.lang" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MundoVoxel.Core\MundoVoxel.Core.csproj" />
+  </ItemGroup>
+
+</Project>

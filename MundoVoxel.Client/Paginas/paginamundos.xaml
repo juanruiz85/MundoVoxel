@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:svc="clr-namespace:MundoVoxel.Client.Servicios"
+             x:Class="MundoVoxel.Client.Paginas.PaginaMundos"
+             Title="Mundos">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16,10">
+        <VerticalStackLayout Grid.Row="0" Spacing="4">
+            <Label x:Name="LblTitulo" FontSize="22" FontAttributes="Bold" />
+            <Label x:Name="LblEstado" FontSize="13" TextColor="{StaticResource Peligro}" IsVisible="False" LineBreakMode="WordWrap" />
+        </VerticalStackLayout>
+
+        <CollectionView x:Name="Lista" Grid.Row="1" Margin="0,8,0,0">
+            <CollectionView.EmptyView>
+                <Label x:Name="LblVacio" TextColor="{StaticResource TextoSuave}" FontSize="15" HorizontalOptions="Center" Margin="0,48" />
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border BackgroundColor="{StaticResource Superficie}" StrokeThickness="0" Margin="0,4"
+                            Padding="14,10" StrokeShape="RoundRectangle 12">
+                        <Grid ColumnDefinitions="*,132" ColumnSpacing="8">
+                            <VerticalStackLayout VerticalOptions="Center">
+                                <Label Text="{Binding Nombre}" FontSize="17" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding Detalle}" FontSize="12" TextColor="{StaticResource TextoSuave}" LineBreakMode="TailTruncation" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Button Text="{x:Static svc:T.Unirse}" Clicked="OnUnirse" HeightRequest="38" FontSize="14" Padding="6,0" />
+                                <Button Text="{x:Static svc:T.Borrar}" Style="{StaticResource BtnPeligro}" HeightRequest="34" FontSize="13"
+                                        Padding="6,0" IsVisible="{Binding EsDueno}" Clicked="OnBorrar" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Formulario de creación -->
+        <Border x:Name="PanelCrear" Grid.Row="1" BackgroundColor="#e610161f" StrokeThickness="0" IsVisible="False"
+                VerticalOptions="Center" Padding="20" StrokeShape="RoundRectangle 16" Margin="8,0">
+            <VerticalStackLayout Spacing="6">
+                <Label x:Name="LblCrearTitulo" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                <Label x:Name="LblCrearNombre" Margin="0,8,0,0" />
+                <Entry x:Name="EntNombreNuevo" />
+                <Label x:Name="LblCrearTipo" Margin="0,8,0,0" />
+                <Switch x:Name="SwPublico" IsToggled="True" HorizontalOptions="Start" />
+                <Label x:Name="LblCrearClave" Margin="0,8,0,0" IsVisible="False" />
+                <Entry x:Name="EntPin" Keyboard="Numeric" IsVisible="False" MaxLength="4" />
+                <Label x:Name="LblCrearError" FontSize="13" TextColor="{StaticResource Peligro}" IsVisible="False" LineBreakMode="WordWrap" />
+                <Button x:Name="BtnCrearConfirmar" Margin="0,14,0,0" />
+                <Button x:Name="BtnCancelar" Style="{StaticResource BtnSecundario}" />
+            </VerticalStackLayout>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,8,0,0">
+            <Button x:Name="BtnCrear" Clicked="OnAbrirCrear" HeightRequest="46" />
+            <Button x:Name="BtnDesconectar" Style="{StaticResource BtnSecundario}" Grid.Column="1" Clicked="OnDesconectar" HeightRequest="46" />
+        </Grid>
+    </Grid>
+</ContentPage>
