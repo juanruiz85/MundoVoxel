@@ -26,6 +26,7 @@ mundos.vacio=No hay mundos todavía. ¡Crea el primero!
 mundos.refrescar=Actualizar
 mundos.desconectar=Desconectar
 mundos.crear=Crear mundo
+mundos.nuevo=+ Nuevo mundo
 mundos.crear_titulo=Nuevo mundo
 mundos.nombre_nuevo=Nombre del mundo
 mundos.publico=Público: cualquiera puede unirse

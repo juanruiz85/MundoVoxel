@@ -5,9 +5,9 @@ using MundoVoxel.Core;
 namespace MundoVoxel.Client.Juego;
 
 /// <summary>
-/// Renderizador 3D por software sobre ICanvas (pintor por profundidad):
-/// mallas por chunk, sombreado por cara, niebla por distancia y cielo degradado.
-/// Portátil: funciona igual en Windows y Android sin dependencias nativas.
+/// Renderizador 3D por software: proyecta las caras de los chunks y las rasteriza
+/// sobre un buffer de píxeles con z-buffer (sin llamadas nativas por cara).
+/// Portátil: funciona igual en Windows y Android.
 /// </summary>
 public sealed class RenderizadorVoxel
 {
@@ -24,9 +24,8 @@ public sealed class RenderizadorVoxel
     public const int NivelesNiebla = 16;
 
     readonly Dictionary<(int, int), ChunkMalla> _mallas = new();
-    readonly Stack<PathF> _pool = new();
     readonly List<CaraVista> _visibles = new();
-    Color[] _paleta = Array.Empty<Color>();
+    byte[] _paletaRgb = Array.Empty<byte>(); // 4 bytes por entrada: R,G,B,alfa
     readonly float[] _sx = new float[4], _sy = new float[4], _zc = new float[4];
 
     Color _cieloArriba = Color.FromArgb("#6cb6e8");
@@ -79,31 +78,35 @@ public sealed class RenderizadorVoxel
 
     void PrepararPaleta()
     {
-        var paleta = new Color[ColoresBase.Length * 6 * NivelesNiebla];
+        int n = ColoresBase.Length * 6 * NivelesNiebla;
+        _paletaRgb = new byte[n * 4];
         for (int b = 0; b < ColoresBase.Length; b++)
         {
             for (int d = 0; d < 6; d++)
             {
-                for (int n = 0; n < NivelesNiebla; n++)
+                for (int niebla = 0; niebla < NivelesNiebla; niebla++)
                 {
-                    float t = n / (float)(NivelesNiebla - 1);
+                    float t = niebla / (float)(NivelesNiebla - 1);
                     float sombra = Brillo[d];
                     float r = ColoresBase[b].r / 255f * sombra;
                     float g = ColoresBase[b].g / 255f * sombra;
                     float bl = ColoresBase[b].b / 255f * sombra;
-                    // mezcla con el color de la niebla (horizonte)
                     r = r * (1 - t) + _cieloAbajo.Red * t;
                     g = g * (1 - t) + _cieloAbajo.Green * t;
                     bl = bl * (1 - t) + _cieloAbajo.Blue * t;
                     float alfa = Bloques.EsLiquido((ushort)b) ? 0.62f : 1f;
-                    paleta[b * 6 * NivelesNiebla + d * NivelesNiebla + n] = new Color(r, g, bl, alfa);
+                    int i = (b * 6 * NivelesNiebla + d * NivelesNiebla + niebla) * 4;
+                    _paletaRgb[i] = (byte)(r * 255);
+                    _paletaRgb[i + 1] = (byte)(g * 255);
+                    _paletaRgb[i + 2] = (byte)(bl * 255);
+                    _paletaRgb[i + 3] = (byte)(alfa * 255);
                 }
             }
         }
-        _paleta = paleta;
     }
 
-    public void Dibujar(ICanvas c, int ancho, int alto, Camara cam, Mundo mundo)
+    /// <summary>Rasteriza el mundo (cielo + caras) sobre el buffer de destino.</summary>
+    public void Rasterizar(Rasterizador r, Mundo mundo, Camara cam, int ancho, int alto)
     {
         var ojo = cam.Pos;
         float f = (alto / 2f) / MathF.Tan(Fov / 2f);
@@ -111,9 +114,9 @@ public sealed class RenderizadorVoxel
         float maxDist = DistanciaChunks * ChunkMalla.Tam * 0.9f;
         float inicioNiebla = maxDist * InicioNiebla;
 
-        // Cielo degradado
-        c.SetFillPaint(new LinearGradientPaint(new PaintGradientStop[] { new PaintGradientStop(0f, _cieloArriba), new PaintGradientStop(1f, _cieloAbajo) }, new Point(0, 0), new Point(0, alto)), new RectF(0, 0, ancho, alto));
-        c.FillRectangle(0, 0, ancho, alto);
+        r.Limpiar(
+            (byte)(_cieloArriba.Red * 255), (byte)(_cieloArriba.Green * 255), (byte)(_cieloArriba.Blue * 255),
+            (byte)(_cieloAbajo.Red * 255), (byte)(_cieloAbajo.Green * 255), (byte)(_cieloAbajo.Blue * 255));
 
         var fwd = cam.Adelante;
         var der = cam.Derecha;
@@ -125,7 +128,6 @@ public sealed class RenderizadorVoxel
         {
             int dx = k.Item1 - pcx, dz = k.Item2 - pcz;
             if (Math.Abs(dx) > DistanciaChunks || Math.Abs(dz) > DistanciaChunks) continue;
-            // culling grueso: chunk muy por detrás de la cámara
             float cex = k.Item1 * ChunkMalla.Tam + ChunkMalla.Tam / 2f - ojo.X;
             float cez = k.Item2 * ChunkMalla.Tam + ChunkMalla.Tam / 2f - ojo.Z;
             if (cex * fwd.X + cez * fwd.Z < -ChunkMalla.Tam * 3) continue;
@@ -136,19 +138,37 @@ public sealed class RenderizadorVoxel
             }
         }
 
-        _visibles.Sort((a, b) => b.Prof.CompareTo(a.Prof));
-        foreach (var cv in _visibles)
+        // Pasada 1: opacas (z-buffer normal).
+        for (int i = 0; i < _visibles.Count; i++)
         {
-            var p = _pool.Count > 0 ? _pool.Pop() : new PathF();
-            p.MoveTo(cv.Ax, cv.Ay);
-            p.LineTo(cv.Bx, cv.By);
-            p.LineTo(cv.Cx, cv.Cy);
-            p.LineTo(cv.Dx, cv.Dy);
-            p.Close();
-            c.FillColor = _paleta[cv.Bloque * 6 * NivelesNiebla + cv.Dir * NivelesNiebla + cv.Niebla];
-            c.FillPath(p);
-            _pool.Push(p);
+            var cv = _visibles[i];
+            if (Bloques.EsLiquido(cv.Bloque)) continue;
+            RasterizarCara(r, cv);
         }
+
+        // Pasada 2: líquidas (agua) de lejos a cerca, con alpha.
+        Span<int> indicesLiquido = _visibles.Count <= 1024
+            ? stackalloc int[_visibles.Count]
+            : new int[_visibles.Count];
+        int n = 0;
+        for (int i = 0; i < _visibles.Count; i++)
+            if (Bloques.EsLiquido(_visibles[i].Bloque)) indicesLiquido[n++] = i;
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++)
+                if (_visibles[indicesLiquido[j]].Prof > _visibles[indicesLiquido[i]].Prof)
+                {
+                    int tmp = indicesLiquido[i];
+                    indicesLiquido[i] = indicesLiquido[j];
+                    indicesLiquido[j] = tmp;
+                }
+        for (int i = 0; i < n; i++) RasterizarCara(r, _visibles[indicesLiquido[i]]);
+    }
+
+    void RasterizarCara(Rasterizador r, in CaraVista cv)
+    {
+        int idx = (cv.Bloque * 6 * NivelesNiebla + cv.Dir * NivelesNiebla + cv.Niebla) * 4;
+        r.Cuadrilatero(cv.Ax, cv.Ay, cv.Bx, cv.By, cv.Cx, cv.Cy, cv.Dx, cv.Dy, cv.Prof,
+            _paletaRgb[idx], _paletaRgb[idx + 1], _paletaRgb[idx + 2], _paletaRgb[idx + 3] / 255f);
     }
 
     void ProyectarCara(in Cara cara, Vector3 ojo, Vector3 der, Vector3 arriba, Vector3 fwd,
@@ -162,7 +182,7 @@ public sealed class RenderizadorVoxel
             float xc = Vector3.Dot(d, der);
             float yc = Vector3.Dot(d, arriba);
             float zc = Vector3.Dot(d, fwd);
-            if (zc < 0.12f) return; // cara detrás del plano cercano
+            if (zc < 0.12f) return;
             prof += zc;
             _zc[i] = zc;
             _sx[i] = cxp + xc * f / zc;
@@ -170,7 +190,6 @@ public sealed class RenderizadorVoxel
         }
         prof *= 0.25f;
         if (prof > maxDist) return;
-        // recorte en pantalla (con margen)
         float minX = MathF.Min(MathF.Min(_sx[0], _sx[1]), MathF.Min(_sx[2], _sx[3]));
         float maxX = MathF.Max(MathF.Max(_sx[0], _sx[1]), MathF.Max(_sx[2], _sx[3]));
         float minY = MathF.Min(MathF.Min(_sy[0], _sy[1]), MathF.Min(_sy[2], _sy[3]));
@@ -187,11 +206,11 @@ public sealed class RenderizadorVoxel
         });
     }
 
-    /// <summary>Dibuja una caja (p. ej. un jugador) con las 6 caras ordenadas por profundidad.</summary>
-    public void DibujarCaja(ICanvas c, int ancho, int alto, Camara cam, Vector3 min, Vector3 max, Color color)
+    /// <summary>Rasteriza una caja (p. ej. un jugador o un mob) con sus 6 caras.</summary>
+    public void RasterizarCaja(Rasterizador r, Camara cam, Vector3 min, Vector3 max, Color color)
     {
-        float f = (alto / 2f) / MathF.Tan(Fov / 2f);
-        float cxp = ancho / 2f, cyp = alto / 2f;
+        float f = (r.H / 2f) / MathF.Tan(Fov / 2f);
+        float cxp = r.W / 2f, cyp = r.H / 2f;
         var ojo = cam.Pos;
         var fwd = cam.Adelante;
         var der = cam.Derecha;
@@ -219,34 +238,15 @@ public sealed class RenderizadorVoxel
             sy[i] = cyp - yc * f / zc[i];
         }
 
-        Span<(int idx, float prof)> orden = stackalloc (int, float)[6];
+        byte rb = (byte)(color.Red * 255);
+        byte gb = (byte)(color.Green * 255);
+        byte bb = (byte)(color.Blue * 255);
+
         for (int i = 0; i < 6; i++)
         {
             var ca = caras[i];
-            orden[i] = (i, (zc[ca.a] + zc[ca.b] + zc[ca.c] + zc[ca.d]) * 0.25f);
+            float prof = (zc[ca.a] + zc[ca.b] + zc[ca.c] + zc[ca.d]) * 0.25f;
+            r.Cuadrilatero(sx[ca.a], sy[ca.a], sx[ca.b], sy[ca.b], sx[ca.c], sy[ca.c], sx[ca.d], sy[ca.d], prof, rb, gb, bb);
         }
-        for (int i = 0; i < 5; i++)
-            for (int j = i + 1; j < 6; j++)
-                if (orden[j].prof > orden[i].prof)
-                {
-                    var tmp = orden[i];
-                    orden[i] = orden[j];
-                    orden[j] = tmp;
-                }
-
-        var path = _pool.Count > 0 ? _pool.Pop() : new PathF();
-        c.FillColor = color;
-        for (int i = 0; i < 6; i++)
-        {
-            var ca = caras[orden[i].idx];
-            path = new PathF();
-            path.MoveTo(sx[ca.a], sy[ca.a]);
-            path.LineTo(sx[ca.b], sy[ca.b]);
-            path.LineTo(sx[ca.c], sy[ca.c]);
-            path.LineTo(sx[ca.d], sy[ca.d]);
-            path.Close();
-            c.FillPath(path);
-        }
-        _pool.Push(path);
     }
 }

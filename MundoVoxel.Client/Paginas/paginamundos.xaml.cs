@@ -29,7 +29,7 @@ public partial class PaginaMundos : ContentPage
         _teclado = teclado;
         Lista.ItemsSource = _items;
 
-        BtnCrear.Text = T.Crear;
+        BtnCrear.Text = idioma.O("mundos.nuevo");
         BtnDesconectar.Text = T.Desconectar;
         LblVacio.Text = idioma.O("mundos.vacio");
         LblCrearTitulo.Text = idioma.O("mundos.crear_titulo");

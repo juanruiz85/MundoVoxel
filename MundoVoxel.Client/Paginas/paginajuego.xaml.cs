@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Numerics;
 using Microsoft.Maui.Devices;
+using Microsoft.Maui.Graphics;
 using MundoVoxel.Client.Juego;
 using MundoVoxel.Client.Servicios;
 using MundoVoxel.Core;
@@ -22,12 +24,12 @@ public partial class PaginaJuego : ContentPage
 
     IDispatcherTimer? _timer;
     float _fps;
-    int _frames, _ticksPosicion;
-    bool _pausado;
+    int _frames, _ticksPosicion;    bool _pausado;
     int _nivelDistancia = 1;
     static readonly int[] Distancias = { 1, 2, 3 };
     static bool _tecladoVinculado;
     bool _saliendo;
+    bool _renderizando;
 
     static readonly Color[] ColoresRemoto =
     {
@@ -37,11 +39,13 @@ public partial class PaginaJuego : ContentPage
 
     public PaginaJuego(ServicioRed red, ServicioIdioma idioma, ServicioTeclado teclado, DatosMundo datos)
     {
-        InitializeComponent();
-        _red = red;
-        _idioma = idioma;
-        _teclado = teclado;
-        _datos = datos;
+        try
+        {
+            InitializeComponent();
+            _red = red;
+            _idioma = idioma;
+            _teclado = teclado;
+            _datos = datos;
 
         Vista.Drawable = _vista;
         Chat.ItemsSource = _chat;
@@ -82,6 +86,12 @@ public partial class PaginaJuego : ContentPage
 
         _red.AlDesconectar += OnDesconectadoRed;
         _teclado.AlPulsar += OnTecla;
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("PaginaJuego ctor: " + ex);
+            throw;
+        }
     }
 
     protected override void OnAppearing()
@@ -112,6 +122,18 @@ public partial class PaginaJuego : ContentPage
     // ------------------------------------------------------------- bucle
 
     void OnTick(object? s, EventArgs e)
+    {
+        try
+        {
+            TickInterno();
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("OnTick: " + ex);
+        }
+    }
+
+    void TickInterno()
     {
         float dt = Math.Clamp((float)_reloj.Elapsed.TotalSeconds, 0.001f, 0.06f);
         _reloj.Restart();
@@ -162,7 +184,60 @@ public partial class PaginaJuego : ContentPage
         LblFps.Text = _idioma.O("juego.fps", (int)MathF.Round(_fps));
         LblJugadores.Text = _idioma.O("juego.jugadores_conectados", _vista.Remotos.Count + 1);
 
-        Vista.Invalidate();
+        DispararRender();
+    }
+
+    /// <summary>Render en segundo plano: no bloquea el hilo de la UI.</summary>
+    void DispararRender()
+    {
+        if (_renderizando) return;
+        _renderizando = true;
+
+        double vw = Vista.Width > 1 ? Vista.Width : 640;
+        double vh = Vista.Height > 1 ? Vista.Height : 360;
+        const int anchoMax = 480;
+        int rw = anchoMax;
+        int rh = (int)(anchoMax * vh / vw);
+        if (rh < 1) rh = 1;
+
+        var camPos = _vista.Cam.Pos;
+        var yaw = _vista.Cam.Yaw;
+        var pitch = _vista.Cam.Pitch;
+        var cajas = _vista.Remotos.Values
+            .Select(j => new VistaJuego.CajaJugador(
+                new Vector3(j.Pos.X - 0.3f, j.Pos.Y, j.Pos.Z - 0.3f),
+                new Vector3(j.Pos.X + 0.3f, j.Pos.Y + 1.8f, j.Pos.Z + 0.3f),
+                j.Color))
+            .ToArray();
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var bmp = _vista.RenderFrame(rw, rh, camPos, yaw, pitch, cajas);
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    try
+                    {
+                        Pantalla.Source = ImageSource.FromStream(() => new MemoryStream(bmp));
+                    }
+                    catch (Exception ex)
+                    {
+                        Diag.Log("blit: " + ex);
+                    }
+                    finally
+                    {
+                        _renderizando = false;
+                    }
+                    Vista.Invalidate();
+                });
+            }
+            catch (Exception ex)
+            {
+                Diag.Log("render fondo: " + ex);
+                MainThread.BeginInvokeOnMainThread(() => _renderizando = false);
+            }
+        });
     }
 
     void ProcesarRed(Mensaje m)

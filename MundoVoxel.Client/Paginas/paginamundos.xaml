@@ -47,13 +47,13 @@
                 <Label x:Name="LblCrearClave" Margin="0,8,0,0" IsVisible="False" />
                 <Entry x:Name="EntPin" Keyboard="Numeric" IsVisible="False" MaxLength="4" />
                 <Label x:Name="LblCrearError" FontSize="13" TextColor="{StaticResource Peligro}" IsVisible="False" LineBreakMode="WordWrap" />
-                <Button x:Name="BtnCrearConfirmar" Margin="0,14,0,0" />
-                <Button x:Name="BtnCancelar" Style="{StaticResource BtnSecundario}" />
+                <Button x:Name="BtnCrearConfirmar" Clicked="OnCrearConfirmar" Margin="0,14,0,0" />
+                <Button x:Name="BtnCancelar" Style="{StaticResource BtnSecundario}" Clicked="OnCancelarCrear" />
             </VerticalStackLayout>
         </Border>
 
         <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,8,0,0">
-            <Button x:Name="BtnCrear" Clicked="OnAbrirCrear" HeightRequest="46" />
+            <Button x:Name="BtnCrear" Style="{StaticResource BtnSecundario}" Clicked="OnAbrirCrear" HeightRequest="46" />
             <Button x:Name="BtnDesconectar" Style="{StaticResource BtnSecundario}" Grid.Column="1" Clicked="OnDesconectar" HeightRequest="46" />
         </Grid>
     </Grid>

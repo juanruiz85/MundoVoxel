@@ -2,6 +2,17 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.2.1] - 2026-08-14
+
+### Corregido
+- **Pantalla de juego congelada al entrar al mundo**: el renderizador dibujaba miles de caras por frame con llamadas individuales a `ICanvas.FillPath` en el hilo de la UI, bloqueándola. Ahora:
+  - Nuevo `Juego/rasterizador.cs`: rasterizador por software (relleno de triángulos con z-buffer sobre un buffer BGR), portable Windows/Android.
+  - `RenderizadorVoxel.Rasterizar`: proyecta y rasteriza las caras en el buffer (dos pasadas: opacas y líquidas con alpha), sin llamadas nativas por cara.
+  - El render se ejecuta en **segundo plano** (`Task.Run`) con una instantánea de la cámara y los jugadores; el hilo de la UI solo asigna el frame a un control `Image` (`ImageSource.FromStream` con el BMP), manteniendo el `GraphicsView` para gestos y HUD. Resultado: **~215 FPS sin bloqueos**.
+- Botón «Crear mundo» duplicado y sin efecto: `BtnCrearConfirmar`/`BtnCancelar` no tenían `Clicked` conectado; se enlazaron los manejadores y el botón inferior pasó a «+ Nuevo mundo».
+- Título de la ventana WinUI vacío: `Window{ Title="MundoVoxel" }` en `app.xaml.cs`.
+- `paginajuego.xaml`: `IsHitTestVisible` (no existe en MAUI 10) → `InputTransparent`; anchos de chat con `%` inválidos → valores numéricos.
+
 ## [0.2.0] - 2026-08-13 (etapa 2)
 
 ### Añadido

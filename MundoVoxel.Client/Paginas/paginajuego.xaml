@@ -6,10 +6,12 @@
              BackgroundColor="Black">
 
     <Grid x:Name="Raiz">
+        <!-- Frame rasterizado en segundo plano (decodificado por la plataforma) -->
+        <Image x:Name="Pantalla" Aspect="Fill" InputTransparent="True" />
         <GraphicsView x:Name="Vista" />
 
         <!-- HUD superior -->
-        <VerticalStackLayout Padding="12,10" Spacing="2" HorizontalOptions="Start" VerticalOptions="Start" IsHitTestVisible="False">
+        <VerticalStackLayout Padding="12,10" Spacing="2" HorizontalOptions="Start" VerticalOptions="Start" InputTransparent="True">
             <Label x:Name="LblMundo" FontSize="15" FontAttributes="Bold" TextColor="White" />
             <Label x:Name="LblJugadores" FontSize="12" TextColor="#cfe0f0" />
             <Label x:Name="LblCoordenadas" FontSize="12" TextColor="#cfe0f0" />
@@ -22,13 +24,13 @@
                 TextColor="White" FontSize="20" Padding="0" />
 
         <!-- Chat -->
-        <Grid VerticalOptions="End" HorizontalOptions="Start" Margin="12,0,0,14" WidthRequest="430" MaximumWidthRequest="82%">
+        <Grid VerticalOptions="End" HorizontalOptions="Start" Margin="12,0,0,14" WidthRequest="430">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <CollectionView x:Name="Chat" Grid.Row="0" HeightRequest="170" MaximumHeightRequest="200"
-                            ItemsUpdatingScrollMode="KeepLastItemInView" IsHitTestVisible="False" />
+                            ItemsUpdatingScrollMode="KeepLastItemInView" InputTransparent="True" />
             <Grid Grid.Row="1" Margin="0,6,0,0">
                 <Entry x:Name="EntradaChat" ReturnType="Send" Completed="OnChatEnviado" IsVisible="False"
                        BackgroundColor="#cc10161f" TextColor="White" />
@@ -48,7 +50,7 @@
         <!-- Pausa -->
         <Border x:Name="Pausa" BackgroundColor="#cc10161f" IsVisible="False" StrokeThickness="0">
             <ScrollView>
-                <VerticalStackLayout Padding="26" Spacing="8" WidthRequest="340" MaximumWidthRequest="92%"
+                <VerticalStackLayout Padding="26" Spacing="8" WidthRequest="340" MaximumWidthRequest="600"
                                      HorizontalOptions="Center" VerticalOptions="Center">
                     <Label x:Name="LblPausaTitulo" FontSize="26" FontAttributes="Bold" HorizontalOptions="Center" />
                     <Button x:Name="BtnReanudar" Clicked="OnPausa" />

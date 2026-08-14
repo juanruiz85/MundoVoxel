@@ -22,6 +22,9 @@ public partial class App : Application
         {
             BarBackgroundColor = Color.FromArgb("#10161f"),
             BarTextColor = Colors.White,
-        });
+        })
+        {
+            Title = "MundoVoxel",
+        };
     }
 }

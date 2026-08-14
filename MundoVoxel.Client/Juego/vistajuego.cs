@@ -1,5 +1,6 @@
 using System.Numerics;
 using Microsoft.Maui.Graphics;
+using MundoVoxel.Client.Servicios;
 using MundoVoxel.Core;
 
 namespace MundoVoxel.Client.Juego;
@@ -7,11 +8,13 @@ namespace MundoVoxel.Client.Juego;
 /// <summary>
 /// Vista de la partida: cámara, física, raycast de bloques, jugadores remotos,
 /// entrada táctil (joystick + arrastrar) y HUD (mira, barra de bloques, joystick).
+/// El render pesado se hace en segundo plano (Rasterizador) y aquí solo se blitea.
 /// </summary>
 public sealed class VistaJuego : IDrawable
 {
     public Mundo Mundo = null!;
     public readonly RenderizadorVoxel Renderizador = new();
+    public readonly Rasterizador Raster = new();
     public readonly Camara Cam = new();
     public readonly ControladorJugador Jugador = new();
 
@@ -32,11 +35,9 @@ public sealed class VistaJuego : IDrawable
     // Jugadores remotos
     public sealed record JugadorRemoto(int Id, string Nombre, Vector3 Pos, float Ry, float Pitch, Color Color);
     public readonly Dictionary<int, JugadorRemoto> Remotos = new();
-    static readonly Color[] ColoresJugador =
-    {
-        Colors.Red, Colors.Yellow, Colors.Lime, Colors.Cyan, Colors.Magenta, Colors.Orange,
-        Colors.Purple, Colors.Pink, Colors.Teal, Colors.Gold, Colors.Silver, Colors.DeepSkyBlue,
-    };
+
+    /// <summary>Caja (AABB + color) de un jugador/mob para rasterizar en segundo plano.</summary>
+    public readonly record struct CajaJugador(Vector3 Min, Vector3 Max, Color Color);
 
     // Acciones pendientes de enviar (las consume la página)
     public GolpeRayo GolpeActual;
@@ -64,7 +65,7 @@ public sealed class VistaJuego : IDrawable
         _ultimoPunto = p;
         _distanciaTotal = 0;
         _inicioToque = DateTime.UtcNow;
-        if (esMovil && p.X < 400) // joystick en la mitad izquierda (móvil)
+        if (esMovil && p.X < 400)
         {
             _joystickActivo = true;
             _joystickOrigen = p;
@@ -112,7 +113,6 @@ public sealed class VistaJuego : IDrawable
             _joystick = Vector2.Zero;
             return;
         }
-        // ¿Fue un toque sin arrastrar? → colocar; doble toque → romper
         var duracion = (DateTime.UtcNow - _inicioToque).TotalMilliseconds;
         bool tap = duracion < 400 && _distanciaTotal < 18f;
         if (!tap) return;
@@ -127,7 +127,7 @@ public sealed class VistaJuego : IDrawable
         else PedirColocar();
     }
 
-    /// <summary>Actualiza física y golpe; se llama una vez por frame desde la página.</summary>
+    /// <summary>Actualiza física y golpe; se llama desde la página (hilo UI).</summary>
     public void Tick(float dt, Func<int, bool> estaPulsada, bool esMovil)
     {
         bool w = estaPulsada(Teclas.W), s = estaPulsada(Teclas.S), a = estaPulsada(Teclas.A), d = estaPulsada(Teclas.D);
@@ -151,18 +151,28 @@ public sealed class VistaJuego : IDrawable
         GolpeActual = Rayos.Lanzar(Mundo, Jugador.Ojo, Cam.Adelante, 6f);
     }
 
+    /// <summary>
+    /// Renderiza un frame completo en el rasterizador y lo devuelve como BMP.
+    /// Recibe una instantánea de la cámara y de las cajas para poder correr en segundo plano.
+    /// </summary>
+    public byte[] RenderFrame(int w, int h, Vector3 camPos, float yaw, float pitch, CajaJugador[] cajas)
+    {
+        var cam = new Camara { Pos = camPos, Yaw = yaw, Pitch = pitch };
+        Raster.Inicializar(w, h);
+        Renderizador.Rasterizar(Raster, Mundo, cam, w, h);
+        foreach (var caja in cajas)
+            Renderizador.RasterizarCaja(Raster, cam, caja.Min, caja.Max, caja.Color);
+        return Raster.ABmp();
+    }
+
     public void Draw(ICanvas c, RectF dirty)
     {
         int w = (int)dirty.Width, h = (int)dirty.Height;
         if (w <= 0 || h <= 0) return;
-        Renderizador.Dibujar(c, w, h, Cam, Mundo);
 
         foreach (var j in Remotos.Values)
         {
             var pos = j.Pos;
-            Renderizador.DibujarCaja(c, w, h, Cam,
-                new Vector3(pos.X - 0.3f, pos.Y, pos.Z - 0.3f),
-                new Vector3(pos.X + 0.3f, pos.Y + 1.8f, pos.Z + 0.3f), j.Color);
             DibujarNombre(c, w, h, pos + new Vector3(0, 2.1f, 0), j.Nombre);
         }
 
@@ -171,7 +181,6 @@ public sealed class VistaJuego : IDrawable
 
     void DibujarNombre(ICanvas c, int w, int h, Vector3 posMundo, string nombre)
     {
-        // Proyecta la posición del nombre
         var d = posMundo - Cam.Pos;
         float xc = Vector3.Dot(d, Cam.Derecha);
         float yc = Vector3.Dot(d, Vector3.Cross(Cam.Derecha, Cam.Adelante));
@@ -189,12 +198,10 @@ public sealed class VistaJuego : IDrawable
     {
         float cx = w / 2f, cy = h / 2f;
 
-        // Mira
         c.FillColor = new Color(1, 1, 1, 0.85f);
         c.FillRectangle(cx - 1, cy - 9, 2, 18);
         c.FillRectangle(cx - 9, cy - 1, 18, 2);
 
-        // Barra de bloques
         int n = BarraBloques.Length;
         const float slot = 40, gap = 4;
         float total = n * slot + (n - 1) * gap;
@@ -215,7 +222,6 @@ public sealed class VistaJuego : IDrawable
             c.FillRectangle(x + 6, y0 + 6, slot - 12, slot - 12);
         }
 
-        // Joystick visual (móvil)
         if (_joystickActivo)
         {
             c.FillColor = new Color(1, 1, 1, 0.22f);
