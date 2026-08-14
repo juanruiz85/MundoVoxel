@@ -29,6 +29,11 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(BorrarMundo), "BorrarMundo")]
 [JsonDerivedType(typeof(MundoBorrado), "MundoBorrado")]
 [JsonDerivedType(typeof(Mobs), "Mobs")]
+[JsonDerivedType(typeof(GolpearMob), "GolpearMob")]
+[JsonDerivedType(typeof(Drops), "Drops")]
+[JsonDerivedType(typeof(Inventario), "Inventario")]
+[JsonDerivedType(typeof(Craftear), "Craftear")]
+[JsonDerivedType(typeof(Cocinar), "Cocinar")]
 public abstract class Mensaje
 {
 }
@@ -73,6 +78,13 @@ public sealed class BorrarMundo : Mensaje { public string Id { get; set; } = "";
 public sealed class MundoBorrado : Mensaje { public string Id { get; set; } = ""; }
 public sealed class MobEstado { public int Id { get; set; } public byte Tipo { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } public float Ry { get; set; } }
 public sealed class Mobs : Mensaje { public List<MobEstado> Lista { get; set; } = new(); }
+public sealed class GolpearMob : Mensaje { public int Id { get; set; } }
+public sealed class DropEstado { public int Id { get; set; } public ushort Material { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
+public sealed class Drops : Mensaje { public List<DropEstado> Lista { get; set; } = new(); }
+public sealed class SlotEstado { public ushort Material { get; set; } public int Cantidad { get; set; } }
+public sealed class Inventario : Mensaje { public List<SlotEstado> Slots { get; set; } = new(); }
+public sealed class Craftear : Mensaje { public int Receta { get; set; } }
+public sealed class Cocinar : Mensaje { public int Receta { get; set; } }
 
 public static class Protocolo
 {

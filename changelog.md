@@ -2,6 +2,20 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.4.0] - 2026-08-14
+
+### Añadido (mecánicas de supervivencia del JS)
+- **Combate y drops**: el jugador golpea mobs (la acción de romper ataca al mob bajo la mira); al morir, el mob **suelta ítems** (botín por tipo) que aparecen en el suelo y se recogen al pasar.
+- **Inventario** por jugador (autoritativo en el servidor): romper bloques los mete al inventario; panel en el cliente (tecla `E`) con lista de ítems.
+- **Crafteo**: madera → 4 tablones, 2 tablones → 4 palos, 4 tablones → horno. Bloques nuevos: `Tablones` (12) y `Horno` (13).
+- **Cocina**: carne cruda → cocinada (cerdo/vaca/oveja) si hay un horno colocado cerca (mensaje `SIN_HORNO` en caso contrario).
+- Protocolo nuevo: `GolpearMob`, `Drops`, `Inventario`, `Craftear`, `Cocinar`.
+
+### Verificado
+- **Servidor como servicio de Windows**: `sc create MundoVoxelServer` → RUNNING, escucha en 0.0.0.0:25575 y sirve clientes reales (`Bienvenido` + `ListaMundos`). `appsettings.json` ahora se carga desde el directorio del ejecutable (en un servicio el CWD es System32).
+- **systemd** (Linux): unidad `deploy/mundovoxel-server.service` + `AddSystemd` validados (no ejecutable en esta máquina).
+- **Pruebas automáticas**: 27 comprobaciones (multijugador, mobs, romper→inventario, crafteo, cocina, drops).
+
 ## [0.3.0] - 2026-08-14
 
 ### Añadido

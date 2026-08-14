@@ -40,6 +40,16 @@ public sealed class VistaJuego : IDrawable
     public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos);
     public readonly Dictionary<int, MobRemoto> Mobs = new();
 
+    // Drops en el suelo (ítems que se recogen al pasar)
+    public sealed record DropRemoto(ushort Material, Vector3 Pos);
+    public readonly Dictionary<int, DropRemoto> Drops = new();
+
+    public static Color ColorMaterial(ushort m)
+    {
+        var (r, g, b) = Objetos.Color(m);
+        return Color.FromRgb(r, g, b);
+    }
+
     public static Color ColorMob(TipoMob t) => t switch
     {
         TipoMob.Cerdo => Color.FromArgb("#e79a9a"),
@@ -187,6 +197,42 @@ public sealed class VistaJuego : IDrawable
         foreach (var caja in cajas)
             Renderizador.RasterizarCaja(Raster, cam, caja.Min, caja.Max, caja.Color);
         return Raster.ABmp();
+    }
+
+    /// <summary>Devuelve el id del mob que está bajo la mira, o -1 si no apunta a ninguno.</summary>
+    public int BuscarMobApuntado()
+    {
+        var o = Cam.Pos;
+        var d = Cam.Adelante;
+        int mejor = -1;
+        float mejorT = 6f;
+        foreach (var (id, m) in Mobs)
+        {
+            var info = MobsInfo.Datos(m.Tipo);
+            float a = info.Ancho * 0.5f;
+            var min = m.Pos - new Vector3(a, 0, a);
+            var max = m.Pos + new Vector3(a, info.Alto, a);
+            if (IntersectaAabb(o, d, min, max, out float t) && t < mejorT)
+            {
+                mejorT = t;
+                mejor = id;
+            }
+        }
+        return mejor;
+    }
+
+    static bool IntersectaAabb(Vector3 o, Vector3 d, Vector3 min, Vector3 max, out float t)
+    {
+        t = 0f;
+        float tmin = 0f, tmax = 6f;
+        if (MathF.Abs(d.X) < 1e-6f) { if (o.X < min.X || o.X > max.X) return false; }
+        else { float t1 = (min.X - o.X) / d.X, t2 = (max.X - o.X) / d.X; if (t1 > t2) (t1, t2) = (t2, t1); tmin = MathF.Max(tmin, t1); tmax = MathF.Min(tmax, t2); if (tmin > tmax) return false; }
+        if (MathF.Abs(d.Y) < 1e-6f) { if (o.Y < min.Y || o.Y > max.Y) return false; }
+        else { float t1 = (min.Y - o.Y) / d.Y, t2 = (max.Y - o.Y) / d.Y; if (t1 > t2) (t1, t2) = (t2, t1); tmin = MathF.Max(tmin, t1); tmax = MathF.Min(tmax, t2); if (tmin > tmax) return false; }
+        if (MathF.Abs(d.Z) < 1e-6f) { if (o.Z < min.Z || o.Z > max.Z) return false; }
+        else { float t1 = (min.Z - o.Z) / d.Z, t2 = (max.Z - o.Z) / d.Z; if (t1 > t2) (t1, t2) = (t2, t1); tmin = MathF.Max(tmin, t1); tmax = MathF.Min(tmax, t2); if (tmin > tmax) return false; }
+        t = tmin;
+        return tmin >= 0f;
     }
 
     public void Draw(ICanvas c, RectF dirty)

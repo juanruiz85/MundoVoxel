@@ -15,6 +15,8 @@ public static class Bloques
     public const ushort Hoja = 9;
     public const ushort Cristal = 10;
     public const ushort Lecho = 11;
+    public const ushort Tablones = 12;
+    public const ushort Horno = 13;
 
     public sealed record InfoBloque(string ClaveLang, bool Solido, bool Transparente, bool Liquido);
 
@@ -33,6 +35,8 @@ public static class Bloques
         new("bloque.hoja",    true,  true,  false), // 9
         new("bloque.cristal", true,  true,  false), // 10
         new("bloque.lecho",   true,  false, false), // 11
+        new("bloque.tablones", true,  false, false), // 12
+        new("bloque.horno",    true,  false, false), // 13
     };
 
     public static bool EsSolido(ushort b) => b < Info.Length && Info[b].Solido;

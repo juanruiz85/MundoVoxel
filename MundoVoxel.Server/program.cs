@@ -16,7 +16,8 @@ public static class Program
     public static async Task Main(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
-        builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+        // Cargar configuración desde el directorio del ejecutable (en un servicio de Windows el CWD es System32)
+        builder.Configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: true, reloadOnChange: false);
 
         var puerto = builder.Configuration.GetValue("Servidor:Puerto", 25575);
         var nombre = builder.Configuration.GetValue("Servidor:Nombre", "MundoVoxel");

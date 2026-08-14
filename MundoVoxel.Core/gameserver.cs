@@ -81,6 +81,7 @@ public sealed class GameServer : IAsyncDisposable
         public Vector3 Pos;
         public float Ry, Pitch;
         public bool EnMundo;
+        public readonly List<SlotInventario> Inventario = new();
 
         public void Cerrar()
         {
@@ -100,6 +101,8 @@ public sealed class GameServer : IAsyncDisposable
         public readonly Dictionary<int, ConexionJugador> Jugadores = new();
         public readonly List<Mob> Mobs = new();
         public int SiguienteMobId;
+        public readonly List<Drop> Drops = new();
+        public int SiguienteDropId;
         public int Conteo => Jugadores.Count;
     }
 
@@ -201,6 +204,18 @@ public sealed class GameServer : IAsyncDisposable
 
             case BorrarMundo bm:
                 BorrarMundo(c, bm);
+                break;
+
+            case GolpearMob gm:
+                GolpearMob(c, gm);
+                break;
+
+            case Craftear cr:
+                Craftear(c, cr);
+                break;
+
+            case Cocinar co:
+                Cocinar(c, co);
                 break;
         }
     }
@@ -378,6 +393,8 @@ public sealed class GameServer : IAsyncDisposable
             var actual = m.Obtener(rb.X, rb.Y, rb.Z);
             if (!Bloques.EsRompible(actual)) return;
             m.Poner(rb.X, rb.Y, rb.Z, Bloques.Aire);
+            AgregarInventario(c, actual, 1);
+            Enviar(c, InventarioActual(c));
             Broadcast(mundo.Id, new BloqueCambio { X = rb.X, Y = rb.Y, Z = rb.Z, Bloque = Bloques.Aire });
         }
     }
@@ -454,7 +471,6 @@ public sealed class GameServer : IAsyncDisposable
                 {
                     if (mundo.Conteo == 0) continue; // no simular mundos vacios
                     ActualizarMobs(mundo, dt);
-                    if (mundo.Mobs.Count == 0) continue;
                     var msg = new Mobs
                     {
                         Lista = mundo.Mobs.Select(m => new MobEstado
@@ -465,6 +481,29 @@ public sealed class GameServer : IAsyncDisposable
                         }).ToList(),
                     };
                     foreach (var j in mundo.Jugadores.Values) Enviar(j, msg);
+
+                    // Recoger drops cercanos a los jugadores
+                    for (int i = mundo.Drops.Count - 1; i >= 0; i--)
+                    {
+                        var drop = mundo.Drops[i];
+                        foreach (var j in mundo.Jugadores.Values)
+                        {
+                            if (Vector3.Distance(j.Pos, new Vector3(drop.Px, drop.Py, drop.Pz)) < 1.6f)
+                            {
+                                AgregarInventario(j, drop.Material, 1);
+                                Enviar(j, InventarioActual(j));
+                                mundo.Drops.RemoveAt(i);
+                                break;
+                            }
+                        }
+                    }
+
+                    // Difundir drops restantes (incluye lista vacia para sincronizar el cliente)
+                    var dmsg = new Drops
+                    {
+                        Lista = mundo.Drops.Select(d => new DropEstado { Id = d.Id, Material = d.Material, Px = d.Px, Py = d.Py, Pz = d.Pz }).ToList(),
+                    };
+                    foreach (var j in mundo.Jugadores.Values) Enviar(j, dmsg);
                 }
             }
         }
@@ -489,7 +528,7 @@ public sealed class GameServer : IAsyncDisposable
                 Px = x + 0.5f, Py = y, Pz = z + 0.5f,
                 Ry = 0,
                 TiempoCambio = (float)rnd.NextDouble() * 3f,
-                Salud = 20,
+                Salud = MobsInfo.Datos(tipo).Hostil ? 20 : 10,
             });
         }
     }
@@ -565,6 +604,115 @@ public sealed class GameServer : IAsyncDisposable
             if (Bloques.EsSolido(m.Obtener(bx, yy, bz))) return false;
         return true;
     }
+
+    // ------------------------------------------------------------------ inventario y drops
+
+    void GolpearMob(ConexionJugador c, GolpearMob gm)
+    {
+        lock (_cerrojo)
+        {
+            if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            var mob = mundo.Mobs.FirstOrDefault(m => m.Id == gm.Id);
+            if (mob == null) return;
+            if (Vector3.Distance(c.Pos, new Vector3(mob.Px, mob.Py, mob.Pz)) > 5f) return;
+            mob.Salud -= 5;
+            if (mob.Salud <= 0)
+            {
+                mundo.Mobs.Remove(mob);
+                var rnd = Random.Shared;
+                foreach (var (material, min, max) in Objetos.Loot(mob.Tipo))
+                {
+                    int n = rnd.Next(min, max + 1);
+                    if (n <= 0) continue;
+                    mundo.Drops.Add(new Drop { Id = ++mundo.SiguienteDropId, Material = material, Px = mob.Px, Py = mob.Py, Pz = mob.Pz });
+                }
+            }
+        }
+    }
+
+    void Craftear(ConexionJugador c, Craftear cr)
+    {
+        lock (_cerrojo)
+        {
+            if (!c.EnMundo) return;
+            if (cr.Receta < 0 || cr.Receta >= Objetos.RecetasCrafteo.Length) return;
+            var r = Objetos.RecetasCrafteo[cr.Receta];
+            if (!Quitar(c, r.Entrada, r.EntradaCantidad)) return;
+            AgregarInventario(c, r.Salida, r.SalidaCantidad);
+            Enviar(c, InventarioActual(c));
+        }
+    }
+
+    void Cocinar(ConexionJugador c, Cocinar co)
+    {
+        lock (_cerrojo)
+        {
+            if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            if (co.Receta < 0 || co.Receta >= Objetos.RecetasCocina.Length) return;
+            if (!HayHornoCerca(mundo.Mundo, c.Pos))
+            {
+                Enviar(c, new ErrorServidor { Codigo = "SIN_HORNO", Mensaje = "Coloca un horno cerca para cocinar." });
+                return;
+            }
+            var r = Objetos.RecetasCocina[co.Receta];
+            if (!Quitar(c, r.Entrada, r.EntradaCantidad)) return;
+            AgregarInventario(c, r.Salida, r.SalidaCantidad);
+            Enviar(c, InventarioActual(c));
+        }
+    }
+
+    bool HayHornoCerca(Mundo m, Vector3 pos)
+    {
+        int r = 5;
+        for (int x = (int)pos.X - r; x <= (int)pos.X + r; x++)
+            for (int y = (int)pos.Y - r; y <= (int)pos.Y + r; y++)
+                for (int z = (int)pos.Z - r; z <= (int)pos.Z + r; z++)
+                    if (m.Obtener(x, y, z) == Bloques.Horno) return true;
+        return false;
+    }
+
+    static void AgregarInventario(ConexionJugador c, ushort material, int cantidad)
+    {
+        if (cantidad <= 0) return;
+        for (int i = 0; i < c.Inventario.Count; i++)
+        {
+            if (c.Inventario[i].Material == material)
+            {
+                c.Inventario[i] = c.Inventario[i] with { Cantidad = c.Inventario[i].Cantidad + cantidad };
+                return;
+            }
+        }
+        c.Inventario.Add(new SlotInventario(material, cantidad));
+    }
+
+    static int Contar(ConexionJugador c, ushort material)
+    {
+        int n = 0;
+        foreach (var s in c.Inventario) if (s.Material == material) n += s.Cantidad;
+        return n;
+    }
+
+    static bool Quitar(ConexionJugador c, ushort material, int cantidad)
+    {
+        if (Contar(c, material) < cantidad) return false;
+        int restante = cantidad;
+        for (int i = c.Inventario.Count - 1; i >= 0 && restante > 0; i--)
+        {
+            var s = c.Inventario[i];
+            if (s.Material != material) continue;
+            int quitar = Math.Min(restante, s.Cantidad);
+            restante -= quitar;
+            int nuevo = s.Cantidad - quitar;
+            if (nuevo <= 0) c.Inventario.RemoveAt(i);
+            else c.Inventario[i] = s with { Cantidad = nuevo };
+        }
+        return restante == 0;
+    }
+
+    static Inventario InventarioActual(ConexionJugador c) => new()
+    {
+        Slots = c.Inventario.Select(s => new SlotEstado { Material = s.Material, Cantidad = s.Cantidad }).ToList(),
+    };
 
     // ------------------------------------------------------------------ envÃ­o
 

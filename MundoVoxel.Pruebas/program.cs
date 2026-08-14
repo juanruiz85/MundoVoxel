@@ -84,6 +84,79 @@ await c1.Enviar(new RomperBloque { X = 999, Y = 999, Z = 999 });
 var cambioInvalido = await c1.LeerHasta<BloqueCambio>(timeoutMs: 600);
 Comprobar(cambioInvalido == null, "romper fuera del mundo se ignora");
 
+// ---------- inventario, crafteo, cocina y drops ----------
+Console.WriteLine("Mecanicas: inventario, crafteo, cocina y drops de mobs.");
+
+// Romper el ladrillo colocado: el servidor envia Inventario ANTES que BloqueCambio
+await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
+var invLadrillo = await c1.LeerHasta<Inventario>();
+await c1.LeerHasta<BloqueCambio>();
+Comprobar(invLadrillo?.Slots.Any(s => s.Material == Bloques.Ladrillo && s.Cantidad >= 1) == true, "romper bloque lo mete al inventario");
+
+// Conseguir madera: colocar y romper un tronco
+await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Madera });
+await c1.LeerHasta<BloqueCambio>();
+await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
+await c1.LeerHasta<Inventario>();
+await c1.LeerHasta<BloqueCambio>();
+
+// Craftear receta 0: madera -> 4 tablones
+await c1.Enviar(new Craftear { Receta = 0 });
+var invTablones = await c1.LeerHasta<Inventario>();
+Comprobar(invTablones?.Slots.Any(s => s.Material == Bloques.Tablones && s.Cantidad >= 4) == true, "craftear madera -> 4 tablones");
+
+// Craftear receta 2: 4 tablones -> horno
+await c1.Enviar(new Craftear { Receta = 2 });
+var invHorno = await c1.LeerHasta<Inventario>();
+Comprobar(invHorno?.Slots.Any(s => s.Material == Bloques.Horno && s.Cantidad >= 1) == true, "craftear 4 tablones -> horno");
+
+// Cocinar sin horno cerca -> error
+await c1.Enviar(new Cocinar { Receta = 0 });
+var errHorno = await c1.LeerHasta<ErrorServidor>();
+Comprobar(errHorno?.Codigo == "SIN_HORNO", "cocinar sin horno devuelve SIN_HORNO");
+
+// Matar un mob pasivo para obtener carne cruda (drop + auto-recogida)
+Console.WriteLine("  matando un mob pasivo para probar drops...");
+MobEstado? objetivo = null;
+for (int intento = 0; intento < 6 && objetivo == null; intento++)
+{
+    var mobsMsg = await c1.LeerHasta<Mobs>(timeoutMs: 2000);
+    if (mobsMsg == null) break;
+    objetivo = mobsMsg.Lista.FirstOrDefault(m => m.Tipo <= 2);
+}
+Comprobar(objetivo != null, "hay un mob pasivo en el mundo");
+
+if (objetivo != null)
+{
+    // Teletransportar a Ana junto al mob (el servidor actualiza Pos con el mensaje Posicion)
+    await c1.Enviar(new Posicion { Px = objetivo.Px, Py = objetivo.Py, Pz = objetivo.Pz, Ry = 0, Pitch = 0 });
+    await Task.Delay(150);
+
+    for (int i = 0; i < 5; i++) await c1.Enviar(new GolpearMob { Id = objetivo.Id });
+    await Task.Delay(900); // esperar drop + auto-recogida
+
+    var invDrop = await c1.LeerHasta<Inventario>(timeoutMs: 2000);
+    bool tieneCarne = invDrop != null && invDrop.Slots.Any(s =>
+        s.Material == (ushort)ItemId.CarneCrudaCerdo || s.Material == (ushort)ItemId.CarneCrudaVaca || s.Material == (ushort)ItemId.CarneCrudaOveja);
+    Comprobar(tieneCarne, "matar mob -> drop recogido -> carne cruda en inventario");
+
+    // Cocinar: volver al spawn, colocar un horno y cocinar la carne
+    if (tieneCarne)
+    {
+        await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+        await Task.Delay(100);
+        await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Horno });
+        await c1.LeerHasta<BloqueCambio>();
+        int recetaCocina = invDrop!.Slots.Any(s => s.Material == (ushort)ItemId.CarneCrudaCerdo) ? 0
+            : invDrop.Slots.Any(s => s.Material == (ushort)ItemId.CarneCrudaVaca) ? 1 : 2;
+        await c1.Enviar(new Cocinar { Receta = recetaCocina });
+        var invCocido = await c1.LeerHasta<Inventario>(timeoutMs: 2000);
+        Comprobar(invCocido != null && invCocido.Slots.Any(s =>
+            s.Material == (ushort)ItemId.CarneCocinadaCerdo || s.Material == (ushort)ItemId.CarneCocinadaVaca || s.Material == (ushort)ItemId.CarneCocinadaOveja),
+            "cocinar carne cruda -> carne cocinada");
+    }
+}
+
 // ---------- chat ----------
 await c1.Enviar(new Chat { Texto = "¡Hola a todos!" });
 var chat = await c2.LeerHasta<Chat>();

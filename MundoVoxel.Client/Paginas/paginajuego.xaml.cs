@@ -30,6 +30,7 @@ public partial class PaginaJuego : ContentPage
     static bool _tecladoVinculado;
     bool _saliendo;
     bool _renderizando;
+    List<SlotEstado> _inventario = new();
 
     static readonly Color[] ColoresRemoto =
     {
@@ -68,6 +69,13 @@ public partial class PaginaJuego : ContentPage
         BtnBorrarMundo.Text = idioma.O("pausa.borrar_mundo");
         BtnSalirMundo.Text = idioma.O("pausa.salir_mundo");
         BtnDesconectar.Text = idioma.O("pausa.desconectar");
+        BtnInventario.Text = "Inventario (E)";
+        BtnCraft0.Text = "Madera -> 4 tablones";
+        BtnCraft1.Text = "2 tablones -> 4 palos";
+        BtnCraft2.Text = "4 tablones -> horno";
+        BtnCocina0.Text = "Cerdo crudo -> cocinado";
+        BtnCocina1.Text = "Vaca cruda -> cocinada";
+        BtnCocina2.Text = "Oveja cruda -> cocinada";
         BtnDistancia.Text = idioma.O("juego.distancia", NombreDistancia());
         LblControlesPausa.Text = idioma.O("pausa.controles");
         EntradaChat.Placeholder = idioma.O("chat.placeholder");
@@ -147,8 +155,16 @@ public partial class PaginaJuego : ContentPage
 
             if (_vista.ConsumirRomper())
             {
-                var g = _vista.GolpeActual;
-                _red.Enviar(new RomperBloque { X = g.X, Y = g.Y, Z = g.Z });
+                int mobId = _vista.BuscarMobApuntado();
+                if (mobId >= 0)
+                {
+                    _red.Enviar(new GolpearMob { Id = mobId });
+                }
+                else
+                {
+                    var g = _vista.GolpeActual;
+                    _red.Enviar(new RomperBloque { X = g.X, Y = g.Y, Z = g.Z });
+                }
             }
             if (_vista.ConsumirColocar())
             {
@@ -217,6 +233,14 @@ public partial class PaginaJuego : ContentPage
                 new Vector3(m.Pos.X - a, m.Pos.Y, m.Pos.Z - a),
                 new Vector3(m.Pos.X + a, m.Pos.Y + info.Alto, m.Pos.Z + a),
                 VistaJuego.ColorMob(m.Tipo)));
+        }
+        foreach (var d in _vista.Drops.Values)
+        {
+            const float s = 0.25f;
+            cajas.Add(new VistaJuego.CajaJugador(
+                new Vector3(d.Pos.X - s, d.Pos.Y, d.Pos.Z - s),
+                new Vector3(d.Pos.X + s, d.Pos.Y + 0.5f, d.Pos.Z + s),
+                VistaJuego.ColorMaterial(d.Material)));
         }
         var cajasArr = cajas.ToArray();
 
@@ -288,6 +312,17 @@ public partial class PaginaJuego : ContentPage
                     _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz));
                 break;
 
+            case Drops ds:
+                _vista.Drops.Clear();
+                foreach (var d in ds.Lista)
+                    _vista.Drops[d.Id] = new VistaJuego.DropRemoto(d.Material, new Vector3(d.Px, d.Py, d.Pz));
+                break;
+
+            case Inventario inv:
+                _inventario = inv.Slots;
+                ActualizarPanelInventario();
+                break;
+
             case Chat ch:
                 AgregarChat($"{ch.Nombre}: {ch.Texto}");
                 break;
@@ -333,6 +368,7 @@ public partial class PaginaJuego : ContentPage
         if (_pausado) return;
         if (codigo == Teclas.F) { AlternarVolar(); return; }
         if (codigo == Teclas.R) { _vista.PedirRomper(); return; }
+        if (codigo == Teclas.E) { AlternarInventario(); return; }
         if (codigo >= Teclas.Num1 && codigo <= Teclas.Num9)
         {
             _vista.Slot = codigo - Teclas.Num1;
@@ -370,6 +406,38 @@ public partial class PaginaJuego : ContentPage
     void OnBtnColocar(object? sender, EventArgs e) => _vista.PedirColocar();
     void OnSaltarPulsado(object? sender, EventArgs e) => _vista.BotonSaltar = true;
     void OnSaltarSoltado(object? sender, EventArgs e) => _vista.BotonSaltar = false;
+
+    // ------------------------------------------------------------- inventario
+
+    void OnInventario(object? sender, EventArgs e) => AlternarInventario();
+    void OnCerrarInv(object? sender, EventArgs e) => AlternarInventario();
+
+    void AlternarInventario()
+    {
+        Pausa.IsVisible = false;
+        _pausado = false;
+        PanelInv.IsVisible = !PanelInv.IsVisible;
+        if (PanelInv.IsVisible) ActualizarPanelInventario();
+    }
+
+    void ActualizarPanelInventario()
+    {
+        LblInventario.Text = _inventario.Count == 0
+            ? "(vacío)"
+            : string.Join("\n", _inventario.Select(s => $"{Objetos.Nombre(s.Material)} x {s.Cantidad}"));
+    }
+
+    void OnCraft(object? sender, EventArgs e)
+    {
+        if (sender is Button b && int.TryParse(b.CommandParameter?.ToString(), out int r))
+            _red.Enviar(new Craftear { Receta = r });
+    }
+
+    void OnCocinar(object? sender, EventArgs e)
+    {
+        if (sender is Button b && int.TryParse(b.CommandParameter?.ToString(), out int r))
+            _red.Enviar(new Cocinar { Receta = r });
+    }
 
     void AlternarVolar()
     {
