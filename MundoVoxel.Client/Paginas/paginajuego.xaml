@@ -73,13 +73,9 @@
                     <Label x:Name="LblInvTitulo" Text="Inventario" FontSize="24" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center" />
                     <Label x:Name="LblInventario" FontSize="14" TextColor="#cfe0f0" LineBreakMode="WordWrap" />
                     <Label x:Name="LblInvCrafteo" Text="Crafteo" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0" />
-                    <Button x:Name="BtnCraft0" Clicked="OnCraft" CommandParameter="0" />
-                    <Button x:Name="BtnCraft1" Clicked="OnCraft" CommandParameter="1" />
-                    <Button x:Name="BtnCraft2" Clicked="OnCraft" CommandParameter="2" />
+                    <VerticalStackLayout x:Name="ListaCrafteo" Spacing="4" />
                     <Label x:Name="LblInvCocina" Text="Cocina (necesita un horno cerca)" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0" />
-                    <Button x:Name="BtnCocina0" Clicked="OnCocinar" CommandParameter="0" />
-                    <Button x:Name="BtnCocina1" Clicked="OnCocinar" CommandParameter="1" />
-                    <Button x:Name="BtnCocina2" Clicked="OnCocinar" CommandParameter="2" />
+                    <VerticalStackLayout x:Name="ListaCocina" Spacing="4" />
                     <Button x:Name="BtnCerrarInv" Text="Cerrar" Clicked="OnCerrarInv" Margin="0,12,0,0" />
                 </VerticalStackLayout>
             </ScrollView>

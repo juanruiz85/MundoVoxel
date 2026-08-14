@@ -70,12 +70,7 @@ public partial class PaginaJuego : ContentPage
         BtnSalirMundo.Text = idioma.O("pausa.salir_mundo");
         BtnDesconectar.Text = idioma.O("pausa.desconectar");
         BtnInventario.Text = "Inventario (E)";
-        BtnCraft0.Text = "Madera -> 4 tablones";
-        BtnCraft1.Text = "2 tablones -> 4 palos";
-        BtnCraft2.Text = "4 tablones -> horno";
-        BtnCocina0.Text = "Cerdo crudo -> cocinado";
-        BtnCocina1.Text = "Vaca cruda -> cocinada";
-        BtnCocina2.Text = "Oveja cruda -> cocinada";
+        ConstruirBotonesRecetas();
         BtnDistancia.Text = idioma.O("juego.distancia", NombreDistancia());
         LblControlesPausa.Text = idioma.O("pausa.controles");
         EntradaChat.Placeholder = idioma.O("chat.placeholder");
@@ -425,6 +420,23 @@ public partial class PaginaJuego : ContentPage
         LblInventario.Text = _inventario.Count == 0
             ? "(vacío)"
             : string.Join("\n", _inventario.Select(s => $"{Objetos.Nombre(s.Material)} x {s.Cantidad}"));
+    }
+
+    /// <summary>Construye los botones de recetas (crafteo + cocina) dinámicamente.</summary>
+    void ConstruirBotonesRecetas()
+    {
+        for (int i = 0; i < Objetos.RecetasCrafteo.Length; i++)
+        {
+            var b = new Button { Text = Objetos.RecetasCrafteo[i].Nombre, CommandParameter = i, FontSize = 13 };
+            b.Clicked += OnCraft;
+            ListaCrafteo.Children.Add(b);
+        }
+        for (int i = 0; i < Objetos.RecetasCocina.Length; i++)
+        {
+            var b = new Button { Text = Objetos.RecetasCocina[i].Nombre, CommandParameter = i, FontSize = 13 };
+            b.Clicked += OnCocinar;
+            ListaCocina.Children.Add(b);
+        }
     }
 
     void OnCraft(object? sender, EventArgs e)

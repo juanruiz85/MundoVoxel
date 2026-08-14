@@ -93,22 +93,64 @@ var invLadrillo = await c1.LeerHasta<Inventario>();
 await c1.LeerHasta<BloqueCambio>();
 Comprobar(invLadrillo?.Slots.Any(s => s.Material == Bloques.Ladrillo && s.Cantidad >= 1) == true, "romper bloque lo mete al inventario");
 
-// Conseguir madera: colocar y romper un tronco
-await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Madera });
+// Conseguir 3 madera (colocar y romper troncos)
+for (int i = 0; i < 3; i++)
+{
+    await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Madera });
+    await c1.LeerHasta<BloqueCambio>();
+    await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
+    await c1.LeerHasta<Inventario>();
+    await c1.LeerHasta<BloqueCambio>();
+}
+
+// 3 x madera -> 12 tablones (receta 0)
+Inventario? invTablones = null;
+for (int i = 0; i < 3; i++) { await c1.Enviar(new Craftear { Receta = 0 }); invTablones = await c1.LeerHasta<Inventario>(); }
+Comprobar(invTablones?.Slots.Any(s => s.Material == Bloques.Tablones && s.Cantidad >= 12) == true, "craftear madera -> tablones (3x4=12)");
+
+// Palos (receta 1): 2 tablones -> 4 palos
+await c1.Enviar(new Craftear { Receta = 1 });
+var invPalos = await c1.LeerHasta<Inventario>();
+Comprobar(invPalos?.Slots.Any(s => s.Material == (ushort)ItemId.Palo && s.Cantidad >= 4) == true, "craftear 2 tablones -> 4 palos");
+
+// Mesa de trabajo (receta 2): 4 tablones -> mesa
+await c1.Enviar(new Craftear { Receta = 2 });
+var invMesa = await c1.LeerHasta<Inventario>();
+Comprobar(invMesa?.Slots.Any(s => s.Material == Bloques.Mesa) == true, "craftear 4 tablones -> mesa de trabajo");
+
+// Picar piedra SIN pico: no suelta bloque
+await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
 await c1.LeerHasta<BloqueCambio>();
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-await c1.LeerHasta<Inventario>();
+var invSinPico = await c1.LeerHasta<Inventario>(timeoutMs: 400);
 await c1.LeerHasta<BloqueCambio>();
+Comprobar(invSinPico == null || !invSinPico.Slots.Any(s => s.Material == Bloques.Piedra), "sin pico, la piedra no suelta bloque");
 
-// Craftear receta 0: madera -> 4 tablones
-await c1.Enviar(new Craftear { Receta = 0 });
-var invTablones = await c1.LeerHasta<Inventario>();
-Comprobar(invTablones?.Slots.Any(s => s.Material == Bloques.Tablones && s.Cantidad >= 4) == true, "craftear madera -> 4 tablones");
+// Pico de madera (receta 5): 3 tablones + 2 palos
+await c1.Enviar(new Craftear { Receta = 5 });
+var invPico = await c1.LeerHasta<Inventario>();
+Comprobar(invPico?.Slots.Any(s => s.Material == (ushort)ItemId.PicoMadera) == true, "craftear pico de madera");
 
-// Craftear receta 2: 4 tablones -> horno
-await c1.Enviar(new Craftear { Receta = 2 });
+// Picar piedra CON pico: suelta bloque (8 veces para el horno)
+await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
+await c1.LeerHasta<BloqueCambio>();
+await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
+var invConPico = await c1.LeerHasta<Inventario>();
+await c1.LeerHasta<BloqueCambio>();
+Comprobar(invConPico?.Slots.Any(s => s.Material == Bloques.Piedra) == true, "con pico, la piedra suelta bloque");
+for (int i = 0; i < 7; i++)
+{
+    await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
+    await c1.LeerHasta<BloqueCambio>();
+    await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
+    await c1.LeerHasta<Inventario>();
+    await c1.LeerHasta<BloqueCambio>();
+}
+
+// Horno (receta 3): 8 piedra -> horno
+await c1.Enviar(new Craftear { Receta = 3 });
 var invHorno = await c1.LeerHasta<Inventario>();
-Comprobar(invHorno?.Slots.Any(s => s.Material == Bloques.Horno && s.Cantidad >= 1) == true, "craftear 4 tablones -> horno");
+Comprobar(invHorno?.Slots.Any(s => s.Material == Bloques.Horno) == true, "craftear 8 piedra -> horno");
 
 // Cocinar sin horno cerca -> error
 await c1.Enviar(new Cocinar { Receta = 0 });

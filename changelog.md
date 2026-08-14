@@ -2,6 +2,21 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.5.0] - 2026-08-14
+
+### Añadido (crafteos estilo Minecraft)
+- **Recetas clásicas (Indev)** con los materiales disponibles:
+  - Madera → 4 tablones (1 tronco = 4 tablones).
+  - 2 tablones → 4 palos (vertical).
+  - 4 tablones → mesa de trabajo (2×2).
+  - 8 piedra → horno (anillo 3×3).
+  - 4 arena → arenisca (2×2).
+  - **Herramientas de madera y piedra**: pico, espada, hacha, pala y azada, con sus combinaciones correctas (p. ej. pico = 3 material + 2 palos, espada = 2 material + 1 palo).
+- **Bloques nuevos**: Mesa de trabajo (14) y Arenisca (15).
+- **Ítems nuevos**: 10 herramientas.
+- **Mecánicas**: la piedra requiere un **pico** para soltar su bloque; la **espada** aumenta el daño a mobs (+2 madera, +4 piedra).
+- Panel de inventario con botones de recetas generados dinámicamente.
+
 ## [0.4.0] - 2026-08-14
 
 ### Añadido (mecánicas de supervivencia del JS)

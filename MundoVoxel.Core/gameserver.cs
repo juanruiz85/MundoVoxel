@@ -393,8 +393,12 @@ public sealed class GameServer : IAsyncDisposable
             var actual = m.Obtener(rb.X, rb.Y, rb.Z);
             if (!Bloques.EsRompible(actual)) return;
             m.Poner(rb.X, rb.Y, rb.Z, Bloques.Aire);
-            AgregarInventario(c, actual, 1);
-            Enviar(c, InventarioActual(c));
+            // La piedra requiere un pico para soltar su bloque (como en Minecraft)
+            if (actual != Bloques.Piedra || TienePico(c))
+            {
+                AgregarInventario(c, actual, 1);
+                Enviar(c, InventarioActual(c));
+            }
             Broadcast(mundo.Id, new BloqueCambio { X = rb.X, Y = rb.Y, Z = rb.Z, Bloque = Bloques.Aire });
         }
     }
@@ -615,7 +619,7 @@ public sealed class GameServer : IAsyncDisposable
             var mob = mundo.Mobs.FirstOrDefault(m => m.Id == gm.Id);
             if (mob == null) return;
             if (Vector3.Distance(c.Pos, new Vector3(mob.Px, mob.Py, mob.Pz)) > 5f) return;
-            mob.Salud -= 5;
+            mob.Salud -= 5 + MejorDanioEspada(c);
             if (mob.Salud <= 0)
             {
                 mundo.Mobs.Remove(mob);
@@ -637,7 +641,10 @@ public sealed class GameServer : IAsyncDisposable
             if (!c.EnMundo) return;
             if (cr.Receta < 0 || cr.Receta >= Objetos.RecetasCrafteo.Length) return;
             var r = Objetos.RecetasCrafteo[cr.Receta];
-            if (!Quitar(c, r.Entrada, r.EntradaCantidad)) return;
+            foreach (var ing in r.Ingredientes)
+                if (Contar(c, ing.Material) < ing.Cantidad) return;
+            foreach (var ing in r.Ingredientes)
+                Quitar(c, ing.Material, ing.Cantidad);
             AgregarInventario(c, r.Salida, r.SalidaCantidad);
             Enviar(c, InventarioActual(c));
         }
@@ -655,7 +662,10 @@ public sealed class GameServer : IAsyncDisposable
                 return;
             }
             var r = Objetos.RecetasCocina[co.Receta];
-            if (!Quitar(c, r.Entrada, r.EntradaCantidad)) return;
+            foreach (var ing in r.Ingredientes)
+                if (Contar(c, ing.Material) < ing.Cantidad) return;
+            foreach (var ing in r.Ingredientes)
+                Quitar(c, ing.Material, ing.Cantidad);
             AgregarInventario(c, r.Salida, r.SalidaCantidad);
             Enviar(c, InventarioActual(c));
         }
@@ -669,6 +679,15 @@ public sealed class GameServer : IAsyncDisposable
                 for (int z = (int)pos.Z - r; z <= (int)pos.Z + r; z++)
                     if (m.Obtener(x, y, z) == Bloques.Horno) return true;
         return false;
+    }
+
+    static bool TienePico(ConexionJugador c) => c.Inventario.Any(s => Objetos.EsPico(s.Material));
+
+    static int MejorDanioEspada(ConexionJugador c)
+    {
+        int mejor = 0;
+        foreach (var s in c.Inventario) mejor = Math.Max(mejor, Objetos.DanioEspada(s.Material));
+        return mejor;
     }
 
     static void AgregarInventario(ConexionJugador c, ushort material, int cantidad)
