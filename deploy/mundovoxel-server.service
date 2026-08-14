@@ -1,0 +1,17 @@
+[Unit]
+Description=MundoVoxel Server (multijugador)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mundovoxel
+ExecStart=/opt/mundovoxel/MundoVoxel.Server
+Restart=always
+RestartSec=3
+# Crea un usuario sin privilegios para el servicio:
+#   sudo useradd -r -s /usr/sbin/nologin mundovoxel
+User=mundovoxel
+# Los mundos viven en memoria; no se escribe nada en disco.
+
+[Install]
+WantedBy=multi-user.target
