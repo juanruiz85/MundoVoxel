@@ -65,20 +65,25 @@
             </ScrollView>
         </Border>
 
-        <!-- Inventario / crafteo / cocina -->
-        <Border x:Name="PanelInv" BackgroundColor="#e610161f" IsVisible="False" StrokeThickness="0">
-            <ScrollView>
-                <VerticalStackLayout Padding="20" Spacing="6" WidthRequest="440" MaximumWidthRequest="600"
-                                     HorizontalOptions="Center" VerticalOptions="Center">
-                    <Label x:Name="LblInvTitulo" Text="Inventario" FontSize="24" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center" />
-                    <Label x:Name="LblInventario" FontSize="14" TextColor="#cfe0f0" LineBreakMode="WordWrap" />
-                    <Label x:Name="LblInvCrafteo" Text="Crafteo" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0" />
-                    <VerticalStackLayout x:Name="ListaCrafteo" Spacing="4" />
-                    <Label x:Name="LblInvCocina" Text="Cocina (necesita un horno cerca)" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0" />
-                    <VerticalStackLayout x:Name="ListaCocina" Spacing="4" />
-                    <Button x:Name="BtnCerrarInv" Text="Cerrar" Clicked="OnCerrarInv" Margin="0,12,0,0" />
+        <!-- Inventario / crafteo tipo Minecraft -->
+        <Border x:Name="PanelInv" BackgroundColor="#d010161f" IsVisible="False" Stroke="#6b5a40" StrokeThickness="2">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="24" Padding="24" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout Grid.Column="0" Spacing="6" VerticalOptions="Center">
+                    <Label x:Name="LblInvCrafteo" Text="Crafteo" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                    <Grid x:Name="GridCraft" WidthRequest="162" HeightRequest="162" RowSpacing="3" ColumnSpacing="3" />
+                    <Label Text="Resultado" FontSize="12" TextColor="#cfe0f0" />
+                    <Button x:Name="BtnResultado" Clicked="OnResultado" BackgroundColor="#333a45" TextColor="White" WidthRequest="50" HeightRequest="50" FontSize="16" Padding="0" CornerRadius="4" />
+                    <Label x:Name="LblRecetaInfo" FontSize="12" TextColor="#ffe08a" LineBreakMode="WordWrap" WidthRequest="170" />
+                    <Label x:Name="LblInvCocina" Text="Cocina (horno)" FontSize="14" FontAttributes="Bold" TextColor="White" Margin="0,6,0,0" />
+                    <VerticalStackLayout x:Name="ListaCocina" Spacing="3" WidthRequest="170" />
                 </VerticalStackLayout>
-            </ScrollView>
+                <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                    <Label x:Name="LblInvTitulo" Text="Inventario" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                    <Grid x:Name="GridInv" WidthRequest="474" HeightRequest="162" RowSpacing="3" ColumnSpacing="3" />
+                    <Label x:Name="LblCursor" Text="Cursor: (vacío)" FontSize="12" TextColor="#ffe08a" />
+                    <Button x:Name="BtnCerrarInv" Text="Cerrar" Clicked="OnCerrarInv" HorizontalOptions="Start" />
+                </VerticalStackLayout>
+            </Grid>
         </Border>
     </Grid>
 </ContentPage>

@@ -24,6 +24,7 @@ public sealed class ControladorJugador
     public void Actualizar(Mundo mundo, float dt, Vector2 entradaMov, bool saltar, bool bajar, bool volar)
     {
         Volando = volar;
+        EnSuelo = false;
         var fwd = new Vector3(MathF.Sin(Yaw), 0, -MathF.Cos(Yaw));
         var der = new Vector3(MathF.Cos(Yaw), 0, MathF.Sin(Yaw));
         var dir = fwd * entradaMov.Y + der * entradaMov.X;
@@ -89,12 +90,14 @@ public sealed class ControladorJugador
             case 1:
                 if (d > 0)
                 {
-                    Pos.Y = y0 - Altura - 0.001f;
+                    // Golpear el techo: la cabeza (y1) queda justo debajo del bloque
+                    Pos.Y = y1 - Altura - 0.001f;
                     Vel.Y = 0;
                 }
                 else
                 {
-                    Pos.Y = y1 + 1f + 0.001f;
+                    // Aterrizar: el pie (y0) se apoya encima del bloque solido
+                    Pos.Y = y0 + 1f + 0.001f;
                     Vel.Y = 0;
                     EnSuelo = true;
                 }

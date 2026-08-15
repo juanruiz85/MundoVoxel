@@ -16,16 +16,16 @@ public enum TipoMob : byte
 /// <summary>Datos estáticos de cada mob: tamaño, hostilidad, velocidad y radio de agresión.</summary>
 public sealed record InfoMob(float Ancho, float Alto, bool Hostil, float Velocidad, float AreaAgresion);
 
-public static class MobsInfo
+public static partial class MobsInfo
 {
     public static InfoMob Datos(TipoMob t) => t switch
     {
-        TipoMob.Cerdo => new(0.9f, 0.8f, false, 1.4f, 0f),
-        TipoMob.Vaca => new(0.9f, 1.0f, false, 1.2f, 0f),
-        TipoMob.Oveja => new(0.9f, 1.0f, false, 1.2f, 0f),
-        TipoMob.Zombi => new(0.6f, 1.8f, true, 1.0f, 11f),
-        TipoMob.Creeper => new(0.6f, 1.5f, true, 1.0f, 11f),
-        _ => new(0.6f, 1.8f, true, 1.0f, 11f),
+        TipoMob.Cerdo => new(1.0f, 1.0f, false, 1.4f, 0f),
+        TipoMob.Vaca => new(1.2f, 1.3f, false, 1.2f, 0f),
+        TipoMob.Oveja => new(1.2f, 1.2f, false, 1.2f, 0f),
+        TipoMob.Zombi => new(0.8f, 1.9f, true, 1.0f, 11f),
+        TipoMob.Creeper => new(0.8f, 1.7f, true, 1.0f, 11f),
+        _ => new(0.8f, 1.9f, true, 1.0f, 11f),
     };
 }
 

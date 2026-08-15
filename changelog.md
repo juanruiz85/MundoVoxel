@@ -2,6 +2,19 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.6.0] - 2026-08-15
+
+### Anadido
+- **Inventario y crafteo tipo Minecraft**: panel con cuadricula de crafteo 2x2/3x3 (la mesa de trabajo cerca amplia a 3x3), boton de resultado, inventario 3x9 y cursor de items (clic para coger/soltar/apilar). El juego se pausa al abrirlo (tecla E o menu).
+- **Sistema de mobs extensible** (`mobsdef.cs`): cada mob se define con diseno voxel (capas ASCII + paleta de colores) + datos de comportamiento; anadir un mob nuevo = 1 entrada en el enum + su diseno + su fila en `MobsInfo.Datos` + su botin. Los mobs ya se ven como figuras (cuerpo, cabeza, patas) en vez de cuadros de color, rotan segun su orientacion y tienen tamano Minecraft.
+- **Mapa mas grande**: 128x48x128 (antes 64x40x64) con las mismas FPS (~208) gracias al render por chunks.
+- **Minerales** (como MinecraftJS): carbon (16), hierro (17), oro (18) y diamante (19) con colores de las texturas de referencia; vetas por profundidad (carbon comun y superficial, diamante raro y profundo) que solo reemplazan piedra; requieren pico para soltar su bloque.
+
+### Corregido
+- **Bug del "brinco"**: al aterrizar la fisica usaba la coordenada de la cabeza en vez del pie (y rebotaba ~2 bloques en bucle) y `EnSuelo` nunca se reseteaba. Ahora el jugador se apoya correctamente en el suelo.
+- **Drops**: los recoge el jugador mas cercano (antes el primero del diccionario podia robar el drop de otro).
+- Pruebas: dimensiones del mundo y posiciones de mobs actualizadas al nuevo tamano; nuevas pruebas de minerales (los 4 tipos presentes bajo tierra).
+
 ## [0.5.0] - 2026-08-14
 
 ### Añadido (crafteos estilo Minecraft)

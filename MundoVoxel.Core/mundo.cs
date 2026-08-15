@@ -49,7 +49,7 @@ public class Mundo
         return 1;
     }
 
-    public static Mundo Generar(int semilla, int ancho = 64, int alto = 40, int profundo = 64)
+    public static Mundo Generar(int semilla, int ancho = 128, int alto = 48, int profundo = 128)
     {
         var m = new Mundo(ancho, alto, profundo, semilla);
         int nivelMar = (int)(alto * 0.42f);
@@ -76,7 +76,50 @@ public class Mundo
                     PonerArbol(m, x, h + 1, z, rnd);
             }
         }
+        PonerMinerales(m, rnd, nivelMar);
         return m;
+    }
+
+    /// <summary>
+    /// Vetas de minerales bajo tierra, como en Minecraft: el carbon es comun y
+    /// superficial, el diamante raro y profundo. Cada veta es un recorrido
+    /// aleatorio que solo reemplaza piedra.
+    /// </summary>
+    static void PonerMinerales(Mundo m, Random rnd, int nivelMar)
+    {
+        void Vetas(int cantidad, ushort bloque, int yMax, int yMin, int tamMin, int tamMax)
+        {
+            for (int i = 0; i < cantidad; i++)
+            {
+                int x = rnd.Next(2, m.Ancho - 2);
+                int z = rnd.Next(2, m.Profundo - 2);
+                int y = rnd.Next(yMin, Math.Max(yMin + 1, yMax));
+                PonerVeta(m, x, y, z, bloque, rnd.Next(tamMin, tamMax + 1), rnd);
+            }
+        }
+
+        Vetas(420, Bloques.Carbon,   nivelMar + 8, 2, 4, 9);
+        Vetas(220, Bloques.Hierro,   nivelMar + 2, 2, 3, 7);
+        Vetas(110, Bloques.Oro,      nivelMar - 4, 2, 2, 5);
+        Vetas(55,  Bloques.Diamante, nivelMar - 10, 2, 1, 4);
+    }
+
+    static void PonerVeta(Mundo m, int x, int y, int z, ushort bloque, int tamano, Random rnd)
+    {
+        for (int i = 0; i < tamano; i++)
+        {
+            if (m.Dentro(x, y, z) && m.Obtener(x, y, z) == Bloques.Piedra)
+                m.Poner(x, y, z, bloque);
+            switch (rnd.Next(6))
+            {
+                case 0: x++; break;
+                case 1: x--; break;
+                case 2: y++; break;
+                case 3: y--; break;
+                case 4: z++; break;
+                default: z--; break;
+            }
+        }
     }
 
     static void PonerArbol(Mundo m, int x, int y, int z, Random rnd)

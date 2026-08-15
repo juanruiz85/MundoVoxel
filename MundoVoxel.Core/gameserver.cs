@@ -393,8 +393,8 @@ public sealed class GameServer : IAsyncDisposable
             var actual = m.Obtener(rb.X, rb.Y, rb.Z);
             if (!Bloques.EsRompible(actual)) return;
             m.Poner(rb.X, rb.Y, rb.Z, Bloques.Aire);
-            // La piedra requiere un pico para soltar su bloque (como en Minecraft)
-            if (actual != Bloques.Piedra || TienePico(c))
+            // La piedra y las menas requieren un pico para soltar su bloque (como en Minecraft)
+            if (!Objetos.RequierePico(actual) || TienePico(c))
             {
                 AgregarInventario(c, actual, 1);
                 Enviar(c, InventarioActual(c));
@@ -486,19 +486,22 @@ public sealed class GameServer : IAsyncDisposable
                     };
                     foreach (var j in mundo.Jugadores.Values) Enviar(j, msg);
 
-                    // Recoger drops cercanos a los jugadores
+                    // Recoger drops: se lo lleva el jugador más cercano
                     for (int i = mundo.Drops.Count - 1; i >= 0; i--)
                     {
                         var drop = mundo.Drops[i];
+                        ConexionJugador? masCercano = null;
+                        float mejorD = 2.5f;
                         foreach (var j in mundo.Jugadores.Values)
                         {
-                            if (Vector3.Distance(j.Pos, new Vector3(drop.Px, drop.Py, drop.Pz)) < 1.6f)
-                            {
-                                AgregarInventario(j, drop.Material, 1);
-                                Enviar(j, InventarioActual(j));
-                                mundo.Drops.RemoveAt(i);
-                                break;
-                            }
+                            float d = Vector3.Distance(j.Pos, new Vector3(drop.Px, drop.Py, drop.Pz));
+                            if (d < mejorD) { mejorD = d; masCercano = j; }
+                        }
+                        if (masCercano != null)
+                        {
+                            AgregarInventario(masCercano, drop.Material, 1);
+                            Enviar(masCercano, InventarioActual(masCercano));
+                            mundo.Drops.RemoveAt(i);
                         }
                     }
 
@@ -641,9 +644,10 @@ public sealed class GameServer : IAsyncDisposable
             if (!c.EnMundo) return;
             if (cr.Receta < 0 || cr.Receta >= Objetos.RecetasCrafteo.Length) return;
             var r = Objetos.RecetasCrafteo[cr.Receta];
-            foreach (var ing in r.Ingredientes)
+            var ings = r.Ingredientes();
+            foreach (var ing in ings)
                 if (Contar(c, ing.Material) < ing.Cantidad) return;
-            foreach (var ing in r.Ingredientes)
+            foreach (var ing in ings)
                 Quitar(c, ing.Material, ing.Cantidad);
             AgregarInventario(c, r.Salida, r.SalidaCantidad);
             Enviar(c, InventarioActual(c));
@@ -662,9 +666,10 @@ public sealed class GameServer : IAsyncDisposable
                 return;
             }
             var r = Objetos.RecetasCocina[co.Receta];
-            foreach (var ing in r.Ingredientes)
+            var ings = r.Ingredientes();
+            foreach (var ing in ings)
                 if (Contar(c, ing.Material) < ing.Cantidad) return;
-            foreach (var ing in r.Ingredientes)
+            foreach (var ing in ings)
                 Quitar(c, ing.Material, ing.Cantidad);
             AgregarInventario(c, r.Salida, r.SalidaCantidad);
             Enviar(c, InventarioActual(c));

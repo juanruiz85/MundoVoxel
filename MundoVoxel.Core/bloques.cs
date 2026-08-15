@@ -19,6 +19,10 @@ public static class Bloques
     public const ushort Horno = 13;
     public const ushort Mesa = 14;
     public const ushort Arenisca = 15;
+    public const ushort Carbon = 16;
+    public const ushort Hierro = 17;
+    public const ushort Oro = 18;
+    public const ushort Diamante = 19;
 
     public sealed record InfoBloque(string ClaveLang, bool Solido, bool Transparente, bool Liquido);
 
@@ -41,6 +45,10 @@ public static class Bloques
         new("bloque.horno",    true,  false, false), // 13
         new("bloque.mesa",     true,  false, false), // 14
         new("bloque.arenisca", true,  false, false), // 15
+        new("bloque.carbon",   true,  false, false), // 16
+        new("bloque.hierro",   true,  false, false), // 17
+        new("bloque.oro",      true,  false, false), // 18
+        new("bloque.diamante", true,  false, false), // 19
     };
 
     public static bool EsSolido(ushort b) => b < Info.Length && Info[b].Solido;
@@ -48,4 +56,5 @@ public static class Bloques
     public static bool EsLiquido(ushort b) => b < Info.Length && Info[b].Liquido;
     public static bool EsColocable(ushort b) => b > Aire && b != Lecho && b != Agua;
     public static bool EsRompible(ushort b) => b != Aire && b != Lecho;
+    public static bool EsMineral(ushort b) => b == Carbon || b == Hierro || b == Oro || b == Diamante;
 }

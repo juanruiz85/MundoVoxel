@@ -34,7 +34,7 @@ string idMundo = creado!.Id;
 var unido = await c1.LeerHasta<Unido>();
 Comprobar(unido != null && unido.MundoComprimido.Length > 0, "recibe el mundo comprimido");
 var mundo = Mundo.Deserializar(Mundo.Descomprimir(unido!.MundoComprimido));
-Comprobar(mundo.Ancho == 64 && mundo.Alto == 40, $"dimensiones del mundo ({mundo.Ancho}x{mundo.Alto}x{mundo.Profundo})");
+Comprobar(mundo.Ancho == 128 && mundo.Alto == 48 && mundo.Profundo == 128, $"dimensiones del mundo ({mundo.Ancho}x{mundo.Alto}x{mundo.Profundo})");
 var aparicion = mundo.ObtenerPuntoAparicion();
 Comprobar(mundo.Obtener((int)aparicion.X, (int)aparicion.Y, (int)aparicion.Z) == Bloques.Aire, "punto de aparicion despejado");
 
@@ -65,7 +65,7 @@ Comprobar(unidoPriv?.Id == idPrivado, "Ana entra con la clave correcta");
 Console.WriteLine("Mobs: el servidor genera y difunde mobs en el mundo.");
 var mobs = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
 Comprobar(mobs != null && mobs.Lista.Count > 0, $"mobs difundidos ({mobs?.Lista.Count ?? 0})");
-Comprobar(mobs != null && mobs.Lista.All(m => m.Px >= 0 && m.Px < 64 && m.Pz >= 0 && m.Pz < 64 && m.Py >= 1), "posiciones de mobs dentro del mundo");
+Comprobar(mobs != null && mobs.Lista.All(m => m.Px >= 0 && m.Px < 128 && m.Pz >= 0 && m.Pz < 128 && m.Py >= 1), "posiciones de mobs dentro del mundo");
 Comprobar(mobs != null && mobs.Lista.Select(m => m.Tipo).Distinct().Count() >= 3, "hay variedad de tipos de mob");
 
 // ---------- romper y colocar bloques ----------
@@ -156,6 +156,21 @@ Comprobar(invHorno?.Slots.Any(s => s.Material == Bloques.Horno) == true, "crafte
 await c1.Enviar(new Cocinar { Receta = 0 });
 var errHorno = await c1.LeerHasta<ErrorServidor>();
 Comprobar(errHorno?.Codigo == "SIN_HORNO", "cocinar sin horno devuelve SIN_HORNO");
+
+// Minerales: el generador coloca carbon, hierro, oro y diamante en el subsuelo
+var mundoMin = Mundo.Generar(12345);
+var conteoMin = new int[20];
+for (int x = 0; x < mundoMin.Ancho; x++)
+    for (int y = 0; y < mundoMin.Alto; y++)
+        for (int z = 0; z < mundoMin.Profundo; z++)
+        {
+            var b = mundoMin.Obtener(x, y, z);
+            if (b >= Bloques.Carbon && b <= Bloques.Diamante) conteoMin[b]++;
+        }
+Comprobar(conteoMin[Bloques.Carbon] > 0, $"el mundo tiene carbon ({conteoMin[Bloques.Carbon]} bloques)");
+Comprobar(conteoMin[Bloques.Hierro] > 0, $"el mundo tiene hierro ({conteoMin[Bloques.Hierro]} bloques)");
+Comprobar(conteoMin[Bloques.Oro] > 0, $"el mundo tiene oro ({conteoMin[Bloques.Oro]} bloques)");
+Comprobar(conteoMin[Bloques.Diamante] > 0, $"el mundo tiene diamante ({conteoMin[Bloques.Diamante]} bloques)");
 
 // Matar un mob pasivo para obtener carne cruda (drop + auto-recogida)
 Console.WriteLine("  matando un mob pasivo para probar drops...");

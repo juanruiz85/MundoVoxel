@@ -37,7 +37,7 @@ public sealed class VistaJuego : IDrawable
     public readonly Dictionary<int, JugadorRemoto> Remotos = new();
 
     // Mobs remotos (estado autoritativo del servidor)
-    public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos);
+    public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos, float Ry);
     public readonly Dictionary<int, MobRemoto> Mobs = new();
 
     // Drops en el suelo (ítems que se recogen al pasar)
@@ -72,6 +72,31 @@ public sealed class VistaJuego : IDrawable
 
     /// <summary>Caja (AABB + color) de un jugador/mob para rasterizar en segundo plano.</summary>
     public readonly record struct CajaJugador(Vector3 Min, Vector3 Max, Color Color);
+
+    /// <summary>
+    /// Convierte el diseno voxel de un mob en cajas de mundo (una por celda),
+    /// escaladas al tamano del mob y rotadas segun su orientacion (Ry).
+    /// </summary>
+    public static void AgregarMobFigura(List<CajaJugador> cajas, TipoMob tipo, Vector3 pos, float ry)
+    {
+        var d = MobsInfo.Diseno(tipo);
+        var info = MobsInfo.Datos(tipo);
+        float esc = info.Ancho / d.AnchoCeldas;
+        float escY = info.Alto / d.AltoCeldas;
+        float ca = MathF.Cos(-ry), sa = MathF.Sin(-ry);
+        float cx = d.AnchoCeldas * esc / 2f;
+        float cz = d.ProfCeldas * esc / 2f;
+        foreach (var cel in d.Celdas)
+        {
+            float ox = cel.X * esc - cx;
+            float oz = cel.Z * esc - cz;
+            float rx = ox * ca - oz * sa + cx;
+            float rz = ox * sa + oz * ca + cz;
+            var min = new Vector3(pos.X + rx - esc / 2f, pos.Y + cel.Y * escY, pos.Z + rz - esc / 2f);
+            var max = new Vector3(pos.X + rx + esc / 2f, pos.Y + (cel.Y + 1) * escY, pos.Z + rz + esc / 2f);
+            cajas.Add(new CajaJugador(min, max, Color.FromRgb(cel.R / 255f, cel.G / 255f, cel.B / 255f)));
+        }
+    }
 
     // Acciones pendientes de enviar (las consume la página)
     public GolpeRayo GolpeActual;

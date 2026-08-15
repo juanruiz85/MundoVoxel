@@ -31,6 +31,16 @@ public partial class PaginaJuego : ContentPage
     bool _saliendo;
     bool _renderizando;
     List<SlotEstado> _inventario = new();
+    // Inventario tipo Minecraft (slots)
+    struct SlotUI { public ushort Material; public int Cantidad; }
+    SlotUI[] _slots = new SlotUI[27];
+    SlotUI[] _grid = new SlotUI[9];
+    int _gridTamaño = 2;
+    int _indiceResultado = -1;
+    ushort _cursorMaterial;
+    int _cursorCantidad;
+    Button[,] _botonesCraft = new Button[3, 3];
+    Button[,] _botonesInv = new Button[3, 9];
 
     static readonly Color[] ColoresRemoto =
     {
@@ -70,7 +80,7 @@ public partial class PaginaJuego : ContentPage
         BtnSalirMundo.Text = idioma.O("pausa.salir_mundo");
         BtnDesconectar.Text = idioma.O("pausa.desconectar");
         BtnInventario.Text = "Inventario (E)";
-        ConstruirBotonesRecetas();
+        ConstruirPanelInventario();
         BtnDistancia.Text = idioma.O("juego.distancia", NombreDistancia());
         LblControlesPausa.Text = idioma.O("pausa.controles");
         EntradaChat.Placeholder = idioma.O("chat.placeholder");
@@ -221,14 +231,7 @@ public partial class PaginaJuego : ContentPage
                 new Vector3(j.Pos.X + 0.3f, j.Pos.Y + 1.8f, j.Pos.Z + 0.3f),
                 j.Color));
         foreach (var m in _vista.Mobs.Values)
-        {
-            var info = MobsInfo.Datos(m.Tipo);
-            float a = info.Ancho * 0.5f;
-            cajas.Add(new VistaJuego.CajaJugador(
-                new Vector3(m.Pos.X - a, m.Pos.Y, m.Pos.Z - a),
-                new Vector3(m.Pos.X + a, m.Pos.Y + info.Alto, m.Pos.Z + a),
-                VistaJuego.ColorMob(m.Tipo)));
-        }
+            VistaJuego.AgregarMobFigura(cajas, m.Tipo, m.Pos, m.Ry);
         foreach (var d in _vista.Drops.Values)
         {
             const float s = 0.25f;
@@ -304,7 +307,7 @@ public partial class PaginaJuego : ContentPage
             case Mobs ms:
                 _vista.Mobs.Clear();
                 foreach (var e in ms.Lista)
-                    _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz));
+                    _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz), e.Ry);
                 break;
 
             case Drops ds:
@@ -315,7 +318,7 @@ public partial class PaginaJuego : ContentPage
 
             case Inventario inv:
                 _inventario = inv.Slots;
-                ActualizarPanelInventario();
+                RellenarSlots();
                 break;
 
             case Chat ch:
@@ -402,47 +405,224 @@ public partial class PaginaJuego : ContentPage
     void OnSaltarPulsado(object? sender, EventArgs e) => _vista.BotonSaltar = true;
     void OnSaltarSoltado(object? sender, EventArgs e) => _vista.BotonSaltar = false;
 
-    // ------------------------------------------------------------- inventario
+    // ------------------------------------------------------------- inventario (tipo Minecraft)
 
     void OnInventario(object? sender, EventArgs e) => AlternarInventario();
     void OnCerrarInv(object? sender, EventArgs e) => AlternarInventario();
 
     void AlternarInventario()
     {
-        Pausa.IsVisible = false;
-        _pausado = false;
-        PanelInv.IsVisible = !PanelInv.IsVisible;
-        if (PanelInv.IsVisible) ActualizarPanelInventario();
-    }
-
-    void ActualizarPanelInventario()
-    {
-        LblInventario.Text = _inventario.Count == 0
-            ? "(vacío)"
-            : string.Join("\n", _inventario.Select(s => $"{Objetos.Nombre(s.Material)} x {s.Cantidad}"));
-    }
-
-    /// <summary>Construye los botones de recetas (crafteo + cocina) dinámicamente.</summary>
-    void ConstruirBotonesRecetas()
-    {
-        for (int i = 0; i < Objetos.RecetasCrafteo.Length; i++)
+        if (PanelInv.IsVisible)
         {
-            var b = new Button { Text = Objetos.RecetasCrafteo[i].Nombre, CommandParameter = i, FontSize = 13 };
-            b.Clicked += OnCraft;
-            ListaCrafteo.Children.Add(b);
+            PanelInv.IsVisible = false;
+            _pausado = false;
         }
+        else
+        {
+            Pausa.IsVisible = false;
+            _pausado = true;
+            PanelInv.IsVisible = true;
+            _gridTamaño = HayMesaCerca() ? 3 : 2;
+            LblInvCrafteo.Text = _gridTamaño == 3 ? "Mesa de trabajo (3x3)" : "Crafteo (2x2)";
+            RefrescarCrafteo();
+            RefrescarInventario();
+        }
+    }
+
+    /// <summary>Detecta si hay una mesa de trabajo cerca (habilita el grid 3x3).</summary>
+    bool HayMesaCerca()
+    {
+        var p = _vista.Jugador.Pos;
+        var m = _vista.Mundo;
+        int r = 6;
+        for (int x = (int)p.X - r; x <= (int)p.X + r; x++)
+            for (int y = (int)p.Y - r; y <= (int)p.Y + r; y++)
+                for (int z = (int)p.Z - r; z <= (int)p.Z + r; z++)
+                    if (m.Obtener(x, y, z) == Bloques.Mesa) return true;
+        return false;
+    }
+
+    void ConstruirPanelInventario()
+    {
+        // Cuadrícula de crafteo 3x3
+        for (int i = 0; i < 3; i++)
+        {
+            GridCraft.RowDefinitions.Add(new RowDefinition { Height = 50 });
+            GridCraft.ColumnDefinitions.Add(new ColumnDefinition { Width = 50 });
+        }
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 3; x++)
+            {
+                int ix = x, iy = y;
+                var b = NuevoSlot();
+                b.Clicked += (s, e) => OnSlotCraft(ix, iy);
+                Grid.SetRow(b, y); Grid.SetColumn(b, x);
+                GridCraft.Children.Add(b);
+                _botonesCraft[y, x] = b;
+            }
+
+        // Cuadrícula de inventario 3x9
+        for (int i = 0; i < 3; i++) GridInv.RowDefinitions.Add(new RowDefinition { Height = 50 });
+        for (int i = 0; i < 9; i++) GridInv.ColumnDefinitions.Add(new ColumnDefinition { Width = 50 });
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 9; x++)
+            {
+                int ix = x, iy = y;
+                var b = NuevoSlot();
+                b.Clicked += (s, e) => OnSlotInv(iy, ix);
+                Grid.SetRow(b, y); Grid.SetColumn(b, x);
+                GridInv.Children.Add(b);
+                _botonesInv[y, x] = b;
+            }
+
+        // Botones de cocina (horno)
         for (int i = 0; i < Objetos.RecetasCocina.Length; i++)
         {
-            var b = new Button { Text = Objetos.RecetasCocina[i].Nombre, CommandParameter = i, FontSize = 13 };
+            var b = new Button { Text = Objetos.RecetasCocina[i].Nombre, CommandParameter = i, FontSize = 12 };
             b.Clicked += OnCocinar;
             ListaCocina.Children.Add(b);
         }
     }
 
-    void OnCraft(object? sender, EventArgs e)
+    static Button NuevoSlot() => new()
     {
-        if (sender is Button b && int.TryParse(b.CommandParameter?.ToString(), out int r))
-            _red.Enviar(new Craftear { Receta = r });
+        BackgroundColor = Color.FromArgb("#333a45"),
+        TextColor = Colors.White,
+        FontSize = 14,
+        Padding = 0,
+        CornerRadius = 4,
+    };
+
+    void OnSlotCraft(int x, int y) { IntercambiarCon(ref _grid[y * 3 + x]); RefrescarCrafteo(); }
+    void OnSlotInv(int y, int x) { IntercambiarCon(ref _slots[y * 9 + x]); RefrescarInventario(); }
+
+    void IntercambiarCon(ref SlotUI slot)
+    {
+        if (_cursorMaterial == 0)
+        {
+            if (slot.Cantidad > 0)
+            {
+                _cursorMaterial = slot.Material;
+                _cursorCantidad = slot.Cantidad;
+                slot = default;
+            }
+        }
+        else if (slot.Cantidad == 0)
+        {
+            slot.Material = _cursorMaterial;
+            slot.Cantidad = _cursorCantidad;
+            _cursorMaterial = 0; _cursorCantidad = 0;
+        }
+        else if (slot.Material == _cursorMaterial)
+        {
+            slot.Cantidad += _cursorCantidad;
+            _cursorMaterial = 0; _cursorCantidad = 0;
+        }
+        else
+        {
+            var tmp = slot;
+            slot.Material = _cursorMaterial;
+            slot.Cantidad = _cursorCantidad;
+            _cursorMaterial = tmp.Material;
+            _cursorCantidad = tmp.Cantidad;
+        }
+    }
+
+    void PintarSlot(Button b, in SlotUI slot)
+    {
+        if (slot.Material == 0 || slot.Cantidad <= 0)
+        {
+            b.BackgroundColor = Color.FromArgb("#333a45");
+            b.Text = "";
+        }
+        else
+        {
+            var (r, g, bl) = Objetos.Color(slot.Material);
+            b.BackgroundColor = Color.FromRgb(r, g, bl);
+            b.Text = slot.Cantidad > 1 ? slot.Cantidad.ToString() : "";
+        }
+    }
+
+    void RefrescarCrafteo()
+    {
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 3; x++)
+            {
+                bool activo = x < _gridTamaño && y < _gridTamaño;
+                var b = _botonesCraft[y, x];
+                if (!activo)
+                {
+                    b.IsEnabled = false;
+                    b.BackgroundColor = Color.FromArgb("#161b22");
+                    b.Text = "";
+                }
+                else
+                {
+                    b.IsEnabled = true;
+                    PintarSlot(b, _grid[y * 3 + x]);
+                }
+            }
+        ActualizarResultado();
+    }
+
+    void RefrescarInventario()
+    {
+        for (int i = 0; i < 27; i++)
+            PintarSlot(_botonesInv[i / 9, i % 9], _slots[i]);
+        LblCursor.Text = _cursorMaterial == 0
+            ? "Cursor: (vacío)"
+            : $"Cursor: {Objetos.Nombre(_cursorMaterial)} x {_cursorCantidad}";
+    }
+
+    void ActualizarResultado()
+    {
+        var grid = new ushort[_gridTamaño * _gridTamaño];
+        for (int y = 0; y < _gridTamaño; y++)
+            for (int x = 0; x < _gridTamaño; x++)
+                grid[y * _gridTamaño + x] = _grid[y * 3 + x].Material;
+        _indiceResultado = Objetos.CoincidirReceta(grid, _gridTamaño, _gridTamaño);
+        if (_indiceResultado >= 0)
+        {
+            var r = Objetos.RecetasCrafteo[_indiceResultado];
+            var (cr, cg, cb) = Objetos.Color(r.Salida);
+            BtnResultado.BackgroundColor = Color.FromRgb(cr, cg, cb);
+            BtnResultado.Text = r.SalidaCantidad > 1 ? r.SalidaCantidad.ToString() : "";
+            BtnResultado.IsEnabled = true;
+            LblRecetaInfo.Text = r.Nombre;
+        }
+        else
+        {
+            BtnResultado.BackgroundColor = Color.FromArgb("#333a45");
+            BtnResultado.Text = "";
+            BtnResultado.IsEnabled = false;
+            LblRecetaInfo.Text = "";
+        }
+    }
+
+    void OnResultado(object? sender, EventArgs e)
+    {
+        if (_indiceResultado < 0) return;
+        _red.Enviar(new Craftear { Receta = _indiceResultado });
+        Array.Clear(_grid);
+        _indiceResultado = -1;
+        RefrescarCrafteo();
+        RefrescarInventario();
+    }
+
+    void RellenarSlots()
+    {
+        Array.Clear(_slots);
+        int i = 0;
+        foreach (var s in _inventario)
+        {
+            if (i >= 27) break;
+            _slots[i] = new SlotUI { Material = s.Material, Cantidad = s.Cantidad };
+            i++;
+        }
+        Array.Clear(_grid);
+        _indiceResultado = -1;
+        RefrescarInventario();
+        RefrescarCrafteo();
     }
 
     void OnCocinar(object? sender, EventArgs e)
