@@ -160,6 +160,8 @@ public static class Objetos
             new(new[]{ A, A, A, A, (ushort)ItemId.Polvora, A, A, A, A }, 3, 3, Bloques.Tnt, 1, "TNT"),
             // Mechero (lingote de hierro + piedra)
             new(new[]{ (ushort)ItemId.LingoteHierro, S }, 1, 2, (ushort)ItemId.Mechero, 1, "Mechero"),
+            // Cofre (8 tablones en anillo)
+            new(new[]{ T, T, T, T, V, T, T, T, T }, 3, 3, Bloques.Cofre, 1, "Cofre"),
         };
         // Herramientas de madera y piedra (5-14)
         lista.AddRange(RecetasDeMaterial(Bloques.Tablones, "de madera",

@@ -92,7 +92,10 @@ public partial class PaginaMundos : ContentPage
                     IdDueno = u.IdDueno,
                     MundoComprimido = u.MundoComprimido,
                     Ax = u.Ax, Ay = u.Ay, Az = u.Az,
+                    Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
                 };
+                // Al entrar al mundo el foco no debe quedar en ningA-on botA3n (la barra
+                // espaciadora es para saltar, no para activar el menA-o).
                 _timer?.Stop();
                 _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, datos));
                 break;

@@ -40,6 +40,10 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
 [JsonDerivedType(typeof(Respawn), "Respawn")]
+[JsonDerivedType(typeof(AbrirCofre), "AbrirCofre")]
+[JsonDerivedType(typeof(CofreAbierto), "CofreAbierto")]
+[JsonDerivedType(typeof(PonerEnCofre), "PonerEnCofre")]
+[JsonDerivedType(typeof(SacarDeCofre), "SacarDeCofre")]
 public abstract class Mensaje
 {
 }
@@ -58,7 +62,7 @@ public sealed class InfoMundo : Mensaje
     public int Jugadores { get; set; }
     public int MaxJugadores { get; set; }
 }
-public sealed class CrearMundo : Mensaje { public string Nombre { get; set; } = ""; public string? Pin { get; set; } public bool Abierto { get; set; } public int Semilla { get; set; } }
+public sealed class CrearMundo : Mensaje { public string Nombre { get; set; } = ""; public string? Pin { get; set; } public bool Abierto { get; set; } public int Semilla { get; set; } public float HoraInicial { get; set; } = -1f; }
 public sealed class MundoCreado : Mensaje { public string Id { get; set; } = ""; }
 public sealed class Unirse : Mensaje { public string Id { get; set; } = ""; public string? Pin { get; set; } }
 public sealed class Unido : Mensaje
@@ -97,6 +101,11 @@ public sealed class SeleccionarSlot : Mensaje { public int Slot { get; set; } pu
 public sealed class TiempoMundo : Mensaje { public float Hora { get; set; } }
 public sealed class JugadorSalud : Mensaje { public int Salud { get; set; } public int MaxSalud { get; set; } }
 public sealed class Respawn : Mensaje { public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
+// Cofres: abrir (uso) y mover items entre el inventario y el cofre
+public sealed class AbrirCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } }
+public sealed class CofreAbierto : Mensaje { public List<SlotEstado> Slots { get; set; } = new(); }
+public sealed class PonerEnCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public ushort Material { get; set; } public int Cantidad { get; set; } }
+public sealed class SacarDeCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public int Slot { get; set; } }
 
 public static class Protocolo
 {

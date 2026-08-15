@@ -1,4 +1,4 @@
-# 🌍 MundoVoxel
+﻿# 🌍 MundoVoxel
 
 Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, completamente en **español**, con **multijugador** por TCP. Compatible con **Windows** y **Android** (cliente MAUI) y con un servidor que corre como **servicio en Windows y Linux**.
 
@@ -53,7 +53,7 @@ Verás algo como: `Servidor «MundoVoxel» escuchando en el puerto 25575`.
 ```bash
 dotnet run --project MundoVoxel.Pruebas
 ```
-Debe terminar con `PRUEBAS SUPERADAS` (16 comprobaciones).
+Debe terminar con `PRUEBAS SUPERADAS` (59 comprobaciones).
 
 ### 3) Compilar el servidor para producción
 ```bash
@@ -170,3 +170,60 @@ Ideas a corto plazo:
 - Lista de servidores favoritos y reconexión automática.
 - Anti-cheat básico y moderación de chat.
 - Portar el cliente a Linux cuando MAUI tenga soporte oficial.
+
+---
+
+<!-- IA-USO-INICIO -->
+## 🤖 Uso de IA en el desarrollo
+
+> Sección actualizada automáticamente en cada commit con docs/actualizar-stats-ia.ps1.
+> Los datos salen de los archivos de sesión del gateway (AutoClaw/OpenClaw): tokens,
+> modelos y costos reportados por el proveedor, más los prompts escritos por el
+> desarrollador (marcados como solicitudes de usuario).
+
+### Resumen
+
+| Métrica | Valor |
+|---|---|
+| Período de desarrollo | 2026-07-22 → 2026-08-15 |
+| Sesiones de IA | 13 |
+| Prompts del desarrollador | 35 |
+| Respuestas generadas por IA | 1,196 |
+| Tokens de entrada (prompts + contexto) | 4,134,147 |
+| Tokens de salida (generación) | 1,524,562 |
+| **Tokens totales** | **5,658,709** |
+| Tokens de caché leídos | 213,199,488 |
+| Costo real registrado | $0.00 (modelo ZAI sin cargo reportado) |
+| Costo estimado a tarifas de mercado | ~41.78 USD |
+| Agentes de IA con uso | main |
+
+### Promedios
+
+- Tokens por prompt: ~118,118 de entrada / ~43,559 de salida.
+- Costo estimado por prompt: ~1.19 USD (a tarifas de mercado).
+
+### Modelos utilizados
+
+| Modelo | Respuestas | % del total |
+|---|---|---|
+| zai_auto (ruteo automático) | 1054 | 88.1% |
+| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 140 | 11.7% |
+| gateway-injected (mensaje interno) | 1 | 0.1% |
+| zai_glm-5-turbo (GLM-5 Turbo) | 1 | 0.1% |
+
+### Plataforma
+
+- **OpenClaw / AutoClaw** (gateway local), API compatible openai-completions.
+- Los modelos se sirven vía **ZAI** (ruteador zai_auto elige el modelo según la tarea; también se usaron DeepSeek V4 Flash y GLM-5 Turbo).
+- Herramientas auxiliares de IA: AutoGLM (reconocimiento visual de capturas) y scripts UIA locales.
+
+### Nota metodológica
+
+- "Tokens de entrada" incluye el contexto completo reenviado en cada turno (por eso es
+  muy superior a los tokens de salida). "Caché leída" son tokens reutilizados del contexto
+  previo (tarifa reducida en proveedores comerciales).
+- El **costo real registrado es $0.00** porque el proveedor ZAI no reporta cargos para
+  estos modelos; la columna "estimado a tarifas de mercado" usa $2/M entrada,
+  $8/M salida y $0.10/M caché (referencia típica de modelos de razonamiento) solo como
+  orientación.
+<!-- IA-USO-FIN -->

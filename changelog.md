@@ -2,6 +2,25 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.8.0] - 2026-08-15
+
+### Añadido
+- **Controles de ratón completos**: clic izquierdo = romper bloque / atacar mob, clic derecho = colocar bloque de la mano (manejador nativo de puntero, sin interferir con el toque).
+- **Sensibilidad del ratón configurable**: deslizador en el menú de pausa (0.25×–3×), guardado entre sesiones (`Preferences`).
+- **Mobs de día/noche**: zombis y esqueletos solo aparecen de noche; de día el mundo solo genera pasivos. Los hostiles expuestos al sol se queman (−3 de vida/s) y mueren soltando drops; los creepers no se queman.
+- **Creeper que explota al atacar**: radio de explosión configurable en `mobs.config.json` (0 = sin destrucción, default 3); si hay agua cerca (radio 3), la explosión no rompe bloques (solo daña).
+- **Cofre inicial en el spawn**: un cofre con 5 herramientas de piedra (pico, hacha, espada, pala, azada) rodeado por 4 antorchas en diagonal. Se puede **craftear cofres** (8 tablones) y **almacenar ítems** (27 slots del cofre + 27 del inventario, mover de 1 en 1 con el cursor).
+- **Agua y natación**: al estar en agua la gravedad baja y el espacio hace flotar; los cultivos (trigo y plantones) crecen casi el doble de rápido con agua cerca (radio 3).
+- **Fix tecla Espacio vs menú**: el botón ☰ del menú ya no recibe foco (no se activa con Espacio); solo responde al clic.
+- **Sección de IA en el README**: nueva sección "Uso de IA en el desarrollo" con el total de tokens usados, prompts, respuestas generadas, modelos (zai_auto, DeepSeek V4 Flash, GLM-5 Turbo), agentes, costo real ($0, ZAI sin cargo) y costo estimado a tarifas de mercado. Se actualiza en cada commit con el script `docs/actualizar-stats-ia.ps1` (lee los archivos de sesión del gateway AutoClaw/OpenClaw).
+
+### Corregido
+- **Salto siempre activo**: el estado `EnSuelo` se borraba al inicio del frame y el salto se comprobaba antes de `Mover`; ahora se conserva el estado del frame anterior y el salto funciona correctamente.
+- **Cofre inicial fuera del punto de aparición**: el cofre se colocaba en la celda exacta del spawn; ahora se coloca UNA celda al lado y sus 4 antorchas van en diagonal (sin estorbar la construcción cercana).
+- **`HoraInicial = 0` no era medianoche**: el centinela `> 0 ? Hora : 8` trataba 0 como "sin especificar"; el default ahora es `-1` y 0 es medianoche válida. La suite usa hora 0 para verificar que los hostiles salen de noche.
+- **Prueba de soltar item (Q) flaky**: la explosión de la TNT deja drops que ensucian la cola de `Inventario`; la prueba ahora lee hasta ver el valor esperado (madera 9 → 10).
+- **Suite completa: PRUEBAS SUPERADAS (59 comprobaciones)**.
+
 ## [0.7.0] - 2026-08-15
 
 ### Anadido (paquete estilo Minecraft Indev)

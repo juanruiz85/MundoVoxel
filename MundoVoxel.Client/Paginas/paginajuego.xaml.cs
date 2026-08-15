@@ -41,6 +41,12 @@ public partial class PaginaJuego : ContentPage
     int _cursorCantidad;
     Button[,] _botonesCraft = new Button[3, 3];
     Button[,] _botonesInv = new Button[3, 9];
+    // Cofre: slots del cofre (27) y botones de ambos paneles
+    List<SlotEstado> _cofre = new();
+    SlotUI[] _slotsCofre = new SlotUI[27];
+    Button[,] _botonesCofre = new Button[3, 9];
+    Button[,] _botonesInvCofre = new Button[3, 9];
+    int _cofreX, _cofreY, _cofreZ;
 
     static readonly Color[] ColoresRemoto =
     {
@@ -64,9 +70,12 @@ public partial class PaginaJuego : ContentPage
         PanelMovil.IsVisible = _esMovil;
 
         // Entrada táctil / ratón sobre el área de juego
-        Vista.StartInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.IniciarInteraccion(e.Touches[0], _esMovil); };
+        Vista.StartInteraction += (_, e) => { if (e.Touches.Length > 0) { _vista.IniciarInteraccion(e.Touches[0], _esMovil); QuitarFocoMenu(); } };
         Vista.DragInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.ArrastrarInteraccion(e.Touches[0]); };
         Vista.EndInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.TerminarInteraccion(e.Touches[0]); };
+#if WINDOWS
+        VincularRaton();
+#endif
 
         BtnRomper.Text = T.Romper;
         BtnColocar.Text = T.Colocar;
@@ -84,6 +93,10 @@ public partial class PaginaJuego : ContentPage
         BtnDistancia.Text = idioma.O("juego.distancia", NombreDistancia());
         LblControlesPausa.Text = idioma.O("pausa.controles");
         EntradaChat.Placeholder = idioma.O("chat.placeholder");
+        // Sensibilidad del ratA3n guardada entre sesiones
+        _vista.Sensibilidad = _datos.Sensibilidad;
+        SldSensibilidad.Value = _vista.Sensibilidad;
+        LblSensibilidadValor.Text = _vista.Sensibilidad.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
 
         // Construir el mundo local desde los datos comprimidos del servidor
         var mundo = Mundo.Deserializar(Mundo.Descomprimir(datos.MundoComprimido));
@@ -174,8 +187,17 @@ public partial class PaginaJuego : ContentPage
             if (_vista.ConsumirColocar())
             {
                 var g = _vista.GolpeActual;
-                int tx = g.X + (int)g.Normal.X, ty = g.Y + (int)g.Normal.Y, tz = g.Z + (int)g.Normal.Z;
-                _red.Enviar(new ColocarBloque { X = tx, Y = ty, Z = tz, Bloque = _vista.BloqueSeleccionado });
+                // Clic derecho sobre un cofre: se abre en vez de colocar
+                if (g.Impacto && _vista.Mundo.Obtener(g.X, g.Y, g.Z) == Bloques.Cofre)
+                {
+                    _cofreX = g.X; _cofreY = g.Y; _cofreZ = g.Z;
+                    _red.Enviar(new UsarBloque { X = g.X, Y = g.Y, Z = g.Z });
+                }
+                else
+                {
+                    int tx = g.X + (int)g.Normal.X, ty = g.Y + (int)g.Normal.Y, tz = g.Z + (int)g.Normal.Z;
+                    _red.Enviar(new ColocarBloque { X = tx, Y = ty, Z = tz, Bloque = _vista.BloqueSeleccionado });
+                }
             }
 
             _ticksPosicion++;
@@ -323,6 +345,12 @@ public partial class PaginaJuego : ContentPage
             case Inventario inv:
                 _inventario = inv.Slots;
                 RellenarSlots();
+                RefrescarCofreInventario();
+                break;
+
+            case CofreAbierto ca:
+                _cofre = ca.Slots;
+                MostrarCofre();
                 break;
 
             case TiempoMundo tm:
@@ -370,6 +398,8 @@ public partial class PaginaJuego : ContentPage
 
     void OnTecla(int codigo)
     {
+        // La barra espaciadora salta; nunca debe activar botones (menu, reanudar...).
+        QuitarFocoMenu();
         if (codigo == Teclas.Escape)
         {
             if (EntradaChat.IsVisible) OcultarChat();
@@ -430,6 +460,49 @@ public partial class PaginaJuego : ContentPage
     }
 
     void OnBtnChat(object? sender, EventArgs e) => MostrarChat();
+
+    // ------------------------------------------------------------- ratA3n y foco
+
+    /// <summary>Quita el foco de los botones para que la barra espaciadora no los active.</summary>
+    void QuitarFocoMenu()
+    {
+        if (BtnMenu.IsFocused) BtnMenu.Unfocus();
+        if (BtnReanudar.IsFocused) BtnReanudar.Unfocus();
+    }
+
+#if WINDOWS
+    /// <summary>
+    /// Clic izquierdo = romper/atacar, clic derecho = colocar (estilo Minecraft).
+    /// Se enlaza al puntero nativo de WinUI porque los gestos de MAUI no distinguen botones.
+    /// </summary>
+    void VincularRaton()
+    {
+        if (Vista.Handler?.PlatformView is not Microsoft.UI.Xaml.FrameworkElement fe) return;
+        fe.AddHandler(Microsoft.UI.Xaml.UIElement.PointerPressedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+            {
+                if (_pausado || EntradaChat.IsVisible) return;
+                var props = e.GetCurrentPoint(fe).Properties;
+                if (props.IsLeftButtonPressed)
+                {
+                    _vista.PunteroRaton = true;
+                    _vista.PedirRomper();
+                }
+                else if (props.IsRightButtonPressed)
+                {
+                    _vista.PunteroRaton = true;
+                    _vista.PedirColocar();
+                }
+            }), true);
+    }
+#endif
+
+    void OnSldSensibilidad(object? sender, ValueChangedEventArgs e)
+    {
+        _vista.Sensibilidad = (float)e.NewValue;
+        LblSensibilidadValor.Text = _vista.Sensibilidad.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        Preferences.Set("sensibilidad_raton", _vista.Sensibilidad);
+    }
 
     // ------------------------------------------------------------- acciones
 
@@ -515,6 +588,28 @@ public partial class PaginaJuego : ContentPage
             b.Clicked += OnCocinar;
             ListaCocina.Children.Add(b);
         }
+
+        // Panel del cofre: 3x9 del cofre + 3x9 del inventario del jugador
+        for (int i = 0; i < 3; i++) GridCofre.RowDefinitions.Add(new RowDefinition { Height = 50 });
+        for (int i = 0; i < 9; i++) GridCofre.ColumnDefinitions.Add(new ColumnDefinition { Width = 50 });
+        for (int i = 0; i < 3; i++) GridInvCofre.RowDefinitions.Add(new RowDefinition { Height = 50 });
+        for (int i = 0; i < 9; i++) GridInvCofre.ColumnDefinitions.Add(new ColumnDefinition { Width = 50 });
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 9; x++)
+            {
+                int ix = x, iy = y;
+                var bc = NuevoSlot();
+                bc.Clicked += (s, e) => OnSlotCofre(iy, ix);
+                Grid.SetRow(bc, y); Grid.SetColumn(bc, x);
+                GridCofre.Children.Add(bc);
+                _botonesCofre[y, x] = bc;
+
+                var bi = NuevoSlot();
+                bi.Clicked += (s, e) => OnSlotInvCofre(iy, ix);
+                Grid.SetRow(bi, y); Grid.SetColumn(bi, x);
+                GridInvCofre.Children.Add(bi);
+                _botonesInvCofre[y, x] = bi;
+            }
     }
 
     static Button NuevoSlot() => new()
@@ -665,6 +760,69 @@ public partial class PaginaJuego : ContentPage
     {
         if (sender is Button b && int.TryParse(b.CommandParameter?.ToString(), out int r))
             _red.Enviar(new Cocinar { Receta = r });
+    }
+
+    // ------------------------------------------------------------- cofre
+
+    void MostrarCofre()
+    {
+        Pausa.IsVisible = false;
+        PanelInv.IsVisible = false;
+        _pausado = true;
+        PanelCofre.IsVisible = true;
+        RefrescarCofre();
+        RefrescarCofreInventario();
+    }
+
+    void OnCerrarCofre(object? sender, EventArgs e)
+    {
+        PanelCofre.IsVisible = false;
+        _pausado = false;
+    }
+
+    /// <summary>Click en un slot del cofre: si el cursor tiene algo lo deposita (1),
+    /// si no, saca 1 del cofre al inventario.</summary>
+    void OnSlotCofre(int y, int x)
+    {
+        if (_cursorMaterial != 0)
+        {
+            _red.Enviar(new PonerEnCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Material = _cursorMaterial, Cantidad = 1 });
+            // El cursor baja 1 localmente (el servidor confirma con Inventario)
+            _cursorCantidad--;
+            if (_cursorCantidad <= 0) { _cursorMaterial = 0; _cursorCantidad = 0; }
+            RefrescarCofreInventario();
+        }
+        else
+        {
+            _red.Enviar(new SacarDeCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Slot = y * 9 + x });
+        }
+    }
+
+    /// <summary>Click en un slot del inventario (dentro del panel cofre): coge/suelta
+    /// como en el inventario normal.</summary>
+    void OnSlotInvCofre(int y, int x) { IntercambiarCon(ref _slots[y * 9 + x]); RefrescarCofreInventario(); }
+
+    void RefrescarCofre()
+    {
+        Array.Clear(_slotsCofre);
+        int i = 0;
+        foreach (var s in _cofre)
+        {
+            if (i >= 27) break;
+            _slotsCofre[i] = new SlotUI { Material = s.Material, Cantidad = s.Cantidad };
+            i++;
+        }
+        for (int k = 0; k < 27; k++)
+            PintarSlot(_botonesCofre[k / 9, k % 9], _slotsCofre[k]);
+    }
+
+    void RefrescarCofreInventario()
+    {
+        for (int i = 0; i < 27; i++)
+            PintarSlot(_botonesInvCofre[i / 9, i % 9], _slots[i]);
+        LblCursorCofre.Text = _cursorMaterial == 0
+            ? "Cursor: (vacA-o)"
+            : $"Cursor: {Objetos.Nombre(_cursorMaterial)} x {_cursorCantidad}";
     }
 
     void AlternarVolar()

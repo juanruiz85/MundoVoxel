@@ -166,6 +166,12 @@ public sealed class VistaJuego : IDrawable
     Vector2 _joystick;
     public Vector2 Joystick => _joystick;
 
+    /// <summary>Sensibilidad del ratA3n (multiplica el giro por pA-xel arrastrado).</summary>
+    public float Sensibilidad = 1f;
+
+    /// <summary>True si la A-ltima interacciA3n vino de un puntero de ratA3n (Windows).</summary>
+    public bool PunteroRaton;
+
     PointF _ultimoPunto;
     bool _arrastrando;
     float _distanciaTotal;
@@ -211,8 +217,8 @@ public sealed class VistaJuego : IDrawable
         var ox = p.X - _ultimoPunto.X;
         var oy = p.Y - _ultimoPunto.Y;
         _distanciaTotal += MathF.Abs(ox) + MathF.Abs(oy);
-        Jugador.Yaw += ox * 0.005f;
-        Jugador.Pitch = Math.Clamp(Jugador.Pitch + oy * 0.005f, -1.45f, 1.45f);
+        Jugador.Yaw += ox * 0.005f * Sensibilidad;
+        Jugador.Pitch = Math.Clamp(Jugador.Pitch + oy * 0.005f * Sensibilidad, -1.45f, 1.45f);
         _ultimoPunto = p;
     }
 
@@ -224,6 +230,13 @@ public sealed class VistaJuego : IDrawable
         if (fueJoystick)
         {
             _joystick = Vector2.Zero;
+            return;
+        }
+        // Con ratA3n el clic ya hizo su acciA3n (izquierdo rompe, derecho coloca);
+        // no convertir el clic en tap para no duplicar la acciA3n.
+        if (PunteroRaton)
+        {
+            PunteroRaton = false;
             return;
         }
         var duracion = (DateTime.UtcNow - _inicioToque).TotalMilliseconds;

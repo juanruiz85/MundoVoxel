@@ -19,4 +19,6 @@ public sealed class DatosMundo
     public required float Ax { get; init; }
     public required float Ay { get; init; }
     public required float Az { get; init; }
+    /// <summary>Sensibilidad del ratA3n guardada (1 = normal).</summary>
+    public float Sensibilidad { get; init; } = 1f;
 }

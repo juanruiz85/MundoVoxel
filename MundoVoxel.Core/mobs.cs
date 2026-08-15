@@ -13,8 +13,10 @@ public enum TipoMob : byte
     EsqueletoWither = 5,
 }
 
-/// <summary>Datos estáticos de cada mob: tamaño, hostilidad, velocidad, radio de agresión y daño.</summary>
-public sealed record InfoMob(float Ancho, float Alto, bool Hostil, float Velocidad, float AreaAgresion, float Danio);
+/// <summary>Datos estA!ticos de cada mob: tamaA?o, hostilidad, velocidad, radio de agresiA3n y daA?o.</summary>
+public sealed record InfoMob(
+    float Ancho, float Alto, bool Hostil, float Velocidad, float AreaAgresion, float Danio,
+    bool SoloNoche = false, float RadioExplosion = 0f, bool SeQuemaSol = false);
 
 public static partial class MobsInfo
 {
@@ -26,6 +28,12 @@ public static partial class MobsInfo
     /// radio de agresion o daño de cada mob sin recompilar.
     /// </summary>
     public static InfoMob Datos(TipoMob t) => _overrides.TryGetValue(t, out var o) ? o : Base(t);
+
+    /// <summary>Es de dA-a (entre las 6:00 y las 18:00).</summary>
+    public static bool EsDeDia(float hora) => hora >= 6f && hora < 18f;
+
+    /// <summary>Un mob que solo sale de noche se quema si estA! expuesto al sol.</summary>
+    public static bool SeQuemaConSol(TipoMob t, float hora) => Datos(t).SeQuemaSol && EsDeDia(hora);
 
     /// <summary>Aplica overrides por tipo (los campos omitidos mantienen el valor base).</summary>
     public static void AplicarConfig(IReadOnlyDictionary<TipoMob, InfoMob> cfg)
@@ -41,7 +49,10 @@ public static partial class MobsInfo
                 info.Hostil,
                 info.Velocidad > 0 ? info.Velocidad : b.Velocidad,
                 info.AreaAgresion >= 0 ? info.AreaAgresion : b.AreaAgresion,
-                info.Danio > 0 ? info.Danio : b.Danio);
+                info.Danio > 0 ? info.Danio : b.Danio,
+                info.SoloNoche,
+                info.RadioExplosion >= 0 ? info.RadioExplosion : b.RadioExplosion,
+                info.SeQuemaSol);
         }
     }
 
@@ -50,9 +61,9 @@ public static partial class MobsInfo
         TipoMob.Cerdo => new(1.0f, 1.0f, false, 1.4f, 0f, 0f),
         TipoMob.Vaca => new(1.2f, 1.3f, false, 1.2f, 0f, 0f),
         TipoMob.Oveja => new(1.2f, 1.2f, false, 1.2f, 0f, 0f),
-        TipoMob.Zombi => new(0.8f, 1.9f, true, 1.0f, 11f, 3f),
-        TipoMob.Creeper => new(0.8f, 1.7f, true, 1.0f, 11f, 6f),
-        _ => new(0.8f, 1.9f, true, 1.0f, 11f, 4f),
+        TipoMob.Zombi => new(0.8f, 1.9f, true, 1.0f, 11f, 3f, SoloNoche: true, SeQuemaSol: true),
+        TipoMob.Creeper => new(0.8f, 1.7f, true, 1.0f, 11f, 6f, SoloNoche: true, RadioExplosion: 3f),
+        _ => new(0.8f, 1.9f, true, 1.0f, 11f, 4f, SoloNoche: true, SeQuemaSol: true),
     };
 
     /// <summary>Vida maxima de un mob segun su tipo (hostiles aguantan mas).</summary>

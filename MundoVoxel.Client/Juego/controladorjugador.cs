@@ -24,6 +24,10 @@ public sealed class ControladorJugador
     public void Actualizar(Mundo mundo, float dt, Vector2 entradaMov, bool saltar, bool bajar, bool volar)
     {
         Volando = volar;
+        // EnSuelo se calcula dentro de Mover (al resolver el eje Y), asi que el salto
+        // debe mirar el estado del frame anterior; si lo reseteamos aqui el jugador
+        // nunca podria saltar (siempre veria false).
+        bool estabaEnSuelo = EnSuelo;
         EnSuelo = false;
         var fwd = new Vector3(MathF.Sin(Yaw), 0, -MathF.Cos(Yaw));
         var der = new Vector3(MathF.Cos(Yaw), 0, MathF.Sin(Yaw));
@@ -38,13 +42,31 @@ public sealed class ControladorJugador
         {
             Vel.Y = saltar ? 8f : bajar ? -8f : 0f;
         }
+        else if (EnAgua(mundo))
+        {
+            // Nadar: gravedad reducida, subir con espacio, friccion del agua
+            Vel.Y += Gravedad * 0.3f * dt;
+            if (saltar) Vel.Y = 5f;
+            if (bajar) Vel.Y = -3f;
+            Vel.X *= 0.92f;
+            Vel.Z *= 0.92f;
+        }
         else
         {
             Vel.Y += Gravedad * dt;
-            if (saltar && EnSuelo) Vel.Y = Salto;
+            if (saltar && estabaEnSuelo) Vel.Y = Salto;
         }
 
         Mover(mundo, dt);
+    }
+
+    /// <summary>True si el jugador esta dentro del agua (pecho o pies en agua).</summary>
+    bool EnAgua(Mundo mundo)
+    {
+        int bx = (int)MathF.Floor(Pos.X), bz = (int)MathF.Floor(Pos.Z);
+        int yPies = (int)MathF.Floor(Pos.Y + 0.2f);
+        int yPecho = (int)MathF.Floor(Pos.Y + 1.0f);
+        return mundo.Obtener(bx, yPies, bz) == Bloques.Agua || mundo.Obtener(bx, yPecho, bz) == Bloques.Agua;
     }
 
     void Mover(Mundo mundo, float dt)

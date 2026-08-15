@@ -1,4 +1,4 @@
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using MundoVoxel.Core;
 
 // Prueba automatica del servidor y el protocolo multijugador:
@@ -39,6 +39,12 @@ Comprobar(mundo.Ancho == 128 && mundo.Alto == 48 && mundo.Profundo == 128, $"dim
 var aparicion = mundo.ObtenerPuntoAparicion();
 Comprobar(mundo.Obtener((int)aparicion.X, (int)aparicion.Y, (int)aparicion.Z) == Bloques.Aire, "punto de aparicion despejado");
 
+// El mundo publico empieza de dia: los hostiles (zombi/esqueleto/creeper) solo salen de noche
+var mobsPublico = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
+Comprobar(mobsPublico != null && mobsPublico.Lista.Count > 0, $"mobs del mundo publico difundidos ({mobsPublico?.Lista.Count ?? 0})");
+Comprobar(mobsPublico != null && mobsPublico.Lista.All(m => m.Tipo <= 2), "de dia solo se generan mobs pasivos");
+Comprobar(mobsPublico != null && mobsPublico.Lista.Select(m => m.Tipo).Distinct().Count() >= 3, "hay variedad de tipos de mob (pasivos)");
+
 // ---------- cliente 2: mundo privado ----------
 Console.WriteLine("Cliente 2: mundo privado, clave correcta e incorrecta.");
 var c2 = await Conectar(puerto);
@@ -46,7 +52,7 @@ await c2.Enviar(new Hola { Nombre = "Bruno", Version = "1.0" });
 await c2.LeerHasta<Bienvenido>();
 await c2.LeerHasta<ListaMundos>();
 
-await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "1234", Semilla = 12345 });
+await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "1234", Semilla = 12345, HoraInicial = 0 });
 await c2.LeerHasta<MundoCreado>();
 var unido2 = await c2.LeerHasta<Unido>();
 Comprobar(unido2 != null, "Bruno entra a su mundo privado");
@@ -61,6 +67,21 @@ Comprobar(errPin?.Codigo == "PIN_INCORRECTO", "clave incorrecta rechazada");
 await c1.Enviar(new Unirse { Id = idPrivado, Pin = "1234" });
 var unidoPriv = await c1.LeerHasta<Unido>();
 Comprobar(unidoPriv?.Id == idPrivado, "Ana entra con la clave correcta");
+
+// ---------- cofre inicial ----------
+Console.WriteLine("Cofre inicial: herramientas basicas en el spawn + 4 antorchas.");
+var mundoPriv = Mundo.Deserializar(Mundo.Descomprimir(unidoPriv!.MundoComprimido));
+int cfx = (int)unidoPriv.Ax + 1, cfz = (int)unidoPriv.Az, cfy = (int)unidoPriv.Ay - 1;
+if (mundoPriv.Obtener(cfx, cfy, cfz) != Bloques.Cofre) { cfx = (int)unidoPriv.Ax; cfz = (int)unidoPriv.Az + 1; }
+Comprobar(mundoPriv.Obtener(cfx, cfy, cfz) == Bloques.Cofre, "cofre inicial en el spawn");
+int antorchas = 0;
+foreach (var (dx, dz) in new[] { (1, 1), (1, -1), (-1, 1), (-1, -1) })
+    if (mundoPriv.Obtener(cfx + dx, mundoPriv.Superficie(cfx + dx, cfz + dz), cfz + dz) == Bloques.Antorcha) antorchas++;
+Comprobar(antorchas == 4, "4 antorchas alrededor del cofre");
+await c1.Enviar(new AbrirCofre { X = cfx, Y = cfy, Z = cfz });
+var cofreAb = await c1.LeerHasta<CofreAbierto>(timeoutMs: 1500);
+Comprobar(cofreAb != null && cofreAb.Slots.Count >= 5, "abrir el cofre devuelve las herramientas");
+Comprobar(cofreAb?.Slots.Any(s => s.Material == (ushort)ItemId.PicoPiedra) == true, "el cofre tiene pico de piedra");
 
 // ---------- mobs ----------
 Console.WriteLine("Mobs: el servidor genera y difunde mobs en el mundo.");
@@ -248,12 +269,26 @@ await c1.Enviar(new Cocinar { Receta = 3 }); // fundir oro (receta 3 del horno)
 var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
 Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) == true, "fundir oro en bruto -> lingote de oro");
 
+// Un mob hostil ataca al jugador si esta cerca (se prueba de noche, antes de que
+// los hostiles se quemen al amanecer)
+var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 2000);
+var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo >= 3);
+if (hostil != null)
+{
+    await c1.Enviar(new Posicion { Px = hostil.Px, Py = hostil.Py, Pz = hostil.Pz, Ry = 0, Pitch = 0 });
+    await Task.Delay(300);
+    var saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 4000);
+    Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
+    await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+}
+else Comprobar(false, "un mob hostil ataca al jugador cercano (la vida baja)");
+
 // Trigo: la azada labra la tierra, las semillas se plantan, crece y se cosecha
 int idxAzada = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Azada de madera");
 await c1.Enviar(new Craftear { Receta = idxAzada });
 var invActual = await c1.LeerHasta<Inventario>();
 await c1.Enviar(new ColocarBloque { X = bx + 1, Y = by + 2, Z = bz, Bloque = Bloques.Tierra });
-await c1.LeerHasta<BloqueCambio>();
+var cambioTierra = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
 int idxAzadaInv = invActual!.Slots.FindIndex(s => s.Material == (ushort)ItemId.AzadaMadera);
 await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxAzadaInv, 8)), Material = (ushort)ItemId.AzadaMadera });
 await c1.Enviar(new UsarBloque { X = bx + 1, Y = by + 2, Z = bz });
@@ -293,38 +328,39 @@ for (int i = 0; i < 400 && !tntExploto; i++)
 }
 Comprobar(tntExploto, "el mechero enciende la TNT y explota");
 
-// Un mob hostil ataca al jugador si esta cerca
-var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 2000);
-var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo >= 3);
-if (hostil != null)
-{
-    await c1.Enviar(new Posicion { Px = hostil.Px, Py = hostil.Py, Pz = hostil.Pz, Ry = 0, Pitch = 0 });
-    await Task.Delay(300);
-    var saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 4000);
-    Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
-    await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
-}
-else Comprobar(false, "un mob hostil ataca al jugador cercano (la vida baja)");
-
 // Ciclo dia/noche: la hora avanza
 var t1m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 2000);
 await Task.Delay(1200);
 var t2m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 2000);
 Comprobar(t1m != null && t2m != null && t2m.Hora != t1m.Hora, "el ciclo dia/noche avanza");
 
+// Creeper: radio de explosion configurable (default 3) y no rompe con agua cerca
+Comprobar(MobsInfo.Datos(TipoMob.Creeper).RadioExplosion == 3f, "el creeper explota con radio 3 por defecto");
+Comprobar(MobsInfo.Datos(TipoMob.Zombi).SoloNoche, "el zombi solo sale de noche");
+Comprobar(MobsInfo.Datos(TipoMob.Zombi).SeQuemaSol, "el zombi se quema con el sol");
+
 // Soltar item con Q: el inventario baja 1 y el drop se recoge solo
+// (se leen varios Inventario porque la explosion de la TNT deja mensajes en cola)
 await c1.Enviar(new SoltarItem { Slot = 0 });
-var invSoltado1 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+Inventario? invSoltado1 = null, invSoltado2 = null;
+int maderaS1 = -1, maderaS2 = -1;
+for (int i = 0; i < 8 && maderaS1 != 9; i++)
+{
+    invSoltado1 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+    maderaS1 = invSoltado1?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
+}
 await Task.Delay(900);
-var invSoltado2 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
-int maderaS1 = invSoltado1?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
-int maderaS2 = invSoltado2?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
+for (int i = 0; i < 8 && maderaS2 != 10; i++)
+{
+    invSoltado2 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+    maderaS2 = invSoltado2?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
+}
 Comprobar(maderaS1 == 9 && maderaS2 == 10, "soltar item (Q) suelta 1 y el drop se recoge");
 
 // ---------- chat ----------
-await c1.Enviar(new Chat { Texto = "¡Hola a todos!" });
+await c1.Enviar(new Chat { Texto = "Â¡Hola a todos!" });
 var chat = await c2.LeerHasta<Chat>();
-Comprobar(chat?.Nombre == "Ana" && chat.Texto == "¡Hola a todos!", "chat difundido");
+Comprobar(chat?.Nombre == "Ana" && chat.Texto == "Â¡Hola a todos!", "chat difundido");
 
 // ---------- persistencia en memoria ----------
 Console.WriteLine("Persistencia: el mundo vacio sigue existiendo y luego se borra.");
