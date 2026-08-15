@@ -7,6 +7,7 @@ using MundoVoxel.Core;
 
 int puerto = 25600;
 var servidor = new GameServer(puerto, "Servidor de prueba");
+servidor.AlRegistrar += Console.WriteLine;
 servidor.Iniciar();
 await Task.Delay(300);
 
@@ -45,7 +46,7 @@ await c2.Enviar(new Hola { Nombre = "Bruno", Version = "1.0" });
 await c2.LeerHasta<Bienvenido>();
 await c2.LeerHasta<ListaMundos>();
 
-await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "1234" });
+await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "1234", Semilla = 12345 });
 await c2.LeerHasta<MundoCreado>();
 var unido2 = await c2.LeerHasta<Unido>();
 Comprobar(unido2 != null, "Bruno entra a su mundo privado");
@@ -118,18 +119,23 @@ await c1.Enviar(new Craftear { Receta = 2 });
 var invMesa = await c1.LeerHasta<Inventario>();
 Comprobar(invMesa?.Slots.Any(s => s.Material == Bloques.Mesa) == true, "craftear 4 tablones -> mesa de trabajo");
 
-// Picar piedra SIN pico: no suelta bloque
+// Picar piedra SIN pico: no suelta bloque (el inventario no gana piedra)
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
 await c1.LeerHasta<BloqueCambio>();
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
 var invSinPico = await c1.LeerHasta<Inventario>(timeoutMs: 400);
 await c1.LeerHasta<BloqueCambio>();
-Comprobar(invSinPico == null || !invSinPico.Slots.Any(s => s.Material == Bloques.Piedra), "sin pico, la piedra no suelta bloque");
+int piedraAntes = invSinPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
+Comprobar(piedraAntes <= 5, "sin pico, la piedra no suelta bloque");
 
-// Pico de madera (receta 5): 3 tablones + 2 palos
-await c1.Enviar(new Craftear { Receta = 5 });
+// Pico de madera: 3 tablones + 2 palos (buscar la receta por nombre)
+int idxPicoMadera = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Pico de madera");
+await c1.Enviar(new Craftear { Receta = idxPicoMadera });
 var invPico = await c1.LeerHasta<Inventario>();
 Comprobar(invPico?.Slots.Any(s => s.Material == (ushort)ItemId.PicoMadera) == true, "craftear pico de madera");
+// Seleccionar el pico en la hotbar (slot = indice en la lista del inventario)
+int idxPicoInv = invPico!.Slots.FindIndex(s => s.Material == (ushort)ItemId.PicoMadera);
+await c1.Enviar(new SeleccionarSlot { Slot = Math.Min(idxPicoInv, 8), Material = (ushort)ItemId.PicoMadera });
 
 // Picar piedra CON pico: suelta bloque (8 veces para el horno)
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
@@ -137,7 +143,8 @@ await c1.LeerHasta<BloqueCambio>();
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
 var invConPico = await c1.LeerHasta<Inventario>();
 await c1.LeerHasta<BloqueCambio>();
-Comprobar(invConPico?.Slots.Any(s => s.Material == Bloques.Piedra) == true, "con pico, la piedra suelta bloque");
+int piedraConPico = invConPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
+Comprobar(piedraConPico > 5, "con pico, la piedra suelta bloque");
 for (int i = 0; i < 7; i++)
 {
     await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
@@ -213,6 +220,106 @@ if (objetivo != null)
             "cocinar carne cruda -> carne cocinada");
     }
 }
+
+// ---------- mecanicas nuevas: fundicion, cultivos, TNT, ataque hostil y dia/noche ----------
+Console.WriteLine("Mecanicas nuevas: fundicion, cultivos, TNT, hostiles y dia/noche.");
+
+// Fundicion: picar carbon y oro en bruto, fundir el oro en el horno
+// Ana se aparta del spawn: la celda (bx, by+2, bz) es la de su cabeza y Colocar
+// rechaza bloques encima de un jugador. Bruno tambien se aparta (sigue en el spawn).
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax + 4, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+await c2.Enviar(new Posicion { Px = aparicionPriv.Ax + 6, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az + 6, Ry = 0, Pitch = 0 });
+await Task.Delay(100);
+await c1.Enviar(new ColocarBloque { X = bx, Y = by + 2, Z = bz, Bloque = Bloques.Carbon });
+await c1.LeerHasta<BloqueCambio>();
+await c1.Enviar(new RomperBloque { X = bx, Y = by + 2, Z = bz });
+var invCarbon = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+await c1.LeerHasta<BloqueCambio>();
+Comprobar(invCarbon?.Slots.Any(s => s.Material == (ushort)ItemId.CarbonItem) == true, "picar carbon da carbon (combustible)");
+
+await c1.Enviar(new ColocarBloque { X = bx, Y = by + 2, Z = bz, Bloque = Bloques.Oro });
+await c1.LeerHasta<BloqueCambio>();
+await c1.Enviar(new RomperBloque { X = bx, Y = by + 2, Z = bz });
+var invOroBruto = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+await c1.LeerHasta<BloqueCambio>();
+Comprobar(invOroBruto?.Slots.Any(s => s.Material == (ushort)ItemId.OroBruto) == true, "picar oro da oro en bruto");
+
+await c1.Enviar(new Cocinar { Receta = 3 }); // fundir oro (receta 3 del horno)
+var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) == true, "fundir oro en bruto -> lingote de oro");
+
+// Trigo: la azada labra la tierra, las semillas se plantan, crece y se cosecha
+int idxAzada = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Azada de madera");
+await c1.Enviar(new Craftear { Receta = idxAzada });
+var invActual = await c1.LeerHasta<Inventario>();
+await c1.Enviar(new ColocarBloque { X = bx + 1, Y = by + 2, Z = bz, Bloque = Bloques.Tierra });
+await c1.LeerHasta<BloqueCambio>();
+int idxAzadaInv = invActual!.Slots.FindIndex(s => s.Material == (ushort)ItemId.AzadaMadera);
+await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxAzadaInv, 8)), Material = (ushort)ItemId.AzadaMadera });
+await c1.Enviar(new UsarBloque { X = bx + 1, Y = by + 2, Z = bz });
+var cambioLabrado = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
+Comprobar(cambioLabrado?.Bloque == Bloques.TierraLabrada, "la azada labra la tierra");
+int idxSemilla = invActual.Slots.FindIndex(s => s.Material == (ushort)ItemId.SemillasTrigo);
+await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxSemilla, 8)), Material = (ushort)ItemId.SemillasTrigo });
+await c1.Enviar(new UsarBloque { X = bx + 1, Y = by + 2, Z = bz });
+var cambioTrigo = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
+Comprobar(cambioTrigo?.Bloque == Bloques.Trigo0, "plantar semillas en tierra labrada");
+bool trigoMaduro = false;
+for (int i = 0; i < 36 && !trigoMaduro; i++)
+{
+    var cb = await c1.LeerHasta<BloqueCambio>(timeoutMs: 600);
+    if (cb?.Bloque == Bloques.Trigo3) trigoMaduro = true;
+}
+Comprobar(trigoMaduro, "el trigo crece hasta madurar");
+await c1.Enviar(new RomperBloque { X = bx + 1, Y = by + 3, Z = bz });
+var invCosecha = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+await c1.LeerHasta<BloqueCambio>();
+Comprobar(invCosecha?.Slots.Any(s => s.Material == (ushort)ItemId.Trigo) == true, "cosechar trigo maduro da trigo");
+
+// TNT: colocar, encender con el mechero y esperar la explosion
+await c1.Enviar(new ColocarBloque { X = bx + 2, Y = by + 2, Z = bz, Bloque = Bloques.Tnt });
+var cambioTnt = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
+Comprobar(cambioTnt?.Bloque == Bloques.Tnt && cambioTnt.X == bx + 2, "colocar TNT difunde BloqueCambio");
+int idxMechero = invActual.Slots.FindIndex(s => s.Material == (ushort)ItemId.Mechero);
+await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxMechero, 8)), Material = (ushort)ItemId.Mechero });
+await c1.Enviar(new UsarBloque { X = bx + 2, Y = by + 2, Z = bz });
+bool tntExploto = false;
+// La explosion destruye ~100 bloques (radio 3.5); el BloqueCambio del centro
+// llega en medio de la rafaga, asi que hay que leer muchos mas.
+for (int i = 0; i < 400 && !tntExploto; i++)
+{
+    var cb = await c1.LeerHasta<BloqueCambio>(timeoutMs: 500);
+    if (cb != null && cb.X == bx + 2 && cb.Y == by + 2 && cb.Z == bz && cb.Bloque == Bloques.Aire) tntExploto = true;
+}
+Comprobar(tntExploto, "el mechero enciende la TNT y explota");
+
+// Un mob hostil ataca al jugador si esta cerca
+var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 2000);
+var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo >= 3);
+if (hostil != null)
+{
+    await c1.Enviar(new Posicion { Px = hostil.Px, Py = hostil.Py, Pz = hostil.Pz, Ry = 0, Pitch = 0 });
+    await Task.Delay(300);
+    var saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 4000);
+    Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
+    await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+}
+else Comprobar(false, "un mob hostil ataca al jugador cercano (la vida baja)");
+
+// Ciclo dia/noche: la hora avanza
+var t1m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 2000);
+await Task.Delay(1200);
+var t2m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 2000);
+Comprobar(t1m != null && t2m != null && t2m.Hora != t1m.Hora, "el ciclo dia/noche avanza");
+
+// Soltar item con Q: el inventario baja 1 y el drop se recoge solo
+await c1.Enviar(new SoltarItem { Slot = 0 });
+var invSoltado1 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+await Task.Delay(900);
+var invSoltado2 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+int maderaS1 = invSoltado1?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
+int maderaS2 = invSoltado2?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
+Comprobar(maderaS1 == 9 && maderaS2 == 10, "soltar item (Q) suelta 1 y el drop se recoge");
 
 // ---------- chat ----------
 await c1.Enviar(new Chat { Texto = "¡Hola a todos!" });

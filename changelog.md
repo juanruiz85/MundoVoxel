@@ -2,6 +2,27 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.7.0] - 2026-08-15
+
+### Anadido (paquete estilo Minecraft Indev)
+- **Soltar items (tecla Q)**: quita 1 del slot seleccionado y crea un drop frente al jugador que se puede recoger.
+- **Hotbar dinamica + herramientas en mano**: la hotbar muestra los primeros 9 slots del inventario; la herramienta seleccionada (pico/espada/hacha/pala/azada) se dibuja como figura voxel en la mano (mango de palo + cabeza del color del material). La seleccion viaja con el material (mensaje `SeleccionarSlot { Slot, Material }`) para que el servidor valide lo que hay en la mano.
+- **Arboles -> plantones/manzanas/palos**: al romper hojas caen con probabilidad (10% planton, 6% manzana, 12% palo); el cesped puede soltar semillas de trigo.
+- **Trigo + azada**: la azada labra tierra/cesped (`TierraLabrada`), las semillas se plantan y el trigo crece en 4 etapas hasta madurar; cosecharlo da trigo + semillas. El planton crece hasta convertirse en arbol.
+- **TNT + mechero**: receta (lingote de hierro + piedra); el mechero enciende la TNT (cuenta 3 s) y explota (radio 3.5, destruye bloques con 30% de drops, daña jugadores y mobs).
+- **Fundicion con combustible**: 8 recetas de cocina (3 carnes + oro/hierro/cobre/diamante en bruto -> lingotes/diamante + arena -> cristal); fundir minerales requiere 1 carbon como combustible (error `SIN_CARBON`).
+- **Herramientas de 6 materiales**: 35 recetas de crafteo (pico/espada/hacha/pala/azada en madera, piedra, cobre, hierro, oro y diamante).
+- **Vida del jugador + ataque hostil configurable**: el jugador tiene 20 de salud (HUD de corazones); los mobs hostiles golpean de cerca (cooldown 1 s, daño por tipo) y al morir reapareces en el spawn conservando el inventario. `mobs.config.json` junto al ejecutable permite ajustar tamano, hostilidad, velocidad, area de agresion y daño por mob sin recompilar.
+- **Ciclo dia/noche + antorchas**: 24 h en ~5 minutos; el render baja el brillo de noche (cielo azulado nocturno). Antorcha = palo + carbon (bloque 27) y TNT (26) ya son colocables con sus colores.
+- **Kit inicial**: al entrar a un mundo por primera vez recibes madera, tierra, piedra, arena, palos, antorchas, semillas de trigo y un mechero para poder construir desde el primer momento.
+- **Barras de vida sobre los mobs** y etiquetas con su nombre.
+- `CrearMundo` acepta una **semilla opcional** para mundos reproducibles.
+
+### Corregido
+- **Drops de mob con varios items**: la recogida enviaba un `Inventario` por cada drop; el cliente podia leer un inventario intermedio sin todos los drops. Ahora se envia un unico inventario por jugador tras recoger todo el lote.
+- **TNT no desaparecia al explotar**: la TNT central se quedaba como bloque (solo se difundia el aire de los bloques alrededor). Ahora se consume y difunde su `BloqueCambio`.
+- **Pruebas**: el mundo privado de la suite usa semilla fija (terreno determinista); las posiciones de mineria se apartan de los jugadores (el servidor rechaza colocar bloques encima de un jugador) y la explosion de TNT se espera leyendo toda la rafaga de cambios. Suite completa: **PRUEBAS SUPERADAS (34 comprobaciones)**.
+
 ## [0.6.0] - 2026-08-15
 
 ### Anadido

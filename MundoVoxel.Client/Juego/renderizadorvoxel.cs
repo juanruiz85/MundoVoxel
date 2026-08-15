@@ -18,6 +18,8 @@ public sealed class RenderizadorVoxel
         (96,160,52), (136,128,120), (170,90,70), (70,120,60), (200,220,230), (60,60,70),
         (176,140,84), (90,90,96), (160,130,80), (216,204,160),
         (70,70,72), (168,138,120), (212,178,72), (96,200,196),
+        (110,80,52), (120,170,60), (140,180,70), (170,180,70), (200,180,70),
+        (80,150,70), (200,60,50), (255,170,60), (200,120,90),
     };
 
     // Sombreado por dirección de cara: +Y, -Y, +X, -X, +Z, -Z
@@ -32,11 +34,30 @@ public sealed class RenderizadorVoxel
 
     Color _cieloArriba = Color.FromArgb("#6cb6e8");
     Color _cieloAbajo = Color.FromArgb("#cfe3f2");
+    float _brillo = 1f; // luz global: 1 de dia, ~0.28 de noche
 
     const float Fov = 75f * MathF.PI / 180f;
     const float InicioNiebla = 0.30f;
 
     public int DistanciaChunks { get; set; } = 2;
+
+    /// <summary>
+    /// Aplica la hora del mundo (0-24h) a la luz global y al color del cielo.
+    /// De dia brilla, al anochecer se oscurece y de noche queda una luz azulada.
+    /// </summary>
+    public void AplicarHora(float hora)
+    {
+        float t;
+        if (hora >= 6f && hora < 18f) t = 1f;
+        else if (hora < 5f || hora >= 19f) t = 0.30f;
+        else if (hora < 6f) t = 0.30f + (hora - 5f) * 0.70f;   // amanecer 5-6
+        else t = 1f - (hora - 18f) * 0.70f;                     // atardecer 18-19
+        _brillo = t;
+        float ar = Math.Min(1f, t * 1.1f), ag = Math.Min(1f, t * 0.95f), ab = Math.Min(1f, t * 1.5f);
+        _cieloArriba = new Color(0x6c / 255f * ar, 0xb6 / 255f * ag, 0xe8 / 255f * ab);
+        _cieloAbajo = new Color(0xcf / 255f * ar, 0xe3 / 255f * ag, 0xf2 / 255f * ab);
+        PrepararPaleta();
+    }
 
     public Color ColorBloque(ushort b)
     {
@@ -89,7 +110,7 @@ public sealed class RenderizadorVoxel
                 for (int niebla = 0; niebla < NivelesNiebla; niebla++)
                 {
                     float t = niebla / (float)(NivelesNiebla - 1);
-                    float sombra = Brillo[d];
+                    float sombra = Brillo[d] * _brillo;
                     float r = ColoresBase[b].r / 255f * sombra;
                     float g = ColoresBase[b].g / 255f * sombra;
                     float bl = ColoresBase[b].b / 255f * sombra;

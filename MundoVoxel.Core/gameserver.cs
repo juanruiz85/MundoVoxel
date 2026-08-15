@@ -53,6 +53,40 @@ public sealed class GameServer : IAsyncDisposable
         _ = AceptarCicloAsync(_cts.Token);
         _ = CicloPosicionesAsync(_cts.Token);
         _ = CicloMobsAsync(_cts.Token);
+        _ = CicloMundoAsync(_cts.Token);
+    }
+
+    /// <summary>
+    /// Carga `mobs.config.json` (junto al ejecutable) para ajustar el comportamiento
+    /// de los mobs sin recompilar: velocidad, radio de agresion y daño por tipo.
+    /// </summary>
+    void CargarConfigMobs()
+    {
+        try
+        {
+            var ruta = Path.Combine(AppContext.BaseDirectory, "mobs.config.json");
+            if (!File.Exists(ruta)) return;
+            var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(ruta));
+            var cfg = new Dictionary<TipoMob, InfoMob>();
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (!Enum.TryParse<TipoMob>(prop.Name, true, out var tipo)) continue;
+                var e = prop.Value;
+                cfg[tipo] = new InfoMob(
+                    e.TryGetProperty("Ancho", out var a) ? (float)a.GetDouble() : 0f,
+                    e.TryGetProperty("Alto", out var al) ? (float)al.GetDouble() : 0f,
+                    e.TryGetProperty("Hostil", out var h) ? h.GetBoolean() : false,
+                    e.TryGetProperty("Velocidad", out var v) ? (float)v.GetDouble() : 0f,
+                    e.TryGetProperty("AreaAgresion", out var aa) ? (float)aa.GetDouble() : -1f,
+                    e.TryGetProperty("Danio", out var d) ? (float)d.GetDouble() : 0f);
+            }
+            MobsInfo.AplicarConfig(cfg);
+            Log($"Config de mobs cargada: {cfg.Count} tipos ajustados desde mobs.config.json.");
+        }
+        catch (Exception ex)
+        {
+            Log($"No se pudo leer mobs.config.json: {ex.Message}");
+        }
     }
 
     public async Task DetenerAsync()
@@ -81,6 +115,10 @@ public sealed class GameServer : IAsyncDisposable
         public Vector3 Pos;
         public float Ry, Pitch;
         public bool EnMundo;
+        public int Slot;              // slot seleccionado de la hotbar (0-8)
+        public ushort Mano;           // material que el jugador tiene en la mano (validado)
+        public int Salud = 20;         // vida del jugador (max 20)
+        public float TiempoGolpe;      // cooldown para recibir dano de mobs
         public readonly List<SlotInventario> Inventario = new();
 
         public void Cerrar()
@@ -103,6 +141,8 @@ public sealed class GameServer : IAsyncDisposable
         public int SiguienteMobId;
         public readonly List<Drop> Drops = new();
         public int SiguienteDropId;
+        public float Hora = 8f;       // ciclo dia/noche: 0-24h (empieza de manana)
+        public readonly List<(int x, int y, int z, float t)> Tnts = new();
         public int Conteo => Jugadores.Count;
     }
 
@@ -190,6 +230,19 @@ public sealed class GameServer : IAsyncDisposable
 
             case ColocarBloque cb:
                 Colocar(c, cb);
+                break;
+
+            case SoltarItem si:
+                SoltarItem(c, si);
+                break;
+
+            case UsarBloque ub:
+                Usar(c, ub);
+                break;
+
+            case SeleccionarSlot ss:
+                c.Slot = Math.Clamp(ss.Slot, 0, 8);
+                c.Mano = Contar(c, ss.Material) > 0 ? ss.Material : (ushort)0;
                 break;
 
             case Chat ch:
@@ -281,7 +334,7 @@ public sealed class GameServer : IAsyncDisposable
                 Abierto = cm.Abierto,
                 IdDueno = c.Id,
                 NombreDueno = c.Nombre,
-                Mundo = Mundo.Generar((int)(DateTime.UtcNow.Ticks & 0x7FFFFFFF)),
+                Mundo = Mundo.Generar(cm.Semilla != 0 ? cm.Semilla : (int)(DateTime.UtcNow.Ticks & 0x7FFFFFFF)),
             };
             GenerarMobs(mundo);
             _mundos[mundo.Id] = mundo;
@@ -335,6 +388,19 @@ public sealed class GameServer : IAsyncDisposable
             MundoComprimido = Mundo.Comprimir(mundo.Mundo.Serializar()),
             Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
         });
+        // Kit de inicio la primera vez que el jugador entra a un mundo
+        if (c.Inventario.Count == 0)
+        {
+            AgregarInventario(c, Bloques.Madera, 10);
+            AgregarInventario(c, Bloques.Tierra, 10);
+            AgregarInventario(c, Bloques.Piedra, 5);
+            AgregarInventario(c, Bloques.Arena, 5);
+            AgregarInventario(c, (ushort)ItemId.Palo, 8);
+            AgregarInventario(c, Bloques.Antorcha, 2);
+            AgregarInventario(c, (ushort)ItemId.SemillasTrigo, 4);
+            AgregarInventario(c, (ushort)ItemId.Mechero, 1);
+            Enviar(c, InventarioActual(c));
+        }
         Broadcast(mundo.Id, new JugadorEntro { Id = c.Id, Nombre = c.Nombre, Px = aparicion.X, Py = aparicion.Y, Pz = aparicion.Z });
         Log($"{c.Nombre} entrÃ³ al mundo Â«{mundo.Nombre}Â».");
     }
@@ -393,12 +459,18 @@ public sealed class GameServer : IAsyncDisposable
             var actual = m.Obtener(rb.X, rb.Y, rb.Z);
             if (!Bloques.EsRompible(actual)) return;
             m.Poner(rb.X, rb.Y, rb.Z, Bloques.Aire);
-            // La piedra y las menas requieren un pico para soltar su bloque (como en Minecraft)
-            if (!Objetos.RequierePico(actual) || TienePico(c))
+
+            // La herramienta en la mano decide que cae (pico para piedra/menas, etc.)
+            bool conPico = Objetos.EsPico(ItemEnMano(c));
+            var rnd = Random.Shared;
+            var drops = Objetos.DropAlRomper(actual, conPico, rnd);
+            bool algo = false;
+            foreach (var (material, cantidad) in drops)
             {
-                AgregarInventario(c, actual, 1);
-                Enviar(c, InventarioActual(c));
+                AgregarInventario(c, material, cantidad);
+                algo = true;
             }
+            if (algo) Enviar(c, InventarioActual(c));
             Broadcast(mundo.Id, new BloqueCambio { X = rb.X, Y = rb.Y, Z = rb.Z, Bloque = Bloques.Aire });
         }
     }
@@ -409,10 +481,10 @@ public sealed class GameServer : IAsyncDisposable
         {
             if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
             var m = mundo.Mundo;
-            if (!m.Dentro(cb.X, cb.Y, cb.Z) || cb.Y <= 0) return;
-            if (!Bloques.EsColocable(cb.Bloque)) return;
-            if (m.Obtener(cb.X, cb.Y, cb.Z) != Bloques.Aire) return;
-            if (Vector3.Distance(c.Pos, new Vector3(cb.X + 0.5f, cb.Y + 0.5f, cb.Z + 0.5f)) > 7f) return;
+            if (!m.Dentro(cb.X, cb.Y, cb.Z) || cb.Y <= 0) { Log($"DEBUG colocar: fuera ({cb.X},{cb.Y},{cb.Z})"); return; }
+            if (!Bloques.EsColocable(cb.Bloque)) { Log($"DEBUG colocar: no colocable {cb.Bloque}"); return; }
+            if (m.Obtener(cb.X, cb.Y, cb.Z) != Bloques.Aire) { Log($"DEBUG colocar: ocupado ({cb.X},{cb.Y},{cb.Z}) con {m.Obtener(cb.X, cb.Y, cb.Z)}"); return; }
+            if (Vector3.Distance(c.Pos, new Vector3(cb.X + 0.5f, cb.Y + 0.5f, cb.Z + 0.5f)) > 7f) { Log($"DEBUG colocar: lejos pos=({c.Pos.X:F1},{c.Pos.Y:F1},{c.Pos.Z:F1})"); return; }
             // No colocar un bloque encima de otro jugador
             foreach (var j in mundo.Jugadores.Values)
             {
@@ -424,6 +496,207 @@ public sealed class GameServer : IAsyncDisposable
             m.Poner(cb.X, cb.Y, cb.Z, cb.Bloque);
             Broadcast(mundo.Id, new BloqueCambio { X = cb.X, Y = cb.Y, Z = cb.Z, Bloque = cb.Bloque });
         }
+    }
+
+    // ------------------------------------------------------------------ usar, soltar y mundo
+
+    /// <summary>Item que el jugador tiene en la mano (lo que selecciono en la hotbar).</summary>
+    static ushort ItemEnMano(ConexionJugador c)
+    {
+        if (c.Mano != 0 && Contar(c, c.Mano) > 0) return c.Mano;
+        // Si no selecciono nada (o ya no tiene el item), usar la mejor herramienta disponible
+        foreach (var s in c.Inventario)
+            if (Objetos.EsPico(s.Material) || Objetos.EsAzada(s.Material) || Objetos.EsHacha(s.Material) || Objetos.EsEspada(s.Material))
+                return s.Material;
+        return 0;
+    }
+    void SoltarItem(ConexionJugador c, SoltarItem si)
+    {
+        lock (_cerrojo)
+        {
+            if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            if (si.Slot < 0 || si.Slot >= c.Inventario.Count) return;
+            var s = c.Inventario[si.Slot];
+            if (s.Cantidad <= 0) return;
+            Quitar(c, s.Material, 1);
+            Enviar(c, InventarioActual(c));
+            // El item cae frente al jugador y se puede recoger
+            float ya = c.Ry;
+            var pos = c.Pos + new Vector3(MathF.Sin(ya) * 1.4f, 0.4f, -MathF.Cos(ya) * 1.4f);
+            mundo.Drops.Add(new Drop { Id = ++mundo.SiguienteDropId, Material = s.Material, Px = pos.X, Py = pos.Y, Pz = pos.Z });
+        }
+    }
+
+    void Usar(ConexionJugador c, UsarBloque ub)
+    {
+        lock (_cerrojo)
+        {
+            if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            var m = mundo.Mundo;
+            if (!m.Dentro(ub.X, ub.Y, ub.Z)) return;
+            if (Vector3.Distance(c.Pos, new Vector3(ub.X + 0.5f, ub.Y + 0.5f, ub.Z + 0.5f)) > 7f) return;
+            var mano = ItemEnMano(c);
+            var bloque = m.Obtener(ub.X, ub.Y, ub.Z);
+
+            // Azada: labra la tierra / cesped
+            if (Objetos.EsAzada(mano) && (bloque == Bloques.Tierra || bloque == Bloques.Cesped))
+            {
+                m.Poner(ub.X, ub.Y, ub.Z, Bloques.TierraLabrada);
+                Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y, Z = ub.Z, Bloque = Bloques.TierraLabrada });
+                return;
+            }
+            // Semillas: se plantan en tierra labrada
+            if (Objetos.EsSemilla(mano) && bloque == Bloques.TierraLabrada)
+            {
+                if (m.Obtener(ub.X, ub.Y + 1, ub.Z) != Bloques.Aire) return;
+                if (!Quitar(c, (ushort)ItemId.SemillasTrigo, 1)) return;
+                Enviar(c, InventarioActual(c));
+                m.Poner(ub.X, ub.Y + 1, ub.Z, Bloques.Trigo0);
+                Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y + 1, Z = ub.Z, Bloque = Bloques.Trigo0 });
+                return;
+            }
+            // Planton: se planta en tierra/cesped/tierra labrada
+            if (Objetos.EsPlanton(mano) && (bloque == Bloques.Tierra || bloque == Bloques.Cesped || bloque == Bloques.TierraLabrada))
+            {
+                if (m.Obtener(ub.X, ub.Y + 1, ub.Z) != Bloques.Aire) return;
+                if (!Quitar(c, Bloques.Planton, 1)) return;
+                Enviar(c, InventarioActual(c));
+                m.Poner(ub.X, ub.Y + 1, ub.Z, Bloques.Planton);
+                Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y + 1, Z = ub.Z, Bloque = Bloques.Planton });
+                return;
+            }
+            // Mechero: enciende la TNT
+            if (Objetos.EsMechero(mano) && bloque == Bloques.Tnt)
+            {
+                if (mundo.Tnts.Any(t => t.x == ub.X && t.y == ub.Y && t.z == ub.Z)) return;
+                mundo.Tnts.Add((ub.X, ub.Y, ub.Z, 3f));
+                Log($"DEBUG tnt: encendida en ({ub.X},{ub.Y},{ub.Z}) mano={mano}");
+                return;
+            }
+        }
+    }
+
+    /// <summary>Ciclo del mundo: dia/noche, crecimiento de plantas y TNT (2 Hz).</summary>
+    async Task CicloMundoAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(500, ct); }
+            catch (OperationCanceledException) { break; }
+            lock (_cerrojo)
+            {
+                foreach (var mundo in _mundos.Values)
+                {
+                    if (mundo.Conteo == 0) continue;
+                    // Ciclo dia/noche: 24 h en ~5 minutos reales
+                    mundo.Hora = (mundo.Hora + 0.04f) % 24f;
+                    foreach (var j in mundo.Jugadores.Values)
+                        Enviar(j, new TiempoMundo { Hora = mundo.Hora });
+                    CrecerPlantas(mundo);
+                    ActualizarTnt(mundo);
+                }
+            }
+        }
+    }
+
+    void CrecerPlantas(MundoServidor mundo)
+    {
+        var m = mundo.Mundo;
+        var rnd = Random.Shared;
+        for (int x = 0; x < m.Ancho; x++)
+        {
+            for (int z = 0; z < m.Profundo; z++)
+            {
+                for (int y = 1; y < m.Alto - 2; y++)
+                {
+                    var b = m.Obtener(x, y, z);
+                    if (b >= Bloques.Trigo0 && b < Bloques.Trigo3 && rnd.NextDouble() < 0.5)
+                    {
+                        m.Poner(x, y, z, (ushort)(b + 1));
+                        Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = (ushort)(b + 1) });
+                    }
+                    else if (b == Bloques.Planton && m.Obtener(x, y - 1, z) != Bloques.Aire &&
+                             m.Obtener(x, y + 1, z) == Bloques.Aire && m.Obtener(x, y + 2, z) == Bloques.Aire &&
+                             rnd.NextDouble() < 0.25)
+                    {
+                        Mundo.PonerArbol(m, x, y, z, rnd);
+                        Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Madera });
+                    }
+                }
+            }
+        }
+    }
+
+    void ActualizarTnt(MundoServidor mundo)
+    {
+        for (int i = mundo.Tnts.Count - 1; i >= 0; i--)
+        {
+            var (x, y, z, t) = mundo.Tnts[i];
+            if (t > 0) { mundo.Tnts[i] = (x, y, z, t - 0.5f); continue; }
+            mundo.Tnts.RemoveAt(i);
+            Log($"DEBUG tnt: explotando ({x},{y},{z})");
+            Explotar(mundo, x, y, z);
+        }
+    }
+
+    void Explotar(MundoServidor mundo, int cx, int cy, int cz)
+    {
+        var m = mundo.Mundo;
+        const float radio = 3.5f;
+        var rnd = Random.Shared;
+        int r = (int)MathF.Ceiling(radio);
+        for (int x = cx - r; x <= cx + r; x++)
+            for (int y = cy - r; y <= cy + r; y++)
+                for (int z = cz - r; z <= cz + r; z++)
+                {
+                    if (!m.Dentro(x, y, z)) continue;
+                    float d = MathF.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz));
+                    if (d > radio) continue;
+                    var b = m.Obtener(x, y, z);
+                    if (b == Bloques.Aire || b == Bloques.Lecho || b == Bloques.Agua) continue;
+                    if (b == Bloques.Tnt)
+                    {
+                        // La TNT se consume: la central ya no esta en la lista (la quito
+                        // ActualizarTnt antes de llamar Explotar) y las vecinas encendidas
+                        // explotan con ella en vez de quedar como bloque.
+                        mundo.Tnts.RemoveAll(t2 => t2.x == x && t2.y == y && t2.z == z);
+                        m.Poner(x, y, z, Bloques.Aire);
+                        Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Aire });
+                        continue;
+                    }
+                    m.Poner(x, y, z, Bloques.Aire);
+                    if (rnd.NextDouble() < 0.3)
+                    {
+                        foreach (var (mat, cant) in Objetos.DropAlRomper(b, true, rnd))
+                            mundo.Drops.Add(new Drop { Id = ++mundo.SiguienteDropId, Material = mat, Px = x + 0.5f, Py = y + 0.5f, Pz = z + 0.5f });
+                    }
+                    Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Aire });
+                }
+        foreach (var j in mundo.Jugadores.Values)
+        {
+            float d = Vector3.Distance(j.Pos, new Vector3(cx + 0.5f, cy + 0.5f, cz + 0.5f));
+            if (d < radio + 1.5f)
+            {
+                j.Salud = Math.Max(0, j.Salud - 10);
+                Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
+                if (j.Salud <= 0) Reaparecer(j, mundo);
+            }
+        }
+        foreach (var mob in mundo.Mobs.ToList())
+        {
+            float d = Vector3.Distance(new Vector3(mob.Px, mob.Py, mob.Pz), new Vector3(cx + 0.5f, cy + 0.5f, cz + 0.5f));
+            if (d < radio + 1.5f) mob.Salud -= 15;
+        }
+        mundo.Mobs.RemoveAll(mob => mob.Salud <= 0);
+    }
+
+    void Reaparecer(ConexionJugador j, MundoServidor mundo)
+    {
+        var p = mundo.Mundo.ObtenerPuntoAparicion();
+        j.Pos = p;
+        j.Salud = 20;
+        Enviar(j, new JugadorSalud { Salud = 20, MaxSalud = 20 });
+        Enviar(j, new Respawn { Px = p.X, Py = p.Y, Pz = p.Z });
     }
 
     // ------------------------------------------------------------------ posiciones (10 Hz)
@@ -482,11 +755,14 @@ public sealed class GameServer : IAsyncDisposable
                             Id = m.Id,
                             Tipo = (byte)m.Tipo,
                             Px = m.Px, Py = m.Py, Pz = m.Pz, Ry = m.Ry,
+                            Salud = (int)MathF.Round(m.Salud),
+                            MaxSalud = MobsInfo.SaludMaxima(m.Tipo),
                         }).ToList(),
                     };
                     foreach (var j in mundo.Jugadores.Values) Enviar(j, msg);
 
                     // Recoger drops: se lo lleva el jugador más cercano
+                    var avisados = new List<ConexionJugador>();
                     for (int i = mundo.Drops.Count - 1; i >= 0; i--)
                     {
                         var drop = mundo.Drops[i];
@@ -500,10 +776,13 @@ public sealed class GameServer : IAsyncDisposable
                         if (masCercano != null)
                         {
                             AgregarInventario(masCercano, drop.Material, 1);
-                            Enviar(masCercano, InventarioActual(masCercano));
+                            if (!avisados.Contains(masCercano)) avisados.Add(masCercano);
                             mundo.Drops.RemoveAt(i);
                         }
                     }
+                    // Un solo Inventario por jugador tras recoger todo (evita que el
+                    // cliente lea un inventario intermedio sin todos los drops)
+                    foreach (var av in avisados) Enviar(av, InventarioActual(av));
 
                     // Difundir drops restantes (incluye lista vacia para sincronizar el cliente)
                     var dmsg = new Drops
@@ -535,7 +814,7 @@ public sealed class GameServer : IAsyncDisposable
                 Px = x + 0.5f, Py = y, Pz = z + 0.5f,
                 Ry = 0,
                 TiempoCambio = (float)rnd.NextDouble() * 3f,
-                Salud = MobsInfo.Datos(tipo).Hostil ? 20 : 10,
+                Salud = MobsInfo.SaludMaxima(tipo),
             });
         }
     }
@@ -586,6 +865,26 @@ public sealed class GameServer : IAsyncDisposable
                 mob.VelX = -mob.VelX; mob.VelZ = -mob.VelZ; mob.TiempoCambio = 0.5f;
             }
         }
+
+        // Los mobs hostiles golpean a los jugadores que estan a su alcance
+        foreach (var mob in mundo.Mobs)
+        {
+            var info = MobsInfo.Datos(mob.Tipo);
+            if (!info.Hostil || info.Danio <= 0) continue;
+            foreach (var j in mundo.Jugadores.Values)
+            {
+                if (j.TiempoGolpe > 0) continue;
+                if (Vector3.Distance(j.Pos, new Vector3(mob.Px, mob.Py, mob.Pz)) < 1.6f)
+                {
+                    j.Salud = Math.Max(0, j.Salud - (int)MathF.Round(info.Danio));
+                    j.TiempoGolpe = 1f;
+                    Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
+                    if (j.Salud <= 0) Reaparecer(j, mundo);
+                }
+            }
+        }
+        foreach (var j in mundo.Jugadores.Values)
+            if (j.TiempoGolpe > 0) j.TiempoGolpe -= dt;
     }
 
     Vector3? JugadorMasCercano(MundoServidor mundo, float x, float z, float area)
@@ -660,17 +959,26 @@ public sealed class GameServer : IAsyncDisposable
         {
             if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
             if (co.Receta < 0 || co.Receta >= Objetos.RecetasCocina.Length) return;
+            Log($"DEBUG cocinar: receta={co.Receta} pos=({c.Pos.X:F1},{c.Pos.Y:F1},{c.Pos.Z:F1}) hornoCerca={HayHornoCerca(mundo.Mundo, c.Pos)}");
             if (!HayHornoCerca(mundo.Mundo, c.Pos))
             {
                 Enviar(c, new ErrorServidor { Codigo = "SIN_HORNO", Mensaje = "Coloca un horno cerca para cocinar." });
                 return;
             }
             var r = Objetos.RecetasCocina[co.Receta];
+            // Fundir minerales requiere carbon como combustible
+            if (Objetos.EsFundicion(r) && Contar(c, (ushort)ItemId.CarbonItem) < 1)
+            {
+                Enviar(c, new ErrorServidor { Codigo = "SIN_CARBON", Mensaje = "El horno necesita carbon como combustible." });
+                return;
+            }
             var ings = r.Ingredientes();
+            Log($"DEBUG cocinar: ings={string.Join(",", ings.Select(i => i.Material + "x" + i.Cantidad))} carbon={Contar(c, (ushort)ItemId.CarbonItem)} esFundicion={Objetos.EsFundicion(r)}");
             foreach (var ing in ings)
                 if (Contar(c, ing.Material) < ing.Cantidad) return;
             foreach (var ing in ings)
                 Quitar(c, ing.Material, ing.Cantidad);
+            if (Objetos.EsFundicion(r)) Quitar(c, (ushort)ItemId.CarbonItem, 1);
             AgregarInventario(c, r.Salida, r.SalidaCantidad);
             Enviar(c, InventarioActual(c));
         }

@@ -34,6 +34,12 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(Inventario), "Inventario")]
 [JsonDerivedType(typeof(Craftear), "Craftear")]
 [JsonDerivedType(typeof(Cocinar), "Cocinar")]
+[JsonDerivedType(typeof(SoltarItem), "SoltarItem")]
+[JsonDerivedType(typeof(UsarBloque), "UsarBloque")]
+[JsonDerivedType(typeof(SeleccionarSlot), "SeleccionarSlot")]
+[JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
+[JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
+[JsonDerivedType(typeof(Respawn), "Respawn")]
 public abstract class Mensaje
 {
 }
@@ -52,7 +58,7 @@ public sealed class InfoMundo : Mensaje
     public int Jugadores { get; set; }
     public int MaxJugadores { get; set; }
 }
-public sealed class CrearMundo : Mensaje { public string Nombre { get; set; } = ""; public string? Pin { get; set; } public bool Abierto { get; set; } }
+public sealed class CrearMundo : Mensaje { public string Nombre { get; set; } = ""; public string? Pin { get; set; } public bool Abierto { get; set; } public int Semilla { get; set; } }
 public sealed class MundoCreado : Mensaje { public string Id { get; set; } = ""; }
 public sealed class Unirse : Mensaje { public string Id { get; set; } = ""; public string? Pin { get; set; } }
 public sealed class Unido : Mensaje
@@ -76,7 +82,7 @@ public sealed class BloqueCambio : Mensaje { public int X { get; set; } public i
 public sealed class Chat : Mensaje { public string Nombre { get; set; } = ""; public string Texto { get; set; } = ""; }
 public sealed class BorrarMundo : Mensaje { public string Id { get; set; } = ""; }
 public sealed class MundoBorrado : Mensaje { public string Id { get; set; } = ""; }
-public sealed class MobEstado { public int Id { get; set; } public byte Tipo { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } public float Ry { get; set; } }
+public sealed class MobEstado { public int Id { get; set; } public byte Tipo { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } public float Ry { get; set; } public int Salud { get; set; } public int MaxSalud { get; set; } }
 public sealed class Mobs : Mensaje { public List<MobEstado> Lista { get; set; } = new(); }
 public sealed class GolpearMob : Mensaje { public int Id { get; set; } }
 public sealed class DropEstado { public int Id { get; set; } public ushort Material { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
@@ -85,6 +91,12 @@ public sealed class SlotEstado { public ushort Material { get; set; } public int
 public sealed class Inventario : Mensaje { public List<SlotEstado> Slots { get; set; } = new(); }
 public sealed class Craftear : Mensaje { public int Receta { get; set; } }
 public sealed class Cocinar : Mensaje { public int Receta { get; set; } }
+public sealed class SoltarItem : Mensaje { public int Slot { get; set; } }
+public sealed class UsarBloque : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } }
+public sealed class SeleccionarSlot : Mensaje { public int Slot { get; set; } public ushort Material { get; set; } }
+public sealed class TiempoMundo : Mensaje { public float Hora { get; set; } }
+public sealed class JugadorSalud : Mensaje { public int Salud { get; set; } public int MaxSalud { get; set; } }
+public sealed class Respawn : Mensaje { public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
 
 public static class Protocolo
 {

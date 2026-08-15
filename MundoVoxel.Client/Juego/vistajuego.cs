@@ -18,15 +18,15 @@ public sealed class VistaJuego : IDrawable
     public readonly Camara Cam = new();
     public readonly ControladorJugador Jugador = new();
 
-    // Barra de bloques seleccionables (índice 0-8)
-    public static readonly ushort[] BarraBloques =
-    {
-        Bloques.Tierra, Bloques.Piedra, Bloques.Madera, Bloques.Arena, Bloques.Cesped,
-        Bloques.Ladrillo, Bloques.Hoja, Bloques.Grava, Bloques.Cristal,
-    };
+    // Hotbar: primeros 9 slots del inventario (se rellena desde la pagina)
+    public (ushort Material, int Cantidad)[] Hotbar = new (ushort, int)[9];
 
     public int Slot { get; set; }
-    public ushort BloqueSeleccionado => BarraBloques[Math.Clamp(Slot, 0, BarraBloques.Length - 1)];
+    public ushort BloqueSeleccionado => Hotbar[Math.Clamp(Slot, 0, Hotbar.Length - 1)].Material;
+    public ushort ItemEnMano => BloqueSeleccionado;
+
+    // Vida del jugador (la envia el servidor)
+    public int Salud = 20, MaxSalud = 20;
 
     // Entrada
     public bool BotonSaltar, BotonBajar;
@@ -37,7 +37,7 @@ public sealed class VistaJuego : IDrawable
     public readonly Dictionary<int, JugadorRemoto> Remotos = new();
 
     // Mobs remotos (estado autoritativo del servidor)
-    public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos, float Ry);
+    public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos, float Ry, int Salud, int MaxSalud);
     public readonly Dictionary<int, MobRemoto> Mobs = new();
 
     // Drops en el suelo (ítems que se recogen al pasar)
@@ -69,6 +69,60 @@ public sealed class VistaJuego : IDrawable
         TipoMob.Creeper => "Creeper",
         _ => "Esqueleto",
     };
+
+    /// <summary>
+    /// Anade la figura voxel de la herramienta en mano (esquina inferior derecha),
+    /// con la cabeza del material y el mango de madera.
+    /// </summary>
+    public void AgregarHerramientaMano(List<CajaJugador> cajas, ushort item, Camara cam)
+    {
+        var tipo = Objetos.TipoDe(item);
+        if (tipo == TipoHerramienta.Ninguna) return;
+        var (cr, cg, cb) = Objetos.Color(item);
+        var colorMat = Color.FromRgb(cr / 255f, cg / 255f, cb / 255f);
+        var colorPalo = Color.FromArgb("#9a6a3a");
+
+        (int x, int y, int z, Color c)[] celdas = tipo switch
+        {
+            TipoHerramienta.Espada => new[]
+            {
+                (0, 1, 0, colorMat), (0, 2, 0, colorMat), (0, 3, 0, colorMat),
+                (-1, 0, 0, colorPalo), (0, 0, 0, colorPalo), (1, 0, 0, colorPalo),
+                (0, -1, 0, colorPalo), (0, -2, 0, colorPalo),
+            },
+            TipoHerramienta.Pico => new[]
+            {
+                (-1, 1, 0, colorMat), (0, 1, 0, colorMat), (1, 1, 0, colorMat),
+                (0, 0, 0, colorPalo), (0, -1, 0, colorPalo), (0, -2, 0, colorPalo),
+            },
+            TipoHerramienta.Hacha => new[]
+            {
+                (-1, 1, 0, colorMat), (0, 1, 0, colorMat), (0, 0, 0, colorMat),
+                (0, -1, 0, colorPalo), (0, -2, 0, colorPalo),
+            },
+            TipoHerramienta.Pala => new[]
+            {
+                (-1, 1, 0, colorMat), (0, 1, 0, colorMat),
+                (0, 0, 0, colorPalo), (0, -1, 0, colorPalo), (0, -2, 0, colorPalo),
+            },
+            _ => new[]
+            {
+                (-1, 1, 0, colorMat), (0, 1, 0, colorMat), (1, 1, 0, colorMat), (0, 0, 0, colorMat),
+                (0, -1, 0, colorPalo), (0, -2, 0, colorPalo),
+            },
+        };
+
+        const float s = 0.13f;
+        var fwd = cam.Adelante;
+        var der = cam.Derecha;
+        var arriba = Vector3.Cross(der, fwd);
+        var origen = cam.Pos + fwd * 0.85f + der * 0.60f - arriba * 0.42f;
+        foreach (var cel in celdas)
+        {
+            var p = origen + der * (cel.x * s) + arriba * (cel.y * s) + fwd * (cel.z * s);
+            cajas.Add(new CajaJugador(p - new Vector3(s / 2f), p + new Vector3(s / 2f), cel.c));
+        }
+    }
 
     /// <summary>Caja (AABB + color) de un jugador/mob para rasterizar en segundo plano.</summary>
     public readonly record struct CajaJugador(Vector3 Min, Vector3 Max, Color Color);
@@ -275,9 +329,29 @@ public sealed class VistaJuego : IDrawable
         {
             var alto = MobsInfo.Datos(m.Tipo).Alto;
             DibujarNombre(c, w, h, m.Pos + new Vector3(0, alto + 0.3f, 0), NombreMob(m.Tipo));
+            DibujarBarraVida(c, w, h, m.Pos + new Vector3(0, alto + 0.22f, 0), m.Salud, m.MaxSalud);
         }
 
         DibujarHud(c, w, h);
+    }
+
+    void DibujarBarraVida(ICanvas c, int w, int h, Vector3 posMundo, int salud, int maxSalud)
+    {
+        var d = posMundo - Cam.Pos;
+        float xc = Vector3.Dot(d, Cam.Derecha);
+        float yc = Vector3.Dot(d, Vector3.Cross(Cam.Derecha, Cam.Adelante));
+        float zc = Vector3.Dot(d, Cam.Adelante);
+        if (zc < 0.12f) return;
+        float f = (h / 2f) / MathF.Tan(75f * MathF.PI / 180f / 2f);
+        float sx = w / 2f + xc * f / zc;
+        float sy = h / 2f - yc * f / zc;
+        const float ancho = 36, altoBarra = 4;
+        float x0 = sx - ancho / 2f, y0 = sy;
+        c.FillColor = new Color(0, 0, 0, 0.6f);
+        c.FillRoundedRectangle(x0 - 1, y0 - 1, ancho + 2, altoBarra + 2, 2);
+        float pct = maxSalud > 0 ? Math.Clamp(salud / (float)maxSalud, 0f, 1f) : 0f;
+        c.FillColor = pct > 0.3f ? new Color(0.35f, 0.85f, 0.35f) : new Color(0.9f, 0.3f, 0.3f);
+        c.FillRoundedRectangle(x0, y0, ancho * pct, altoBarra, 2);
     }
 
     void DibujarNombre(ICanvas c, int w, int h, Vector3 posMundo, string nombre)
@@ -303,7 +377,7 @@ public sealed class VistaJuego : IDrawable
         c.FillRectangle(cx - 1, cy - 9, 2, 18);
         c.FillRectangle(cx - 9, cy - 1, 18, 2);
 
-        int n = BarraBloques.Length;
+        int n = Hotbar.Length;
         const float slot = 40, gap = 4;
         float total = n * slot + (n - 1) * gap;
         float x0 = (w - total) / 2f, y0 = h - slot - 14;
@@ -319,8 +393,32 @@ public sealed class VistaJuego : IDrawable
                 c.StrokeSize = 2;
                 c.DrawRoundedRectangle(r, 6);
             }
-            c.FillColor = Renderizador.ColorBloque(BarraBloques[i]);
-            c.FillRectangle(x + 6, y0 + 6, slot - 12, slot - 12);
+            var (mat, cant) = Hotbar[i];
+            if (mat != 0 && cant > 0)
+            {
+                var (cr, cg, cb) = Objetos.Color(mat);
+                c.FillColor = new Color(cr / 255f, cg / 255f, cb / 255f);
+                c.FillRoundedRectangle(x + 5, y0 + 5, slot - 10, slot - 10, 4);
+                if (cant > 1)
+                {
+                    c.FontSize = 12;
+                    c.FontColor = Colors.White;
+                    c.DrawString(cant.ToString(), x + 2, y0 + slot - 16, slot - 6, 14,
+                        HorizontalAlignment.Right, VerticalAlignment.Center);
+                }
+            }
+        }
+
+        // Corazones (vida del jugador)
+        float cyH = y0 - 26;
+        float cx0 = (w - 20 * 10) / 2f;
+        for (int i = 0; i < 10; i++)
+        {
+            bool lleno = Salud >= (i + 1) * 2;
+            bool medio = !lleno && Salud == i * 2 + 1;
+            c.FontSize = 15;
+            c.FontColor = lleno || medio ? new Color(0.85f, 0.22f, 0.22f) : new Color(0.22f, 0.22f, 0.22f);
+            c.DrawString("♥", cx0 + i * 20, cyH - 8, 20, 20, HorizontalAlignment.Center, VerticalAlignment.Center);
         }
 
         if (_joystickActivo)

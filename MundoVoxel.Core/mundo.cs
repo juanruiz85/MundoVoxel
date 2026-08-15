@@ -122,7 +122,8 @@ public class Mundo
         }
     }
 
-    static void PonerArbol(Mundo m, int x, int y, int z, Random rnd)
+    /// <summary>Planta un arbol generico (tronco + copa) en (x, y, z), con y = suelo.</summary>
+    public static void PonerArbol(Mundo m, int x, int y, int z, Random rnd)
     {
         int altura = 4 + rnd.Next(3);
         for (int i = 0; i < altura; i++) m.Poner(x, y + i, z, Bloques.Madera);

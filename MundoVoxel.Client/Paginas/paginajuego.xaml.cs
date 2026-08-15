@@ -224,8 +224,7 @@ public partial class PaginaJuego : ContentPage
         var camPos = _vista.Cam.Pos;
         var yaw = _vista.Cam.Yaw;
         var pitch = _vista.Cam.Pitch;
-        var cajas = new List<VistaJuego.CajaJugador>();
-        foreach (var j in _vista.Remotos.Values)
+        var cajas = new List<VistaJuego.CajaJugador>();        foreach (var j in _vista.Remotos.Values)
             cajas.Add(new VistaJuego.CajaJugador(
                 new Vector3(j.Pos.X - 0.3f, j.Pos.Y, j.Pos.Z - 0.3f),
                 new Vector3(j.Pos.X + 0.3f, j.Pos.Y + 1.8f, j.Pos.Z + 0.3f),
@@ -240,6 +239,11 @@ public partial class PaginaJuego : ContentPage
                 new Vector3(d.Pos.X + s, d.Pos.Y + 0.5f, d.Pos.Z + s),
                 VistaJuego.ColorMaterial(d.Material)));
         }
+        // Herramienta en mano (si el slot seleccionado es una herramienta)
+        var camTemp = new Camara { Pos = camPos, Yaw = yaw, Pitch = pitch };
+        var itemMano = _vista.ItemEnMano;
+        if (Objetos.TipoDe(itemMano) != TipoHerramienta.Ninguna)
+            _vista.AgregarHerramientaMano(cajas, itemMano, camTemp);
         var cajasArr = cajas.ToArray();
 
         _ = Task.Run(() =>
@@ -307,7 +311,7 @@ public partial class PaginaJuego : ContentPage
             case Mobs ms:
                 _vista.Mobs.Clear();
                 foreach (var e in ms.Lista)
-                    _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz), e.Ry);
+                    _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz), e.Ry, e.Salud, e.MaxSalud);
                 break;
 
             case Drops ds:
@@ -319,6 +323,20 @@ public partial class PaginaJuego : ContentPage
             case Inventario inv:
                 _inventario = inv.Slots;
                 RellenarSlots();
+                break;
+
+            case TiempoMundo tm:
+                _vista.Renderizador.AplicarHora(tm.Hora);
+                break;
+
+            case JugadorSalud js:
+                _vista.Salud = js.Salud;
+                _vista.MaxSalud = js.MaxSalud;
+                break;
+
+            case Respawn rp:
+                _vista.Jugador.Pos = new Vector3(rp.Px, rp.Py, rp.Pz);
+                _vista.Jugador.Vel = Vector3.Zero;
                 break;
 
             case Chat ch:
@@ -367,11 +385,26 @@ public partial class PaginaJuego : ContentPage
         if (codigo == Teclas.F) { AlternarVolar(); return; }
         if (codigo == Teclas.R) { _vista.PedirRomper(); return; }
         if (codigo == Teclas.E) { AlternarInventario(); return; }
+        if (codigo == Teclas.Q)
+        {
+            _red.Enviar(new SoltarItem { Slot = _vista.Slot });
+            return;
+        }
+        if (codigo == Teclas.U) { UsarItemApuntado(); return; }
         if (codigo >= Teclas.Num1 && codigo <= Teclas.Num9)
         {
             _vista.Slot = codigo - Teclas.Num1;
+            var mat = _vista.Hotbar[_vista.Slot].Material;
+            _red.Enviar(new SeleccionarSlot { Slot = _vista.Slot, Material = mat });
             ActualizarLblBloque();
         }
+    }
+
+    /// <summary>Usa el item en mano sobre el bloque apuntado (azada, semillas, planton, mechero...).</summary>
+    void UsarItemApuntado()
+    {
+        var g = _vista.GolpeActual;
+        _red.Enviar(new UsarBloque { X = g.X, Y = g.Y, Z = g.Z });
     }
 
     // ------------------------------------------------------------- chat
@@ -623,6 +656,9 @@ public partial class PaginaJuego : ContentPage
         _indiceResultado = -1;
         RefrescarInventario();
         RefrescarCrafteo();
+        // Hotbar: primeros 9 slots
+        for (int k = 0; k < 9; k++)
+            _vista.Hotbar[k] = (_slots[k].Material, _slots[k].Cantidad);
     }
 
     void OnCocinar(object? sender, EventArgs e)
@@ -639,8 +675,8 @@ public partial class PaginaJuego : ContentPage
 
     void ActualizarLblBloque()
     {
-        var info = Bloques.Info[_vista.BloqueSeleccionado];
-        LblBloque.Text = _idioma.O(info.ClaveLang);
+        var mat = _vista.BloqueSeleccionado;
+        LblBloque.Text = mat == 0 ? "—" : Objetos.Nombre(mat);
     }
 
     void OnCambiarDistancia(object? sender, EventArgs e)
