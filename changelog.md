@@ -2,6 +2,12 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.8.1] - 2026-08-15
+
+### Corregido
+- **Crash al entrar a un mundo (Windows y Android)**: `paginajuego.xaml` usaba `IsTabStop="False"` en 4 botones (menú ☰, reanudar, volar, distancia), una propiedad de WinUI que no existe en MAUI. Al navegar a la página de juego, MAUI lanzaba `XamlParseException` al parsear el XAML y la app se cerraba. Fix: la propiedad se quitó del XAML y ahora se aplica `IsTabStop = false` al botón nativo de WinUI vía `Handler.PlatformView` (solo Windows; en Android los botones no capturan la barra espaciadora del mismo modo).
+- Verificado con UIA: **MUNDO CREADO Y PARTIDA INICIADA [OK]** (216 FPS, HUD completo, oveja con barra de vida) y build Android **0 errores**.
+
 ## [0.8.0] - 2026-08-15
 
 ### Añadido

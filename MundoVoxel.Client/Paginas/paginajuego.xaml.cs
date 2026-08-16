@@ -124,6 +124,12 @@ public partial class PaginaJuego : ContentPage
     {
         base.OnAppearing();
 #if WINDOWS
+        // IsTabStop no existe en MAUI: se aplica al botón nativo de WinUI para que
+        // la barra espaciadora no active el menú cuando el botón tiene foco.
+        if (BtnMenu.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nb1) nb1.IsTabStop = false;
+        if (BtnReanudar.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nb2) nb2.IsTabStop = false;
+        if (BtnPausaVolar.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nb3) nb3.IsTabStop = false;
+        if (BtnDistancia.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nb4) nb4.IsTabStop = false;
         // Enlazar el teclado de la ventana (una sola vez por ejecución)
         if (!_tecladoVinculado && Application.Current?.Windows.Count > 0 &&
             Application.Current.Windows[0].Handler?.PlatformView is Microsoft.UI.Xaml.Window ventana && ventana.Content != null)
