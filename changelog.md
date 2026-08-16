@@ -2,6 +2,13 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.8.2] - 2026-08-16
+
+### Probado
+- **Primera prueba real de la app en Android (emulador API 35)**: se instaló el APK Release en un emulador x86_64 (AVD `mvx` creado para la ocasión) y se verificó el flujo completo: menú principal → Jugar solo → crear mundo "MundoAndroid" → **mundo 3D renderizado a ~167 FPS** con HUD (10 corazones, hotbar 9 slots, crosshair, coordenadas), botones táctiles (Romper/Colocar/Saltar/Volar/Chat), una vaca con su barra de vida, chat de bienvenida, menú de pausa completo y **inventario/crafteo** (grid 2×2, resultado, cursor, sección Cocina con fundir oro/hierro/cobre). **Cero crashes** (logcat sin FATAL).
+- Aprendizaje: el APK **Debug** de .NET MAUI no incluye los assemblies (usa *Fast Deployment* con `dotnet build -t:Run`) y **aborta con SIGABRT** si se instala con `adb install` directo. Para instalar con adb hay que publicar el APK **Release** (`dotnet publish -f net10.0-android -c Release`).
+- Para reproducir: `emulator -avd mvx` + `adb install -r MundoVoxel.Client/bin/Release/net10.0-android/com.mundovoxel.app-Signed.apk`.
+
 ## [0.8.1] - 2026-08-15
 
 ### Corregido
