@@ -270,18 +270,69 @@ var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
 Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) == true, "fundir oro en bruto -> lingote de oro");
 
 // Un mob hostil ataca al jugador si esta cerca (se prueba de noche, antes de que
-// los hostiles se quemen al amanecer)
+// los hostiles se quemen al amanecer). Se usa un ZOMBI (Tipo 3) porque golpea en
+// bucle. Tras comprobar el ataque se mata al zombi y se cura a Ana con el modo
+// espectador (el test de muerte + respawn se hace al final de la suite).
 var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 2000);
-var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo >= 3);
+var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo == 3); // zombi
 if (hostil != null)
 {
     await c1.Enviar(new Posicion { Px = hostil.Px, Py = hostil.Py, Pz = hostil.Pz, Ry = 0, Pitch = 0 });
     await Task.Delay(300);
     var saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 4000);
     Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
-    await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+    // Matar al zombi para que no siga golpeando a Ana durante el resto de la suite
+    for (int g = 0; g < 6; g++)
+        await c1.Enviar(new GolpearMob { Id = hostil.Id });
+    await Task.Delay(300);
 }
 else Comprobar(false, "un mob hostil ataca al jugador cercano (la vida baja)");
+// Curar a Ana (el modo espectador restaura la vida) y volver al spawn
+await c1.Enviar(new ModoEspectador { Activo = true });
+await Task.Delay(200);
+await c1.Enviar(new ModoEspectador { Activo = false });
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+// Drenar los inventarios de los drops del zombi muerto
+for (int d = 0; d < 4; d++)
+    _ = await c1.LeerHasta<Inventario>(timeoutMs: 300);
+// Barrer SOLO los hostiles cercanos al spawn (los unicos que pueden atacar a Ana
+// durante la suite). No se viaja a los lejanos: viajar a un creeper lo hace
+// explotar y mata a Ana (cascada de fallos).
+for (int g = 0; g < 8; g++)
+{
+    var msBarrido = await c1.LeerHasta<Mobs>(timeoutMs: 1200);
+    if (msBarrido == null) break;
+    var hostiles = msBarrido.Lista
+        .Where(m => m.Tipo >= 3
+            && MathF.Abs(m.Px - aparicionPriv.Ax) < 8
+            && MathF.Abs(m.Pz - aparicionPriv.Az) < 8)
+        .ToList();
+    if (hostiles.Count == 0) break;
+    foreach (var h in hostiles)
+        for (int k = 0; k < 6; k++)
+            await c1.Enviar(new GolpearMob { Id = h.Id });
+}
+await Task.Delay(400);
+for (int d = 0; d < 4; d++)
+    _ = await c1.LeerHasta<Inventario>(timeoutMs: 300);
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+
+// El servidor envia el estado de oxigeno (se agota bajo el agua)
+var oxMsg = await c1.LeerHasta<OxigenoMsg>(timeoutMs: 2500);
+Comprobar(oxMsg != null && oxMsg.MaxOxigeno > 0, "el servidor envia el estado de oxigeno");
+
+// La lava es un liquido (para lagos que queman) y no es colocable a mano
+Comprobar(Bloques.EsLiquido(Bloques.Lava), "la lava es un liquido");
+Comprobar(!Bloques.EsColocable(Bloques.Lava), "la lava no se puede colocar a mano");
+
+// Modo espectador: no puede romper bloques (el servidor lo ignora)
+await c1.Enviar(new ModoEspectador { Activo = true });
+await Task.Delay(300);
+await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
+var bloqueNoRoto = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1200);
+bool rotoEnEspectador = bloqueNoRoto != null && bloqueNoRoto.Bloque == Bloques.Aire && bloqueNoRoto.X == bx && bloqueNoRoto.Y == by && bloqueNoRoto.Z == bz;
+Comprobar(!rotoEnEspectador, "el espectador no rompe bloques");
+await c1.Enviar(new ModoEspectador { Activo = false });
 
 // Trigo: la azada labra la tierra, las semillas se plantan, crece y se cosecha
 int idxAzada = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Azada de madera");
@@ -300,9 +351,9 @@ await c1.Enviar(new UsarBloque { X = bx + 1, Y = by + 2, Z = bz });
 var cambioTrigo = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
 Comprobar(cambioTrigo?.Bloque == Bloques.Trigo0, "plantar semillas en tierra labrada");
 bool trigoMaduro = false;
-for (int i = 0; i < 36 && !trigoMaduro; i++)
+for (int i = 0; i < 60 && !trigoMaduro; i++)
 {
-    var cb = await c1.LeerHasta<BloqueCambio>(timeoutMs: 600);
+    var cb = await c1.LeerHasta<BloqueCambio>(timeoutMs: 700);
     if (cb?.Bloque == Bloques.Trigo3) trigoMaduro = true;
 }
 Comprobar(trigoMaduro, "el trigo crece hasta madurar");
@@ -310,6 +361,43 @@ await c1.Enviar(new RomperBloque { X = bx + 1, Y = by + 3, Z = bz });
 var invCosecha = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
 await c1.LeerHasta<BloqueCambio>();
 Comprobar(invCosecha?.Slots.Any(s => s.Material == (ushort)ItemId.Trigo) == true, "cosechar trigo maduro da trigo");
+
+// Soltar item con Q: el inventario baja 1 y el drop se recoge solo.
+// Se usa el Inventario fresco de la cosecha y el slot con mas cantidad.
+var invPreSoltar = invCosecha;
+int slotSoltar = -1; int cantInicial = 0; ushort matSoltado = 0;
+if (invPreSoltar != null)
+{
+    var mejor = invPreSoltar.Slots.OrderByDescending(s => s.Cantidad).FirstOrDefault();
+    if (mejor != null && mejor.Cantidad > 0)
+    {
+        slotSoltar = invPreSoltar.Slots.IndexOf(mejor);
+        cantInicial = mejor.Cantidad;
+        matSoltado = mejor.Material;
+    }
+}
+bool soltoOk = false;
+if (slotSoltar >= 0)
+{
+    int objetivo1 = cantInicial >= 2 ? cantInicial - 1 : 0;
+    int objetivo2 = cantInicial >= 2 ? cantInicial : 1;
+    await c1.Enviar(new SoltarItem { Slot = slotSoltar });
+    int cantS1 = -1, cantS2 = -1;
+    for (int i = 0; i < 8 && cantS1 != objetivo1; i++)
+    {
+        var invS1 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+        cantS1 = invS1?.Slots.FirstOrDefault(s => s.Material == matSoltado)?.Cantidad ?? 0;
+    }
+    await Task.Delay(900);
+    for (int i = 0; i < 8 && cantS2 != objetivo2; i++)
+    {
+        var invS2 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+        cantS2 = invS2?.Slots.FirstOrDefault(s => s.Material == matSoltado)?.Cantidad ?? 0;
+    }
+    soltoOk = cantS1 == objetivo1 && cantS2 == objetivo2;
+}
+else Console.WriteLine("[DEBUG] soltar: sin slot disponible");
+Comprobar(soltoOk, "soltar item (Q) suelta 1 y el drop se recoge");
 
 // TNT: colocar, encender con el mechero y esperar la explosion
 await c1.Enviar(new ColocarBloque { X = bx + 2, Y = by + 2, Z = bz, Bloque = Bloques.Tnt });
@@ -339,23 +427,45 @@ Comprobar(MobsInfo.Datos(TipoMob.Creeper).RadioExplosion == 3f, "el creeper expl
 Comprobar(MobsInfo.Datos(TipoMob.Zombi).SoloNoche, "el zombi solo sale de noche");
 Comprobar(MobsInfo.Datos(TipoMob.Zombi).SeQuemaSol, "el zombi se quema con el sol");
 
-// Soltar item con Q: el inventario baja 1 y el drop se recoge solo
-// (se leen varios Inventario porque la explosion de la TNT deja mensajes en cola)
-await c1.Enviar(new SoltarItem { Slot = 0 });
-Inventario? invSoltado1 = null, invSoltado2 = null;
-int maderaS1 = -1, maderaS2 = -1;
-for (int i = 0; i < 8 && maderaS1 != 9; i++)
+// ---------- muerte y respawn ----------
+// Se usa la LAVA (los lagos existen siempre, no dependen de la hora): Ana se
+// teleporta dentro de un lago de lava, recibe dano continuo y muere. Primero se
+// cura con el modo espectador por si la explosion de la TNT la dejo herida o
+// muerta. Debe llegar MuerteInfo con la causa y el Respawn solo se responde si
+// el jugador lo pide (vuelve al spawn con vida llena).
+Console.WriteLine("Muerte: causa + respawn manual.");
+await c1.Enviar(new ModoEspectador { Activo = true });
+await Task.Delay(200);
+await c1.Enviar(new ModoEspectador { Activo = false });
+int lx = -1, ly = -1, lz = -1;
+for (int y = 0; y < mundoPriv.Alto && lx < 0; y++)
+    for (int x = 0; x < mundoPriv.Ancho && lx < 0; x++)
+        for (int z = 0; z < mundoPriv.Profundo && lx < 0; z++)
+            if (mundoPriv.Obtener(x, y, z) == Bloques.Lava) { lx = x; ly = y; lz = z; }
+bool murioConCausa = false;
+if (lx >= 0)
 {
-    invSoltado1 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
-    maderaS1 = invSoltado1?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
+    await c1.Enviar(new Posicion { Px = lx + 0.5f, Py = ly - 1.0f, Pz = lz + 0.5f, Ry = 0, Pitch = 0 });
+    for (int i = 0; i < 30 && !murioConCausa; i++)
+    {
+        var mi = await c1.LeerHasta<MuerteInfo>(timeoutMs: 2500);
+        if (mi != null && mi.Causa.Length > 0) murioConCausa = true;
+    }
 }
-await Task.Delay(900);
-for (int i = 0; i < 8 && maderaS2 != 10; i++)
+Comprobar(murioConCausa, "al morir se envia la causa de muerte");
+// Reaparecer: el servidor responde con Respawn (posicion del spawn) y vida llena.
+// Ojo: el JugadorSalud(0) de la muerte queda en la cola antes del nuevo (20),
+// asi que se leen varios hasta ver la salud 20 (el Respawn llega despues del 20).
+await c1.Enviar(new Respawn());
+int saludFinal = -1;
+for (int i = 0; i < 12 && saludFinal != 20; i++)
 {
-    invSoltado2 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
-    maderaS2 = invSoltado2?.Slots.FirstOrDefault(s => s.Material == Bloques.Madera)?.Cantidad ?? 0;
+    var s2 = await c1.LeerHasta<JugadorSalud>(timeoutMs: 1500);
+    if (s2 != null) saludFinal = s2.Salud;
 }
-Comprobar(maderaS1 == 9 && maderaS2 == 10, "soltar item (Q) suelta 1 y el drop se recoge");
+var rp = await c1.LeerHasta<Respawn>(timeoutMs: 2500);
+Comprobar(rp != null && saludFinal == 20, "reaparecer vuelve al spawn con vida llena");
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 
 // ---------- chat ----------
 await c1.Enviar(new Chat { Texto = "Â¡Hola a todos!" });

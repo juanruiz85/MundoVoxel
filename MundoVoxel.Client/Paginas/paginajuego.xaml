@@ -72,6 +72,19 @@
             </ScrollView>
         </Border>
 
+        <!-- Pantalla de muerte: causa + boton reaparecer -->
+        <Border x:Name="PanelMuerte" BackgroundColor="#b0101016" IsVisible="False" StrokeThickness="0">
+            <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="14" Padding="30" WidthRequest="360">
+                <Label x:Name="LblMuerteTitulo" Text="Has muerto" FontSize="30" FontAttributes="Bold"
+                       TextColor="#ff5555" HorizontalOptions="Center" />
+                <Label x:Name="LblMuerteCausa" FontSize="16" TextColor="White" HorizontalOptions="Center"
+                       LineBreakMode="WordWrap" HorizontalTextAlignment="Center" />
+                <Button x:Name="BtnReaparecer" Text="Reaparecer" Clicked="OnReaparecer"
+                        BackgroundColor="#4a9e4a" TextColor="White" FontSize="16" Padding="18,10"
+                        HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Border>
+
         <!-- Inventario / crafteo tipo Minecraft -->
         <Border x:Name="PanelInv" BackgroundColor="#d010161f" IsVisible="False" Stroke="#6b5a40" StrokeThickness="2">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="24" Padding="24" HorizontalOptions="Center" VerticalOptions="Center">

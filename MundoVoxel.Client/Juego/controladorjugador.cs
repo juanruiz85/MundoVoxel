@@ -11,6 +11,7 @@ public sealed class ControladorJugador
     public float Yaw, Pitch;
     public bool EnSuelo;
     public bool Volando;
+    public bool Espectador;   // modo espectador: atraviesa bloques y vuela
 
     const float Gravedad = -24f;
     const float Velocidad = 6f;
@@ -24,9 +25,6 @@ public sealed class ControladorJugador
     public void Actualizar(Mundo mundo, float dt, Vector2 entradaMov, bool saltar, bool bajar, bool volar)
     {
         Volando = volar;
-        // EnSuelo se calcula dentro de Mover (al resolver el eje Y), asi que el salto
-        // debe mirar el estado del frame anterior; si lo reseteamos aqui el jugador
-        // nunca podria saltar (siempre veria false).
         bool estabaEnSuelo = EnSuelo;
         EnSuelo = false;
         var fwd = new Vector3(MathF.Sin(Yaw), 0, -MathF.Cos(Yaw));
@@ -34,17 +32,26 @@ public sealed class ControladorJugador
         var dir = fwd * entradaMov.Y + der * entradaMov.X;
         if (dir.LengthSquared() > 1f) dir = Vector3.Normalize(dir);
 
-        var velObjetivo = dir * (Volando ? VelocidadVuelo : Velocidad);
+        var velObjetivo = dir * (Volando || Espectador ? VelocidadVuelo : Velocidad);
         Vel.X = velObjetivo.X;
         Vel.Z = velObjetivo.Z;
+
+        if (Espectador)
+        {
+            // Volar libre: subir/bajar directo, sin gravedad ni colisiones
+            Vel.Y = saltar ? 8f : bajar ? -8f : 0f;
+            Pos += Vel * dt;
+            return;
+        }
 
         if (Volando)
         {
             Vel.Y = saltar ? 8f : bajar ? -8f : 0f;
         }
-        else if (EnAgua(mundo))
+        else if (EnAgua(mundo, out _))
         {
-            // Nadar: gravedad reducida, subir con espacio, friccion del agua
+            // Nadar: gravedad reducida, subir con espacio, hundirse con shift,
+            // y flotar: si no tocas nada, te hundes poco a poco (como Minecraft)
             Vel.Y += Gravedad * 0.3f * dt;
             if (saltar) Vel.Y = 5f;
             if (bajar) Vel.Y = -3f;
@@ -61,26 +68,45 @@ public sealed class ControladorJugador
     }
 
     /// <summary>True si el jugador esta dentro del agua (pecho o pies en agua).</summary>
-    bool EnAgua(Mundo mundo)
+    public bool EnAgua(Mundo mundo, out bool cabezaEnAgua)
     {
         int bx = (int)MathF.Floor(Pos.X), bz = (int)MathF.Floor(Pos.Z);
         int yPies = (int)MathF.Floor(Pos.Y + 0.2f);
         int yPecho = (int)MathF.Floor(Pos.Y + 1.0f);
+        int yCabeza = (int)MathF.Floor(Pos.Y + 1.6f);
+        cabezaEnAgua = mundo.Obtener(bx, yCabeza, bz) == Bloques.Agua;
         return mundo.Obtener(bx, yPies, bz) == Bloques.Agua || mundo.Obtener(bx, yPecho, bz) == Bloques.Agua;
+    }
+
+    /// <summary>True si la cabeza esta en lava (para el HUD).</summary>
+    public bool EnLava(Mundo mundo)
+    {
+        int bx = (int)MathF.Floor(Pos.X), bz = (int)MathF.Floor(Pos.Z);
+        int yCabeza = (int)MathF.Floor(Pos.Y + 1.6f);
+        return mundo.Obtener(bx, yCabeza, bz) == Bloques.Lava;
     }
 
     void Mover(Mundo mundo, float dt)
     {
+        // Sub-pasos: si el frame es lento, dividir el movimiento en pasos cortos
+        // para no atravesar bloques (el "noclip" accidental al romper hacia abajo
+        // ocurria porque un delta grande saltaba la pared de un solo frame).
         var delta = Vel * dt;
-        for (int eje = 0; eje < 3; eje++)
+        float maxPaso = 0.25f;
+        int pasos = Math.Max(1, (int)MathF.Ceiling(MathF.Max(MathF.Abs(delta.X), MathF.Max(MathF.Abs(delta.Y), MathF.Abs(delta.Z))) / maxPaso));
+        var paso = delta / pasos;
+        for (int p = 0; p < pasos; p++)
         {
-            switch (eje)
+            for (int eje = 0; eje < 3; eje++)
             {
-                case 0: Pos.X += delta.X; break;
-                case 1: Pos.Y += delta.Y; break;
-                default: Pos.Z += delta.Z; break;
+                switch (eje)
+                {
+                    case 0: Pos.X += paso.X; break;
+                    case 1: Pos.Y += paso.Y; break;
+                    default: Pos.Z += paso.Z; break;
+                }
+                ResolverEje(mundo, eje, paso);
             }
-            ResolverEje(mundo, eje, delta);
         }
     }
 

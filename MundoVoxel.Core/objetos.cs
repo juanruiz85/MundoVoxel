@@ -257,9 +257,10 @@ public static class Objetos
         {
             case Bloques.Hoja:
                 var l = new List<(ushort, int)>();
-                if (rnd.NextDouble() < 0.10) l.Add((Bloques.Planton, 1));
-                if (rnd.NextDouble() < 0.06) l.Add(((ushort)ItemId.Manzana, 1));
-                if (rnd.NextDouble() < 0.12) l.Add(((ushort)ItemId.Palo, 1));
+                var a = Ajustes.Actual;
+                if (rnd.NextDouble() < a.ProbabilidadPlantonHoja) l.Add((Bloques.Planton, 1));
+                if (rnd.NextDouble() < a.ProbabilidadManzanaHoja) l.Add(((ushort)ItemId.Manzana, 1));
+                if (rnd.NextDouble() < a.ProbabilidadPaloHoja) l.Add(((ushort)ItemId.Palo, 1));
                 return l.ToArray();
             case Bloques.Cesped:
                 return rnd.NextDouble() < 0.15 ? new[] { ((ushort)ItemId.SemillasTrigo, 1) } : Array.Empty<(ushort, int)>();
@@ -456,6 +457,7 @@ public static class Objetos
         Bloques.Planton => (80, 150, 70),
         Bloques.Tnt => (200, 60, 50),
         Bloques.Antorcha => (255, 170, 60),
+        Bloques.Lava => (230, 90, 20),
         (ushort)ItemId.Palo => (150, 110, 60),
         (ushort)ItemId.Manzana => (210, 60, 50),
         (ushort)ItemId.SemillasTrigo => (160, 140, 70),

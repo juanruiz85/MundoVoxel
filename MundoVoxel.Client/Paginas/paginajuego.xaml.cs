@@ -73,10 +73,6 @@ public partial class PaginaJuego : ContentPage
         Vista.StartInteraction += (_, e) => { if (e.Touches.Length > 0) { _vista.IniciarInteraccion(e.Touches[0], _esMovil); QuitarFocoMenu(); } };
         Vista.DragInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.ArrastrarInteraccion(e.Touches[0]); };
         Vista.EndInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.TerminarInteraccion(e.Touches[0]); };
-#if WINDOWS
-        VincularRaton();
-#endif
-
         BtnRomper.Text = T.Romper;
         BtnColocar.Text = T.Colocar;
         BtnSaltar.Text = T.Saltar;
@@ -124,6 +120,10 @@ public partial class PaginaJuego : ContentPage
     {
         base.OnAppearing();
 #if WINDOWS
+        // El handler nativo solo existe despues de aparecer la pagina: por eso
+        // el raton se enlaza aqui (en el ctor Vista.Handler es null y el clic
+        // izquierdo caia al gesto tactil: colocar en vez de romper).
+        VincularRaton();
         // IsTabStop no existe en MAUI: se aplica al botón nativo de WinUI para que
         // la barra espaciadora no active el menú cuando el botón tiene foco.
         if (BtnMenu.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nb1) nb1.IsTabStop = false;
@@ -177,7 +177,9 @@ public partial class PaginaJuego : ContentPage
         {
             _vista.Tick(dt, _teclado.EstaPulsada, _esMovil);
 
-            if (_vista.ConsumirRomper())
+            // El espectador vuela y atraviesa bloques pero no rompe ni coloca
+            bool espectador = _vista.Espectador;
+            if (!espectador && _vista.ConsumirRomper())
             {
                 int mobId = _vista.BuscarMobApuntado();
                 if (mobId >= 0)
@@ -190,7 +192,7 @@ public partial class PaginaJuego : ContentPage
                     _red.Enviar(new RomperBloque { X = g.X, Y = g.Y, Z = g.Z });
                 }
             }
-            if (_vista.ConsumirColocar())
+            if (!espectador && _vista.ConsumirColocar())
             {
                 var g = _vista.GolpeActual;
                 // Clic derecho sobre un cofre: se abre en vez de colocar
@@ -368,9 +370,20 @@ public partial class PaginaJuego : ContentPage
                 _vista.MaxSalud = js.MaxSalud;
                 break;
 
+            case OxigenoMsg om:
+                _vista.Oxigeno = om.Oxigeno;
+                _vista.MaxOxigeno = om.MaxOxigeno;
+                break;
+
+            case MuerteInfo mi:
+                MostrarMuerte(mi.Causa);
+                break;
+
             case Respawn rp:
                 _vista.Jugador.Pos = new Vector3(rp.Px, rp.Py, rp.Pz);
                 _vista.Jugador.Vel = Vector3.Zero;
+                _vista.Salud = 20;
+                OcultarMuerte();
                 break;
 
             case Chat ch:
@@ -419,6 +432,7 @@ public partial class PaginaJuego : ContentPage
         }
         if (_pausado) return;
         if (codigo == Teclas.F) { AlternarVolar(); return; }
+        if (codigo == Teclas.G) { AlternarEspectador(); return; }
         if (codigo == Teclas.R) { _vista.PedirRomper(); return; }
         if (codigo == Teclas.E) { AlternarInventario(); return; }
         if (codigo == Teclas.Q)
@@ -476,6 +490,8 @@ public partial class PaginaJuego : ContentPage
         if (BtnReanudar.IsFocused) BtnReanudar.Unfocus();
     }
 
+    bool _ratonVinculado;
+
 #if WINDOWS
     /// <summary>
     /// Clic izquierdo = romper/atacar, clic derecho = colocar (estilo Minecraft).
@@ -483,7 +499,9 @@ public partial class PaginaJuego : ContentPage
     /// </summary>
     void VincularRaton()
     {
+        if (_ratonVinculado) return;
         if (Vista.Handler?.PlatformView is not Microsoft.UI.Xaml.FrameworkElement fe) return;
+        _ratonVinculado = true;
         fe.AddHandler(Microsoft.UI.Xaml.UIElement.PointerPressedEvent,
             new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
             {
@@ -837,6 +855,24 @@ public partial class PaginaJuego : ContentPage
         BtnPausaVolar.Text = _idioma.O("juego.volando", _vista.Volando ? _idioma.O("juego.si") : _idioma.O("juego.no"));
     }
 
+    /// <summary>Modo espectador (tecla G): vuela, atraviesa bloques y no rompe/coloca.</summary>
+    void AlternarEspectador()
+    {
+        _vista.Espectador = !_vista.Espectador;
+        if (_vista.Espectador)
+        {
+            _vista.Volando = true;
+            AgregarChat("👁 " + _idioma.O("juego.espectador_on"));
+        }
+        else
+        {
+            _vista.Volando = false;
+            AgregarChat("👁 " + _idioma.O("juego.espectador_off"));
+        }
+        _red.Enviar(new ModoEspectador { Activo = _vista.Espectador });
+        BtnPausaVolar.Text = _idioma.O("juego.volando", _vista.Volando ? _idioma.O("juego.si") : _idioma.O("juego.no"));
+    }
+
     void ActualizarLblBloque()
     {
         var mat = _vista.BloqueSeleccionado;
@@ -872,6 +908,35 @@ public partial class PaginaJuego : ContentPage
 
     void OnPausa(object? sender, EventArgs e) => AlternarPausa();
     void OnBtnVolar(object? sender, EventArgs e) => AlternarVolar();
+
+    // ------------------------------------------------------------- muerte
+
+    void MostrarMuerte(string causa)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _pausado = true;
+            Pausa.IsVisible = false;
+            PanelInv.IsVisible = false;
+            PanelCofre.IsVisible = false;
+            LblMuerteCausa.Text = string.IsNullOrEmpty(causa) ? "" : $"Causa: {causa}";
+            PanelMuerte.IsVisible = true;
+        });
+    }
+
+    void OcultarMuerte()
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            PanelMuerte.IsVisible = false;
+            _pausado = false;
+        });
+    }
+
+    void OnReaparecer(object? sender, EventArgs e)
+    {
+        _red.Enviar(new Respawn());
+    }
 
     async void OnBorrarMundo(object? sender, EventArgs e)
     {

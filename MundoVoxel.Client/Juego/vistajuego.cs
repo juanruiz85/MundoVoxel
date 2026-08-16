@@ -28,9 +28,13 @@ public sealed class VistaJuego : IDrawable
     // Vida del jugador (la envia el servidor)
     public int Salud = 20, MaxSalud = 20;
 
+    // Oxigeno (lo envia el servidor; se agota bajo el agua)
+    public float Oxigeno = 15f, MaxOxigeno = 15f;
+
     // Entrada
     public bool BotonSaltar, BotonBajar;
     public bool Volando { get; set; }
+    public bool Espectador { get; set; } // modo espectador: vuela y atraviesa bloques
 
     // Jugadores remotos
     public sealed record JugadorRemoto(int Id, string Nombre, Vector3 Pos, float Ry, float Pitch, Color Color);
@@ -218,7 +222,8 @@ public sealed class VistaJuego : IDrawable
         var oy = p.Y - _ultimoPunto.Y;
         _distanciaTotal += MathF.Abs(ox) + MathF.Abs(oy);
         Jugador.Yaw += ox * 0.005f * Sensibilidad;
-        Jugador.Pitch = Math.Clamp(Jugador.Pitch + oy * 0.005f * Sensibilidad, -1.45f, 1.45f);
+        float lim = Ajustes.Actual.LimitePitch;
+        Jugador.Pitch = Math.Clamp(Jugador.Pitch + oy * 0.005f * Sensibilidad, -lim, lim);
         _ultimoPunto = p;
     }
 
@@ -268,7 +273,9 @@ public sealed class VistaJuego : IDrawable
         bool saltar = estaPulsada(Teclas.Espacio) || BotonSaltar;
         bool bajar = estaPulsada(Teclas.Mayus) || BotonBajar;
 
-        Jugador.Actualizar(Mundo, dt, dir, saltar, bajar, Volando);
+        Jugador.Espectador = Espectador;
+        Jugador.Actualizar(Mundo, dt, dir, saltar, bajar, Volando || Espectador);
+        if (Espectador) Jugador.EnSuelo = false;
         Jugador.CaerAlVacio(Mundo);
 
         Cam.Pos = Jugador.Ojo;
@@ -432,6 +439,25 @@ public sealed class VistaJuego : IDrawable
             c.FontSize = 15;
             c.FontColor = lleno || medio ? new Color(0.85f, 0.22f, 0.22f) : new Color(0.22f, 0.22f, 0.22f);
             c.DrawString("♥", cx0 + i * 20, cyH - 8, 20, 20, HorizontalAlignment.Center, VerticalAlignment.Center);
+        }
+
+        // Burbujas de oxigeno (se agotan bajo el agua)
+        float cyO = cyH - 22;
+        float oxPct = MaxOxigeno > 0 ? Math.Clamp(Oxigeno / MaxOxigeno, 0f, 1f) : 0f;
+        for (int i = 0; i < 10; i++)
+        {
+            bool llena = oxPct >= (i + 1) / 10f;
+            c.FontSize = 13;
+            c.FontColor = llena ? new Color(0.45f, 0.65f, 0.95f) : new Color(0.22f, 0.25f, 0.3f);
+            c.DrawString("●", cx0 + i * 20, cyO - 6, 20, 20, HorizontalAlignment.Center, VerticalAlignment.Center);
+        }
+
+        // Pantalla roja al ahogarse (oxigeno agotado): pulsa suave
+        if (oxPct <= 0.01f)
+        {
+            float pulso = 0.25f + 0.15f * MathF.Sin((float)DateTime.UtcNow.TimeOfDay.TotalSeconds * 6f);
+            c.FillColor = new Color(0.5f, 0, 0, pulso);
+            c.FillRectangle(0, 0, w, h);
         }
 
         if (_joystickActivo)

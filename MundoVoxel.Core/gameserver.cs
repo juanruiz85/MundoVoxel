@@ -41,6 +41,7 @@ public sealed class GameServer : IAsyncDisposable
     {
         try
         {
+            Ajustes.Cargar(AppContext.BaseDirectory);
             _oyente.Start();
         }
         catch (SocketException ex)
@@ -119,6 +120,10 @@ public sealed class GameServer : IAsyncDisposable
         public ushort Mano;           // material que el jugador tiene en la mano (validado)
         public int Salud = 20;         // vida del jugador (max 20)
         public float TiempoGolpe;      // cooldown para recibir dano de mobs
+        public float Oxigeno;          // oxigeno restante (se agota bajo el agua)
+        public bool Muerto;            // si murio, espera a que el jugador pida reaparecer
+        public string CausaMuerte = "";
+        public bool Espectador;        // modo espectador: vuela y atraviesa bloques, no rompe/coloca
         public readonly List<SlotInventario> Inventario = new();
 
         public void Cerrar()
@@ -236,6 +241,16 @@ public sealed class GameServer : IAsyncDisposable
 
             case SoltarItem si:
                 SoltarItem(c, si);
+                break;
+
+            case Respawn:
+                if (c.EnMundo && c.Muerto && c.MundoId != null && _mundos.TryGetValue(c.MundoId, out var mundoRp))
+                    lock (_cerrojo) Reaparecer(c, mundoRp);
+                break;
+
+            case ModoEspectador me:
+                c.Espectador = me.Activo;
+                if (me.Activo) { c.Salud = 20; c.Muerto = false; c.CausaMuerte = ""; Enviar(c, new JugadorSalud { Salud = 20, MaxSalud = 20 }); }
                 break;
 
             case UsarBloque ub:
@@ -394,6 +409,9 @@ public sealed class GameServer : IAsyncDisposable
         c.EnMundo = true;
         c.Pos = aparicion;
         c.Ry = 0; c.Pitch = 0;
+        c.Oxigeno = Ajustes.Actual.OxigenoMaximo;
+        c.Muerto = false;
+        c.CausaMuerte = "";
         mundo.Jugadores[c.Id] = c;
         Enviar(c, new Unido
         {
@@ -469,6 +487,7 @@ public sealed class GameServer : IAsyncDisposable
         lock (_cerrojo)
         {
             if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            if (c.Muerto || c.Espectador) return; // los muertos y los espectadores no rompen bloques
             var m = mundo.Mundo;
             if (!m.Dentro(rb.X, rb.Y, rb.Z)) return;
             if (Vector3.Distance(c.Pos, new Vector3(rb.X + 0.5f, rb.Y + 0.5f, rb.Z + 0.5f)) > 7f) return;
@@ -504,6 +523,7 @@ public sealed class GameServer : IAsyncDisposable
         lock (_cerrojo)
         {
             if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            if (c.Muerto || c.Espectador) return; // los muertos y los espectadores no colocan bloques
             var m = mundo.Mundo;
             if (!m.Dentro(cb.X, cb.Y, cb.Z) || cb.Y <= 0) return;
             if (!Bloques.EsColocable(cb.Bloque)) return;
@@ -539,14 +559,18 @@ public sealed class GameServer : IAsyncDisposable
         lock (_cerrojo)
         {
             if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            if (c.Muerto || c.Espectador) return;
             if (si.Slot < 0 || si.Slot >= c.Inventario.Count) return;
             var s = c.Inventario[si.Slot];
             if (s.Cantidad <= 0) return;
             Quitar(c, s.Material, 1);
             Enviar(c, InventarioActual(c));
-            // El item cae frente al jugador y se puede recoger
+            // El item cae frente al jugador: distancia segun a donde mira (1-3 bloques)
             float ya = c.Ry;
-            var pos = c.Pos + new Vector3(MathF.Sin(ya) * 1.4f, 0.4f, -MathF.Cos(ya) * 1.4f);
+            float pitch = c.Pitch;
+            float dist = pitch < -0.5f ? 1f : pitch > 0.5f ? 3f : 2f;
+            float altura = 0.4f + (pitch > 0.5f ? 1f : pitch < -0.5f ? 0.2f : 0.5f);
+            var pos = c.Pos + new Vector3(MathF.Sin(ya) * dist, altura, -MathF.Cos(ya) * dist);
             mundo.Drops.Add(new Drop { Id = ++mundo.SiguienteDropId, Material = s.Material, Px = pos.X, Py = pos.Y, Pz = pos.Z });
         }
     }
@@ -622,6 +646,7 @@ public sealed class GameServer : IAsyncDisposable
                     mundo.Hora = (mundo.Hora + 0.04f) % 24f;
                     foreach (var j in mundo.Jugadores.Values)
                         Enviar(j, new TiempoMundo { Hora = mundo.Hora });
+                    ActualizarAmbiente(mundo);
                     CrecerPlantas(mundo);
                     ActualizarTnt(mundo);
                 }
@@ -629,11 +654,81 @@ public sealed class GameServer : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Oxigeno (bajo el agua) y dano ambiental (lava). El jugador muerto no recibe
+    /// dano adicional; se queda en su sitio esperando a reaparecer.
+    /// </summary>
+    void ActualizarAmbiente(MundoServidor mundo)
+    {
+        var m = mundo.Mundo;
+        var cfg = Ajustes.Actual;
+        foreach (var j in mundo.Jugadores.Values)
+        {
+            if (j.Muerto) continue;
+            int bx = (int)MathF.Floor(j.Pos.X), bz = (int)MathF.Floor(j.Pos.Z);
+            int by = (int)MathF.Floor(j.Pos.Y + 1.4f); // cabeza
+            var bloqueCabeza = m.Dentro(bx, by, bz) ? m.Obtener(bx, by, bz) : (ushort)Bloques.Aire;
+            bool enAgua = bloqueCabeza == Bloques.Agua;
+            bool enLava = bloqueCabeza == Bloques.Lava;
+
+            // Oxigeno: se agota bajo el agua y se recupera fuera
+            float maxOx = cfg.OxigenoMaximo;
+            if (enAgua)
+            {
+                j.Oxigeno = Math.Max(0f, j.Oxigeno - 0.5f);
+                if (j.Oxigeno <= 0f)
+                {
+                    j.Salud = Math.Max(0, j.Salud - (int)MathF.Round(cfg.DanioAhogamientoPorSegundo * 0.5f));
+                    Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
+                    if (j.Salud <= 0) Morir(j, mundo, "ahogado");
+                }
+            }
+            else
+            {
+                j.Oxigeno = Math.Min(maxOx, j.Oxigeno + 1.5f);
+            }
+            Enviar(j, new OxigenoMsg { Oxigeno = j.Oxigeno, MaxOxigeno = maxOx });
+
+            // Lava: dano continuo mientras la cabeza este en lava
+            if (enLava)
+            {
+                j.Salud = Math.Max(0, j.Salud - (int)MathF.Round(cfg.DanioLavaPorSegundo * 0.5f));
+                Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
+                if (j.Salud <= 0) Morir(j, mundo, "quemado por lava");
+            }
+        }
+    }
+
+    /// <summary>Marca al jugador como muerto, guarda la causa y avisa para que reaparezca.</summary>
+    void Morir(ConexionJugador j, MundoServidor mundo, string causa)
+    {
+        if (j.Muerto) return;
+        j.Muerto = true;
+        j.CausaMuerte = causa;
+        j.Salud = 0;
+        Enviar(j, new JugadorSalud { Salud = 0, MaxSalud = 20 });
+        Enviar(j, new MuerteInfo { Causa = causa });
+        Log($"{j.Nombre} muriÃ³ ({causa}).");
+    }
+
+    /// <summary>Reaparece al jugador en el spawn (lo pide el cliente con Respawn).</summary>
+    void Reaparecer(ConexionJugador j, MundoServidor mundo)
+    {
+        var p = mundo.Mundo.ObtenerPuntoAparicion();
+        j.Pos = p;
+        j.Salud = 20;
+        j.Oxigeno = Ajustes.Actual.OxigenoMaximo;
+        j.Muerto = false;
+        j.CausaMuerte = "";
+        Enviar(j, new JugadorSalud { Salud = 20, MaxSalud = 20 });
+        Enviar(j, new OxigenoMsg { Oxigeno = j.Oxigeno, MaxOxigeno = Ajustes.Actual.OxigenoMaximo });
+        Enviar(j, new Respawn { Px = p.X, Py = p.Y, Pz = p.Z });
+    }
+
     void CrecerPlantas(MundoServidor mundo)
     {
         var m = mundo.Mundo;
-        var rnd = Random.Shared;
-        for (int x = 0; x < m.Ancho; x++)
+        var rnd = Random.Shared;        for (int x = 0; x < m.Ancho; x++)
         {
             for (int z = 0; z < m.Profundo; z++)
             {
@@ -737,7 +832,7 @@ public sealed class GameServer : IAsyncDisposable
             {
                 j.Salud = Math.Max(0, j.Salud - 10);
                 Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
-                if (j.Salud <= 0) Reaparecer(j, mundo);
+                if (j.Salud <= 0) Morir(j, mundo, "explotado");
             }
         }
         foreach (var mob in mundo.Mobs.ToList())
@@ -746,15 +841,6 @@ public sealed class GameServer : IAsyncDisposable
             if (d < radioH + 1.5f) mob.Salud -= 15;
         }
         mundo.Mobs.RemoveAll(mob => mob.Salud <= 0);
-    }
-
-    void Reaparecer(ConexionJugador j, MundoServidor mundo)
-    {
-        var p = mundo.Mundo.ObtenerPuntoAparicion();
-        j.Pos = p;
-        j.Salud = 20;
-        Enviar(j, new JugadorSalud { Salud = 20, MaxSalud = 20 });
-        Enviar(j, new Respawn { Px = p.X, Py = p.Y, Pz = p.Z });
     }
 
     // ------------------------------------------------------------------ cofres
@@ -1087,14 +1173,14 @@ public sealed class GameServer : IAsyncDisposable
                         j.Salud = Math.Max(0, j.Salud - (int)MathF.Round(info.Danio));
                         j.TiempoGolpe = 1f;
                         Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
-                        if (j.Salud <= 0) Reaparecer(j, mundo);
+                        if (j.Salud <= 0) Morir(j, mundo, "explotado por un creeper");
                         mundo.Mobs.RemoveAt(i);
                         break;
                     }
                     j.Salud = Math.Max(0, j.Salud - (int)MathF.Round(info.Danio));
                     j.TiempoGolpe = 1f;
                     Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
-                    if (j.Salud <= 0) Reaparecer(j, mundo);
+                    if (j.Salud <= 0) Morir(j, mundo, $"atacado por un {mob.Tipo}");
                 }
             }
         }
@@ -1281,4 +1367,5 @@ public sealed class GameServer : IAsyncDisposable
         catch { /* el cierre se gestiona en Desconectar */ }
     }
 }
+
 

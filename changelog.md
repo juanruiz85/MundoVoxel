@@ -2,6 +2,30 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.9.0] - 2026-08-16
+
+### Añadido (mecánicas nuevas)
+- **Oxígeno y ahogamiento**: al estar bajo el agua se consume oxígeno (barra de burbujas en el HUD); al agotarse pierdes vida (2/s) hasta salir a la superficie o morir. Duración configurable en `ajustes.config.json` (`OxigenoMax`).
+- **Lava**: nuevo bloque Lava (id 30), líquido, no sólido, no colocable ni rompible. `PonerLagosLava` genera lagos de lava en el subsuelo (excluyendo la zona del spawn). Caer en lava quema (4 de vida/s, configurable).
+- **Muerte con causa + respawn manual**: al morir se muestra un panel con la causa ("se ahogó", "ardió en lava", "fue asesinado por...") y un botón **Reaparecer**; reapareces en el punto de aparición con vida completa conservando el inventario.
+- **Modo espectador (tecla G)**: vuela, atraviesa bloques, no rompe/coloca/suelta; revierte al modo normal. También revive (limpia el estado de muerte) si estás muerto.
+- **Drop direccional**: soltar un ítem (Q) lo lanza 1-3 bloques en la dirección de la mira según el pitch (hacia arriba/abajo).
+- **Límite de pitch configurable**: `Ajustes.PitchLimite` (radianes, default 1.55) evita mirar completamente arriba/abajo en el cliente.
+- **Hoja con probabilidades configurables**: el drop de hojas (plantón/manzana/palo) usa los porcentajes de `ajustes.config.json`.
+- **Ajustes centralizados** (`ajustes.cs`): carga `ajustes.config.json` junto al ejecutable (oxígeno, daño de lava, ahogamiento, pitch, drop de hoja) con valores por defecto si el archivo no existe.
+- **Punto de aparición seguro**: `ObtenerPuntoAparicion` busca en espiral (radio 0-7) una columna con suelo visible y **2 bloques de aire libres** (cuerpo + cabeza), evitando aparecer dentro de árboles o bajo el agua (causa de la vista negra al entrar a un mundo remoto desde Android).
+- **Registro de mensajes nuevos en el protocolo**: `OxigenoMsg`, `MuerteInfo` y `ModoEspectador` registrados como `JsonDerivedType` (sin esto, `Enviar` lanzaba excepción al serializarlos).
+- **Modo espectador revive** en `gameserver.cs`: `c.Muerto = false` al activarlo, para no quedar atascado muerto.
+- **`docs/guia-de-pruebas.md`**: guía completa para probar en Windows y Android (suite automática, build, emulador, multijugador Windows+Android en el mismo mundo, comandos adb y solución de problemas).
+
+### Probado
+- **Multijugador en vivo**: servidor dedicado + cliente Windows + cliente Android (emulador) en el mismo mundo «MundoMultijugador». El log del servidor confirma las conexiones (`AnaPC se conectó`, `Bruno se conectó`, ambos entraron), el HUD de ambos clientes muestra **2 jugadores** y las entidades (jugador remoto, mobs con barra de vida) se ven en las dos pantallas; Windows renderiza el mundo 3D a ~215 FPS y Android a ~277 FPS. Se corrigió la **vista negra al entrar desde Android** (spawn dentro de árbol/agua → espiral con aire libre).
+- **Suite automática: PRUEBAS SUPERADAS** (59+ comprobaciones): oxígeno (barra + daño), lava (líquido, no colocable, lagos fuera del spawn), espectador (no rompe/coloca, revive), muerte con causa + respawn con vida 20, soltar ítem direccional, trigo con agua, TNT, cofre inicial, hostiles de noche, minerales, multijugador y más.
+- **Builds**: Windows `net10.0-windows10.0.19041.0` Debug **0 errores**; Android `net10.0-android` Release publish **exit 0**; APK `com.mundovoxel.app-Signed.apk` instalado con `adb install -r` (Success).
+
+### Conocido
+- Al entrar a un **mundo remoto** desde Android, el terreno puede tardar en renderizar (el frame del mundo llega por red y el renderer necesita un frame de invalidación; tocar Volar o moverse lo refresca). El mundo **local** en Android renderiza de inmediato.
+
 ## [0.8.2] - 2026-08-16
 
 ### Probado

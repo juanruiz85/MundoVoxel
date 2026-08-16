@@ -34,9 +34,26 @@ public class Mundo
     public Vector3 ObtenerPuntoAparicion()
     {
         int cx = Ancho / 2, cz = Profundo / 2;
-        for (int y = Alto - 1; y > 0; y--)
-            if (Bloques.EsSolido(Obtener(cx, y, cz)))
-                return new Vector3(cx + 0.5f, y + 1.01f, cz + 0.5f);
+        // Buscar en espiral alrededor del centro una columna con el suelo visible
+        // y 2 bloques de AIRE libres (cuerpo + cabeza): ni arboles ni agua/lava
+        // (si el jugador aparecia bajo el agua, la camara quedaba oscura/negra).
+        for (int radio = 0; radio < 7; radio++)
+        {
+            for (int dx = -radio; dx <= radio; dx++)
+            {
+                for (int dz = -radio; dz <= radio; dz++)
+                {
+                    int x = cx + dx, z = cz + dz;
+                    if (x < 1 || x >= Ancho - 1 || z < 1 || z >= Profundo - 1) continue;
+                    int suelo = Superficie(x, z) - 1; // ultimo bloque solido
+                    if (suelo < 2 || suelo >= Alto - 3) continue;
+                    ushort b1 = Obtener(x, suelo + 1, z);
+                    ushort b2 = Obtener(x, suelo + 2, z);
+                    if (b1 != Bloques.Aire || b2 != Bloques.Aire) continue;
+                    return new Vector3(x + 0.5f, suelo + 1.01f, z + 0.5f);
+                }
+            }
+        }
         return new Vector3(cx + 0.5f, Alto * 0.7f, cz + 0.5f);
     }
 
@@ -77,7 +94,44 @@ public class Mundo
             }
         }
         PonerMinerales(m, rnd, nivelMar);
+        PonerLagosLava(m, rnd, nivelMar);
         return m;
+    }
+
+    /// <summary>
+    /// Lagos de lava en la superficie (como lagos de agua, pero con lava).
+    /// La lava solo aparece en la superficie o en grietas; es rara.
+    /// </summary>
+    static void PonerLagosLava(Mundo m, Random rnd, int nivelMar)
+    {
+        int sx = m.Ancho / 2, sz = m.Profundo / 2;
+        for (int i = 0; i < 14; i++)
+        {
+            int cx = rnd.Next(4, m.Ancho - 4);
+            int cz = rnd.Next(4, m.Profundo - 4);
+            // No generar lava cerca del punto de aparicion (para no matar al jugador al entrar)
+            if (MathF.Abs(cx - sx) < 8 && MathF.Abs(cz - sz) < 8) continue;
+            int cy = m.Superficie(cx, cz) - 1;
+            if (cy <= nivelMar) continue; // solo en tierra firme
+            int radio = rnd.Next(1, 3);
+            for (int dx = -radio; dx <= radio; dx++)
+                for (int dz = -radio; dz <= radio; dz++)
+                {
+                    if (dx * dx + dz * dz > radio * radio + 1) continue;
+                    int x = cx + dx, z = cz + dz;
+                    if (!m.Dentro(x, cy, z)) continue;
+                    var sup = m.Superficie(x, z);
+                    if (sup - 1 != cy && MathF.Abs(sup - 1 - cy) > 1) continue;
+                    // Excavar 1-2 de profundidad y llenar con lava
+                    int prof = rnd.Next(1, 3);
+                    for (int p = 0; p < prof; p++)
+                    {
+                        int y = sup - 1 - p;
+                        if (m.Dentro(x, y, z) && Bloques.EsSolido(m.Obtener(x, y, z)) && m.Obtener(x, y, z) != Bloques.Lecho)
+                            m.Poner(x, y, z, Bloques.Lava);
+                    }
+                }
+        }
     }
 
     /// <summary>

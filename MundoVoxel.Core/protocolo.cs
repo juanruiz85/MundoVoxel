@@ -39,6 +39,9 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(SeleccionarSlot), "SeleccionarSlot")]
 [JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
+[JsonDerivedType(typeof(OxigenoMsg), "Oxigeno")]
+[JsonDerivedType(typeof(MuerteInfo), "MuerteInfo")]
+[JsonDerivedType(typeof(ModoEspectador), "ModoEspectador")]
 [JsonDerivedType(typeof(Respawn), "Respawn")]
 [JsonDerivedType(typeof(AbrirCofre), "AbrirCofre")]
 [JsonDerivedType(typeof(CofreAbierto), "CofreAbierto")]
@@ -100,6 +103,9 @@ public sealed class UsarBloque : Mensaje { public int X { get; set; } public int
 public sealed class SeleccionarSlot : Mensaje { public int Slot { get; set; } public ushort Material { get; set; } }
 public sealed class TiempoMundo : Mensaje { public float Hora { get; set; } }
 public sealed class JugadorSalud : Mensaje { public int Salud { get; set; } public int MaxSalud { get; set; } }
+public sealed class OxigenoMsg : Mensaje { public float Oxigeno { get; set; } public float MaxOxigeno { get; set; } }
+public sealed class MuerteInfo : Mensaje { public string Causa { get; set; } = ""; }
+public sealed class ModoEspectador : Mensaje { public bool Activo { get; set; } }
 public sealed class Respawn : Mensaje { public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
 // Cofres: abrir (uso) y mover items entre el inventario y el cofre
 public sealed class AbrirCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } }

@@ -1,0 +1,12 @@
+{
+  // Ajustes de MundoVoxel (se leen al iniciar el servidor, junto al ejecutable).
+  // Si borras el archivo o quitas una clave, se usa el valor por defecto.
+  "ProbabilidadPlantonHoja": 0.10,   // probabilidad de que una hoja suelte un planton
+  "ProbabilidadManzanaHoja": 0.06,   // probabilidad de que una hoja suelte una manzana
+  "ProbabilidadPaloHoja": 0.12,      // probabilidad de que una hoja suelte un palo
+  "LimitePitch": 1.55,               // limite de inclinacion vertical de la camara (radianes; 1.5708 = 90 grados, como Minecraft)
+  "SensibilidadRaton": 1.0,          // sensibilidad por defecto del raton (multiplicador)
+  "OxigenoMaximo": 15.0,             // segundos de oxigeno bajo el agua
+  "DanioLavaPorSegundo": 4.0,        // dano por segundo al tocar lava
+  "DanioAhogamientoPorSegundo": 2.0  // dano por segundo sin oxigeno
+}

@@ -123,3 +123,6 @@ bloque.planton=Plantón
 bloque.tnt=TNT
 bloque.antorcha=Antorcha
 bloque.cobre=Mineral de cobre
+bloque.lava=Lava
+juego.espectador_on=Modo espectador activado (G para salir): vuelas y atraviesas bloques
+juego.espectador_off=Modo espectador desactivado
