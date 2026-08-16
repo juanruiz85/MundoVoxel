@@ -105,10 +105,13 @@ public partial class PaginaMundos : ContentPage
 
     void OnTick(object? s, EventArgs e)
     {
-        while (_red.Obtener() is Mensaje m) Procesar(m);
+        while (_red.Obtener() is Mensaje m)
+            if (Procesar(m)) break;
     }
 
-    void Procesar(Mensaje m)
+    /// <summary>Procesa un mensaje. Devuelve true si la pagina navego al juego
+    /// (hay que dejar de consumir la cola: el resto de mensajes son del juego).</summary>
+    bool Procesar(Mensaje m)
     {
         switch (m)
         {
@@ -140,12 +143,13 @@ public partial class PaginaMundos : ContentPage
                 // espaciadora es para saltar, no para activar el menA-o).
                 _timer?.Stop();
                 _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, datos));
-                break;
+                return true;
 
             case ErrorServidor er:
                 MostrarError(TextoError(er));
-                break;
+                return false;
         }
+        return false;
     }
 
     string TextoError(ErrorServidor er)

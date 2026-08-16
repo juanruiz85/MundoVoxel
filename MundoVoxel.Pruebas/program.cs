@@ -140,7 +140,8 @@ await c1.Enviar(new Craftear { Receta = 2 });
 var invMesa = await c1.LeerHasta<Inventario>();
 Comprobar(invMesa?.Slots.Any(s => s.Material == Bloques.Mesa) == true, "craftear 4 tablones -> mesa de trabajo");
 
-// Picar piedra SIN pico: no suelta bloque (el inventario no gana piedra)
+// Picar piedra SIN pico: seleccionar un slot sin herramienta (madera)
+await c1.Enviar(new SeleccionarSlot { Slot = 0, Material = Bloques.Madera });
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
 await c1.LeerBloqueEn(bx, by, bz);
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });

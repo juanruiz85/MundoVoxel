@@ -213,6 +213,7 @@ public class Mundo
         Vetas(420, Bloques.Carbon,   nivelMar + 8, 2, 4, 9);
         Vetas(220, Bloques.Hierro,   nivelMar + 2, 2, 3, 7);
         Vetas(110, Bloques.Oro,      nivelMar - 4, 2, 2, 5);
+        Vetas(80,  Bloques.Cobre,    nivelMar - 2, 2, 2, 5);
         Vetas(55,  Bloques.Diamante, nivelMar - 10, 2, 1, 4);
     }
 

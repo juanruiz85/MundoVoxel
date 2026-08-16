@@ -469,6 +469,9 @@ public sealed class GameServer : IAsyncDisposable
             AgregarInventario(c, Bloques.Antorcha, 2);
             AgregarInventario(c, (ushort)ItemId.SemillasTrigo, 4);
             AgregarInventario(c, (ushort)ItemId.Mechero, 1);
+            // Pico de madera: sin el no cae nada al picar piedra ni menas
+            // (los jugadores nuevos creian que el inventario estaba roto).
+            AgregarInventario(c, (ushort)ItemId.PicoMadera, 1);
             Enviar(c, InventarioActual(c));
         }
         Broadcast(mundo.Id, new JugadorEntro { Id = c.Id, Nombre = c.Nombre, Px = aparicion.X, Py = aparicion.Y, Pz = aparicion.Z });

@@ -84,6 +84,28 @@ responde al mover el ratón, el cliente funciona.
    con los **bloques sólidos visibles a través** (nada de "ver a través de
    todo"). En un lago de lava el velo es **naranja**.
 
+### 3.4 Verificar inventario, crafteo y minerales
+
+1. **Kit inicial visible**: al entrar a un mundo nuevo, pulsa **E** (inventario).
+   La cuadrícula debe mostrar el kit: Madera 10, Tierra 10, Piedra 5, Arena 5,
+   Palo 8, Antorcha 2, Semillas 4, Mechero 1 y **Pico de madera** (y la hotbar
+   inferior muestra los primeros 9 ítems).
+2. **Cantidad parcial (clic derecho)**: con el inventario abierto, haz **clic
+   derecho** sobre un stack (p. ej. Madera 10): el cursor debe mostrar
+   «Madera x 1» y el slot bajar a 9. Un **clic izquierdo** mueve el stack
+   completo. El clic derecho también funciona en los slots del grid de crafteo.
+3. **Craftear tablones y palos**: con el cursor en «Madera x 1», clic derecho
+   sobre el primer slot del grid (2x2, izquierda): la receta **Tablones** debe
+   activarse (botón de resultado iluminado con su nombre). Pulsa el resultado
+   para craftear. Repite con 2 tablones en vertical para **Palos** (4).
+4. **Romper y recoger**: con el **pico de madera** seleccionado en la hotbar,
+   rompe piedra o una mena (carbón, hierro, cobre, oro, diamante): el bloque
+   debe caer como ítem y sumarse al inventario al recogerlo.
+5. **Minerales**: mina bajo tierra (nivel del mar hacia abajo) con el pico:
+   carbón (y ≈ 5-40 bajo el nivel del mar), hierro (≈ 5-20), cobre (≈ 5-20),
+   oro (≈ 4-12) y diamante (≈ 2-8). Las menas se ven como bloques veteados en
+   la piedra.
+
 ---
 
 ## 4. Probar el cliente en Android (emulador)

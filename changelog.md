@@ -2,6 +2,23 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.2] - 2026-08-16
+
+### Corregido (inventario, crafteo y menas, reportados por el usuario)
+- **El inventario del cliente aparecía vacío (bug raíz)**: la pantalla de mundos consumía TODOS los mensajes de red del tick en que llegaba `Unido`, incluido el `Inventario` del kit de inicio (y los Mobs/Drops iniciales), porque el bucle `while (_red.Obtener() is Mensaje m)` seguía drenando la cola después de navegar a la página de juego. Ahora `Procesar` devuelve `true` al navegar y el bucle se detiene: el resto de mensajes quedan para la página de juego. Resultado: el kit (Madera 10, Tierra 10, Piedra 5, Arena 5, Palo 8, Antorcha 2, Semillas 4, Mechero 1 y **Pico de madera**) se muestra en el inventario y la hotbar desde el primer momento.
+- **Romper bloques "no agregaba nada al inventario"**: era la combinación del bug raíz anterior + romper piedra/menas **sin pico** (no caía nada). El kit inicial ahora incluye un **pico de madera**, así que picar piedra, carbón, hierro, cobre, oro o diamante suelta el bloque correspondiente y se ve sumarse en el inventario.
+- **No se podían poner cantidades parciales en el crafteo**: el clic izquierdo movía el stack completo y las recetas exigen cantidades exactas (p. ej. 2 tablones para un palo). Ahora el **clic derecho en un slot mueve UN solo ítem** (cursor ↔ slot, en las dos direcciones), tanto en los 27 slots del inventario como en los 4 del grid de crafteo (se enlaza el `RightTapped` del botón nativo WinUI).
+- **Foco al entrar al mundo**: al crear/entrar a un mundo, el foco quedaba en null (el botón "Crear mundo" desaparece) y las teclas no llegaban hasta hacer clic; ahora `OnAppearing` enfoca el botón del menú vía `Dispatcher`.
+
+### Añadido
+- **Vetas de cobre** en la generación del mundo (`Vetas(80, Bloques.Cobre, nivelMar - 2, 2, 2, 5)`): el mineral ya existía pero nunca se generaba. Junto con el carbón (420), hierro (220), oro (110) y diamante (55), todas las menas están bajo tierra y se obtienen con pico.
+- **Natación en lava** (`controladorjugador.cs`): nuevo `EnLavaCuerpo` (pies/pecho) con empuje propio (salto 3.2, hundimiento lento, avance 0.82) — antes la lava usaba la gravedad normal y el jugador se hundía. No toca `EnLava` (el indicador del HUD).
+
+### Probado
+- **Suite automática: PRUEBAS SUPERADAS** (incluye el ajuste del test "sin pico, la piedra no suelta bloque" que ahora selecciona el slot Madera por el pico del kit).
+- **Verificación en el cliente Windows real (UIA + diags + píxeles)**: el kit llega y se muestra (`inventario recibido: 9 slots`; slots con 10/10/5/5/8/2/4...; panel visible confirmado por píxeles); el clic derecho mueve 1 ítem (`OnSlotInv(0,0,uno=True)`: Madera 10 → 9 y cursor "Madera x 1"); la tecla E abre el panel y el foco queda en el juego. El usuario confirmó manualmente que el crafteo con cantidades parciales funciona.
+- Build cliente Windows `net10.0-windows10.0.19041.0`: **0 errores**.
+
 ## [0.10.1] - 2026-08-16
 
 ### Corregido (entrada y render, reportados por el usuario)

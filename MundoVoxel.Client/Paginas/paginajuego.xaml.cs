@@ -104,8 +104,6 @@ public partial class PaginaJuego : ContentPage
         _vista.Jugador.Pitch = 0;
         ActualizarLblBloque();
 
-        Diag.Log($"[diag] Mundo {mundo.Ancho}x{mundo.Alto}x{mundo.Profundo} mallas {_vista.Renderizador.NumMallas} spawn {datos.Ax:0.#},{datos.Ay:0.#},{datos.Az:0.#}");
-
         AgregarChat(_idioma.O("chat.sistema", _idioma.O("juego.bienvenido", datos.Nombre)));
 
         _red.AlDesconectar += OnDesconectadoRed;
@@ -139,6 +137,16 @@ public partial class PaginaJuego : ContentPage
             _teclado.Vincular(ventana.Content);
             _tecladoVinculado = true;
         }
+        // Foco inicial: al venir de la pagina de mundos, el boton "Crear mundo"
+        // desaparece y el foco queda en null; con foco null WinUI no enruta las
+        // teclas (E, WASD, ESC...) hasta que el usuario hace clic. Se enfoca el
+        // boton del menu, que es seguro: la barra espaciadora se intercepta en el
+        // tunel del teclado y nunca lo activa.
+        Dispatcher.Dispatch(() =>
+        {
+            if (!BtnMenu.IsFocused && BtnMenu.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nb0)
+                nb0.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
+        });
 #endif
         _reloj.Restart();
         _timer ??= Dispatcher.CreateTimer();
@@ -716,6 +724,7 @@ public partial class PaginaJuego : ContentPage
                 int ix = x, iy = y;
                 var b = NuevoSlot();
                 b.Clicked += (s, e) => OnSlotCraft(ix, iy);
+                VincularClicDerecho(b, () => OnSlotCraft(ix, iy, true));
                 Grid.SetRow(b, y); Grid.SetColumn(b, x);
                 GridCraft.Children.Add(b);
                 _botonesCraft[y, x] = b;
@@ -730,6 +739,7 @@ public partial class PaginaJuego : ContentPage
                 int ix = x, iy = y;
                 var b = NuevoSlot();
                 b.Clicked += (s, e) => OnSlotInv(iy, ix);
+                VincularClicDerecho(b, () => OnSlotInv(iy, ix, true));
                 Grid.SetRow(b, y); Grid.SetColumn(b, x);
                 GridInv.Children.Add(b);
                 _botonesInv[y, x] = b;
@@ -775,33 +785,85 @@ public partial class PaginaJuego : ContentPage
         CornerRadius = 4,
     };
 
-    void OnSlotCraft(int x, int y) { IntercambiarCon(ref _grid[y * 3 + x]); RefrescarCrafteo(); }
-    void OnSlotInv(int y, int x) { IntercambiarCon(ref _slots[y * 9 + x]); RefrescarInventario(); }
+    /// <summary>Clic derecho en un slot = mover UN item (Windows). MAUI Button no
+    /// expone el boton derecho; se enlaza el RightTapped del boton nativo WinUI.</summary>
+    static void VincularClicDerecho(Button b, Action accion)
+    {
+#if WINDOWS
+        void Enlazar()
+        {
+            if (b.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nb)
+            {
+                nb.RightTapped += (_, _) => accion();
+            }
+        }
+        Enlazar();
+        if (b.Handler == null) b.HandlerChanged += (_, _) => Enlazar();
+#endif
+    }
 
-    void IntercambiarCon(ref SlotUI slot)
+    void OnSlotCraft(int x, int y) => OnSlotCraft(x, y, false);
+    void OnSlotCraft(int x, int y, bool unoSolo) { IntercambiarCon(ref _grid[y * 3 + x], unoSolo); RefrescarCrafteo(); }
+    void OnSlotInv(int y, int x) => OnSlotInv(y, x, false);
+    void OnSlotInv(int y, int x, bool unoSolo) { IntercambiarCon(ref _slots[y * 9 + x], unoSolo); RefrescarInventario(); }
+
+    /// <summary>Intercambia entre el cursor y un slot. Con `unoSolo` (clic derecho)
+    /// mueve UN solo item, para poder poner cantidades parciales en la cuadricula
+    /// de crafteo (p. ej. 2 tablones de una pila de 10 para hacer palos).</summary>
+    void IntercambiarCon(ref SlotUI slot, bool unoSolo = false)
     {
         if (_cursorMaterial == 0)
         {
             if (slot.Cantidad > 0)
             {
-                _cursorMaterial = slot.Material;
-                _cursorCantidad = slot.Cantidad;
-                slot = default;
+                if (unoSolo)
+                {
+                    _cursorMaterial = slot.Material;
+                    _cursorCantidad = 1;
+                    slot.Cantidad--;
+                    if (slot.Cantidad == 0) slot = default;
+                }
+                else
+                {
+                    _cursorMaterial = slot.Material;
+                    _cursorCantidad = slot.Cantidad;
+                    slot = default;
+                }
             }
         }
         else if (slot.Cantidad == 0)
         {
-            slot.Material = _cursorMaterial;
-            slot.Cantidad = _cursorCantidad;
-            _cursorMaterial = 0; _cursorCantidad = 0;
+            if (unoSolo)
+            {
+                slot.Material = _cursorMaterial;
+                slot.Cantidad = 1;
+                _cursorCantidad--;
+                if (_cursorCantidad == 0) { _cursorMaterial = 0; _cursorCantidad = 0; }
+            }
+            else
+            {
+                slot.Material = _cursorMaterial;
+                slot.Cantidad = _cursorCantidad;
+                _cursorMaterial = 0; _cursorCantidad = 0;
+            }
         }
         else if (slot.Material == _cursorMaterial)
         {
-            slot.Cantidad += _cursorCantidad;
-            _cursorMaterial = 0; _cursorCantidad = 0;
+            if (unoSolo)
+            {
+                slot.Cantidad++;
+                _cursorCantidad--;
+                if (_cursorCantidad == 0) { _cursorMaterial = 0; _cursorCantidad = 0; }
+            }
+            else
+            {
+                slot.Cantidad += _cursorCantidad;
+                _cursorMaterial = 0; _cursorCantidad = 0;
+            }
         }
         else
         {
+            // Material distinto: intercambiar pilas completas
             var tmp = slot;
             slot.Material = _cursorMaterial;
             slot.Cantidad = _cursorCantidad;

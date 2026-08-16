@@ -58,6 +58,16 @@ public sealed class ControladorJugador
             Vel.X *= 0.92f;
             Vel.Z *= 0.92f;
         }
+        else if (EnLavaCuerpo(mundo))
+        {
+            // Nadar en lava: mas densa que el agua -> menos empuje al saltar,
+            // hundimiento mas lento y avance mas corto (cuesta nadar mas).
+            Vel.Y += Gravedad * 0.12f * dt;
+            if (saltar) Vel.Y = 3.2f;
+            if (bajar) Vel.Y = -2.2f;
+            Vel.X *= 0.82f;
+            Vel.Z *= 0.82f;
+        }
         else
         {
             Vel.Y += Gravedad * dt;
@@ -84,6 +94,15 @@ public sealed class ControladorJugador
         int bx = (int)MathF.Floor(Pos.X), bz = (int)MathF.Floor(Pos.Z);
         int yCabeza = (int)MathF.Floor(Pos.Y + 1.6f);
         return mundo.Obtener(bx, yCabeza, bz) == Bloques.Lava;
+    }
+
+    /// <summary>True si el cuerpo (pies o pecho) esta en lava (para nadar).</summary>
+    public bool EnLavaCuerpo(Mundo mundo)
+    {
+        int bx = (int)MathF.Floor(Pos.X), bz = (int)MathF.Floor(Pos.Z);
+        int yPies = (int)MathF.Floor(Pos.Y + 0.2f);
+        int yPecho = (int)MathF.Floor(Pos.Y + 1.0f);
+        return mundo.Obtener(bx, yPies, bz) == Bloques.Lava || mundo.Obtener(bx, yPecho, bz) == Bloques.Lava;
     }
 
     void Mover(Mundo mundo, float dt)
