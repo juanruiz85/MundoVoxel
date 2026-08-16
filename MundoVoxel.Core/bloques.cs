@@ -34,6 +34,8 @@ public static class Bloques
     public const ushort Cobre = 28;
     public const ushort Cofre = 29;
     public const ushort Lava = 30;
+    public const ushort PiedraMadre = 31; // bedrock: capa inferior, no se puede romper
+    public const ushort Vacio = 32;        // fuera del mapa (zona de muerte al caer)
 
     public sealed record InfoBloque(string ClaveLang, bool Solido, bool Transparente, bool Liquido);
 
@@ -71,13 +73,15 @@ public static class Bloques
         new("bloque.cobre",    true,  false, false), // 28
         new("bloque.cofre",    true,  false, false), // 29
         new("bloque.lava",     false, true,  true ), // 30
+        new("bloque.piedra_madre", true, false, false), // 31
+        new("bloque.vacio",    false, true,  false), // 32
     };
 
     public static bool EsSolido(ushort b) => b < Info.Length && Info[b].Solido;
     public static bool EsTransparente(ushort b) => b < Info.Length && Info[b].Transparente;
     public static bool EsLiquido(ushort b) => b < Info.Length && Info[b].Liquido;
-    public static bool EsColocable(ushort b) => b > Aire && b != Lecho && b != Agua && b != Lava && !EsCultivo(b) && b != TierraLabrada && b != Planton;
-    public static bool EsRompible(ushort b) => b != Aire && b != Lecho && b != Agua && b != Lava;
+    public static bool EsColocable(ushort b) => b > Aire && b != Lecho && b != Agua && b != Lava && b != PiedraMadre && b != Vacio && !EsCultivo(b) && b != TierraLabrada && b != Planton;
+    public static bool EsRompible(ushort b) => b != Aire && b != Lecho && b != Agua && b != Lava && b != PiedraMadre && b != Vacio;
     public static bool EsMineral(ushort b) => b == Carbon || b == Hierro || b == Oro || b == Diamante || b == Cobre;
     public static bool EsCultivo(ushort b) => b >= Trigo0 && b <= Trigo3;
     public static bool EsTrigoMaduro(ushort b) => b == Trigo3;

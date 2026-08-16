@@ -40,7 +40,7 @@
         <!-- Controles táctiles (Android) -->
         <VerticalStackLayout x:Name="PanelMovil" HorizontalOptions="End" VerticalOptions="Center" Spacing="8"
                              Margin="0,0,12,0" WidthRequest="96" IsVisible="False">
-            <Button x:Name="BtnRomper" Clicked="OnBtnRomper" HeightRequest="44" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnRomper" Pressed="OnBtnRomperPulsado" Released="OnBtnRomperSoltado" HeightRequest="44" FontSize="13" Padding="4,0" />
             <Button x:Name="BtnColocar" Clicked="OnBtnColocar" HeightRequest="44" FontSize="13" Padding="4,0" />
             <Button x:Name="BtnSaltar" Pressed="OnSaltarPulsado" Released="OnSaltarSoltado" HeightRequest="52" FontSize="18" Padding="0" />
             <Button x:Name="BtnVolar" Clicked="OnBtnVolar" HeightRequest="44" FontSize="13" Padding="4,0" />

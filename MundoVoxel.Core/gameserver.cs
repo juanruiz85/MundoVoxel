@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
+using System.Threading.Channels;
 
 namespace MundoVoxel.Core;
 
@@ -112,6 +113,12 @@ public sealed class GameServer : IAsyncDisposable
         public string Nombre = "";
         public TcpClient Tcp = null!;
         public NetworkStream Flujo = null!;
+        /// <summary>Cola de mensajes de salida: el writer asincrono de la conexion
+        /// los escribe al socket sin bloquear los hilos que llaman a Enviar
+        /// (antes, un cliente que no leia llenaba el buffer TCP y congelaba el
+        /// servidor entero bajo el lock).</summary>
+        public readonly Channel<Mensaje> Salida = Channel.CreateUnbounded<Mensaje>(
+            new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         public string? MundoId;
         public Vector3 Pos;
         public float Ry, Pitch;
@@ -147,6 +154,9 @@ public sealed class GameServer : IAsyncDisposable
         public readonly List<Drop> Drops = new();
         public int SiguienteDropId;
         public float Hora = 8f;       // ciclo dia/noche: 0-24h (empieza de manana)
+        public float SegundosPorDia;   // duracion real de un dia (0 = usar ajuste global)
+        public int PoblacionMobs = -1; // cantidad objetivo de mobs (config del mundo)
+        public int FranjaCultivos;     // franja X de cultivos que toca procesar (round-robin)
         public readonly List<(int x, int y, int z, float t)> Tnts = new();
         /// <summary>Contenido de los cofres por posicion (x,y,z).</summary>
         public readonly Dictionary<(int x, int y, int z), List<SlotInventario>> Cofres = new();
@@ -173,6 +183,7 @@ public sealed class GameServer : IAsyncDisposable
         {
             conn.Flujo = tcp.GetStream();
             _conexiones[conn.Id] = conn;
+            _ = EscribirCicloAsync(conn, ct);
             while (!ct.IsCancellationRequested)
             {
                 var msg = await Frames.LeerAsync(conn.Flujo, ct);
@@ -186,6 +197,19 @@ public sealed class GameServer : IAsyncDisposable
         {
             Desconectar(conn);
         }
+    }
+
+    async Task EscribirCicloAsync(ConexionJugador c, CancellationToken ct)
+    {
+        try
+        {
+            await foreach (var m in c.Salida.Reader.ReadAllAsync(ct))
+            {
+                var datos = Protocolo.Codificar(m);
+                await c.Flujo.WriteAsync(datos, ct);
+            }
+        }
+        catch { /* el cierre se gestiona en Desconectar */ }
     }
 
     void Desconectar(ConexionJugador c)
@@ -251,6 +275,15 @@ public sealed class GameServer : IAsyncDisposable
             case ModoEspectador me:
                 c.Espectador = me.Activo;
                 if (me.Activo) { c.Salud = 20; c.Muerto = false; c.CausaMuerte = ""; Enviar(c, new JugadorSalud { Salud = 20, MaxSalud = 20 }); }
+                break;
+
+            case FijarHora fh:
+                if (c.EnMundo && c.MundoId != null && _mundos.TryGetValue(c.MundoId, out var mundoH))
+                {
+                    lock (_cerrojo) { mundoH.Hora = fh.Hora; }
+                    foreach (var j in mundoH.Jugadores.Values)
+                        Enviar(j, new TiempoMundo { Hora = mundoH.Hora });
+                }
                 break;
 
             case UsarBloque ub:
@@ -363,8 +396,11 @@ public sealed class GameServer : IAsyncDisposable
                 Abierto = cm.Abierto,
                 IdDueno = c.Id,
                 NombreDueno = c.Nombre,
-                Mundo = Mundo.Generar(cm.Semilla != 0 ? cm.Semilla : (int)(DateTime.UtcNow.Ticks & 0x7FFFFFFF)),
+                Mundo = Mundo.Generar(cm.Semilla != 0 ? cm.Semilla : (int)(DateTime.UtcNow.Ticks & 0x7FFFFFFF),
+                    cm.Ancho, cm.Alto, cm.Profundo, cm.NivelAgua, cm.LagosLava, cm.LagosAgua),
                 Hora = cm.HoraInicial >= 0 ? cm.HoraInicial % 24f : 8f,
+                SegundosPorDia = cm.SegundosPorDia > 0 ? cm.SegundosPorDia : 0f,
+                PoblacionMobs = cm.CantidadMobs > 0 ? cm.CantidadMobs : -1,
             };
             GenerarMobs(mundo);
             ColocarCofreInicial(mundo);
@@ -642,13 +678,16 @@ public sealed class GameServer : IAsyncDisposable
                 foreach (var mundo in _mundos.Values)
                 {
                     if (mundo.Conteo == 0) continue;
-                    // Ciclo dia/noche: 24 h en ~5 minutos reales
-                    mundo.Hora = (mundo.Hora + 0.04f) % 24f;
+                    // Ciclo dia/noche: un dia completo (24 h) dura SegundosPorDia
+                    // reales del mundo (o el ajuste global si no se configuro).
+                    float s = mundo.SegundosPorDia > 0 ? mundo.SegundosPorDia : Math.Max(10f, Ajustes.Actual.SegundosPorDia);
+                    mundo.Hora = (mundo.Hora + 24f * 0.5f / s) % 24f;
                     foreach (var j in mundo.Jugadores.Values)
                         Enviar(j, new TiempoMundo { Hora = mundo.Hora });
                     ActualizarAmbiente(mundo);
                     CrecerPlantas(mundo);
                     ActualizarTnt(mundo);
+                    ReponerMobs(mundo);
                 }
             }
         }
@@ -664,10 +703,19 @@ public sealed class GameServer : IAsyncDisposable
         var cfg = Ajustes.Actual;
         foreach (var j in mundo.Jugadores.Values)
         {
-            if (j.Muerto) continue;
+            if (j.Muerto || j.Espectador) continue; // muertos y espectadores no reciben dano ambiental
             int bx = (int)MathF.Floor(j.Pos.X), bz = (int)MathF.Floor(j.Pos.Z);
             int by = (int)MathF.Floor(j.Pos.Y + 1.4f); // cabeza
-            var bloqueCabeza = m.Dentro(bx, by, bz) ? m.Obtener(bx, by, bz) : (ushort)Bloques.Aire;
+
+            // Caer al vacio (fuera del mapa o por debajo de la piedra madre): muerte
+            bool fuera = !m.Dentro(bx, by, bz);
+            bool bajoElMundo = j.Pos.Y < -8f;
+            if (fuera || bajoElMundo)
+            {
+                Morir(j, mundo, "cayo al vacio");
+                continue;
+            }
+            var bloqueCabeza = m.Obtener(bx, by, bz);
             bool enAgua = bloqueCabeza == Bloques.Agua;
             bool enLava = bloqueCabeza == Bloques.Lava;
 
@@ -725,10 +773,34 @@ public sealed class GameServer : IAsyncDisposable
         Enviar(j, new Respawn { Px = p.X, Py = p.Y, Pz = p.Z });
     }
 
+    /// <summary>
+    /// Hace crecer los cultivos (trigo y plantones). Con mundos grandes (192x64x192 =
+    /// 2.36M de celdas) NO se recorre todo el mundo en cada tick: se procesa una
+    /// franja vertical de X por tick (round-robin) para que el servidor no se
+    /// bloquee y los mensajes (craftear, romper...) sigan respondiendo rapido.
+    /// Cada cultivo se revisa al menos una vez cada ~4 s (8 franjas; con mundos
+    /// de 2.36M de celdas procesar menos por tick mantiene el servidor reactivo).
+    /// La franja es POR MUNDO (cada mundo avanza la suya).
+    /// </summary>
     void CrecerPlantas(MundoServidor mundo)
     {
         var m = mundo.Mundo;
-        var rnd = Random.Shared;        for (int x = 0; x < m.Ancho; x++)
+        var rnd = Random.Shared;
+        int franjas = 8;
+        int paso = (int)MathF.Ceiling(m.Ancho / (float)franjas);
+        int x0 = mundo.FranjaCultivos;
+        int x1 = Math.Min(m.Ancho, x0 + paso);
+        mundo.FranjaCultivos = (x0 + paso) % m.Ancho;
+
+        // Solo se procesan franjas cerca de algun jugador: los cultivos lejanos
+        // no los ve nadie y recorrer el mundo entero (2.36M de celdas) cada tick
+        // bloquea el servidor. Si no hay nadie en [+-128] de la franja, se salta.
+        bool alguienCerca = false;
+        foreach (var j in mundo.Jugadores.Values)
+            if (j.Pos.X >= x0 - 128 && j.Pos.X <= x1 + 128) { alguienCerca = true; break; }
+        if (!alguienCerca) return;
+
+        for (int x = x0; x < x1; x++)
         {
             for (int z = 0; z < m.Profundo; z++)
             {
@@ -743,7 +815,8 @@ public sealed class GameServer : IAsyncDisposable
                         if (rnd.NextDouble() < prob)
                         {
                             m.Poner(x, y, z, (ushort)(b + 1));
-                            Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = (ushort)(b + 1) });
+                            if (HayJugadorCerca(mundo, x, y, z, 64))
+                                Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = (ushort)(b + 1) });
                         }
                     }
                     else if (b == Bloques.Planton && m.Obtener(x, y - 1, z) != Bloques.Aire &&
@@ -751,18 +824,28 @@ public sealed class GameServer : IAsyncDisposable
                              rnd.NextDouble() < (HayAguaCerca(m, x, y, z, 3) ? 0.6 : 0.25))
                     {
                         Mundo.PonerArbol(m, x, y, z, rnd);
-                        Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Madera });
+                        if (HayJugadorCerca(mundo, x, y, z, 64))
+                            Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Madera });
                     }
                 }
             }
         }
     }
 
+    static bool HayJugadorCerca(MundoServidor mundo, int x, int y, int z, float radio)
+    {
+        foreach (var j in mundo.Jugadores.Values)
+            if (Vector3.Distance(j.Pos, new Vector3(x + 0.5f, y + 0.5f, z + 0.5f)) < radio) return true;
+        return false;
+    }
+
     static bool HayAguaCerca(Mundo m, int x, int y, int z, int radio)
     {
+        // Busqueda barata: el agua de los lagos esta en la superficie, asi que
+        // basta mirar el mismo nivel y +-2 (no hace falta un cubo completo).
         for (int dx = -radio; dx <= radio; dx++)
-            for (int dy = -radio; dy <= radio; dy++)
-                for (int dz = -radio; dz <= radio; dz++)
+            for (int dz = -radio; dz <= radio; dz++)
+                for (int dy = -2; dy <= 2; dy++)
                     if (m.Obtener(x + dx, y + dy, z + dz) == Bloques.Agua) return true;
         return false;
     }
@@ -805,7 +888,7 @@ public sealed class GameServer : IAsyncDisposable
                     float dz = (z - cz) / MathF.Max(0.5f, radioH);
                     if (dx * dx + dy * dy + dz * dz > 1f) continue;
                     var b = m.Obtener(x, y, z);
-                    if (b == Bloques.Aire || b == Bloques.Lecho || b == Bloques.Agua) continue;
+                    if (b == Bloques.Aire || b == Bloques.Lecho || b == Bloques.Agua || b == Bloques.PiedraMadre || b == Bloques.Vacio) continue;
                     if (b == Bloques.Tnt)
                     {
                         // La TNT se consume: la central ya no esta en la lista (la quito
@@ -994,6 +1077,7 @@ public sealed class GameServer : IAsyncDisposable
                 foreach (var mundo in _mundos.Values)
                 {
                     if (mundo.Conteo == 0) continue; // no simular mundos vacios
+                    var m = mundo.Mundo;
                     ActualizarMobs(mundo, dt);
                     var msg = new Mobs
                     {
@@ -1004,6 +1088,7 @@ public sealed class GameServer : IAsyncDisposable
                             Px = m.Px, Py = m.Py, Pz = m.Pz, Ry = m.Ry,
                             Salud = (int)MathF.Round(m.Salud),
                             MaxSalud = MobsInfo.SaludMaxima(m.Tipo),
+                            Quemando = m.Quemando,
                         }).ToList(),
                     };
                     foreach (var j in mundo.Jugadores.Values) Enviar(j, msg);
@@ -1013,6 +1098,13 @@ public sealed class GameServer : IAsyncDisposable
                     for (int i = mundo.Drops.Count - 1; i >= 0; i--)
                     {
                         var drop = mundo.Drops[i];
+                        // Los drops que caen al vacio (fuera del mundo o muy abajo) desaparecen
+                        int dx = (int)MathF.Floor(drop.Px), dz = (int)MathF.Floor(drop.Pz);
+                        if (!m.Dentro(dx, 1, dz) || drop.Py < -8f)
+                        {
+                            mundo.Drops.RemoveAt(i);
+                            continue;
+                        }
                         ConexionJugador? masCercano = null;
                         float mejorD = 2.5f;
                         foreach (var j in mundo.Jugadores.Values)
@@ -1046,27 +1138,49 @@ public sealed class GameServer : IAsyncDisposable
     {
         var m = mundo.Mundo;
         var rnd = new Random(m.Semilla ^ 0x51A7);
-        int n = 9;
-        int cx = m.Ancho / 2, cz = m.Profundo / 2;
-        bool deDia = MobsInfo.EsDeDia(mundo.Hora);
-        // De dia solo salen los pasivos; los hostiles (zombi, esqueleto, creeper)
-        // solo aparecen de noche.
-        var posibles = new List<TipoMob>();
-        for (int i = 0; i < n; i++)
+        int objetivo = mundo.PoblacionMobs > 0 ? mundo.PoblacionMobs : Ajustes.Actual.CantidadMobs;
+        for (int i = 0; i < objetivo; i++)
         {
-            int x = Math.Clamp(cx + rnd.Next(-14, 15), 1, m.Ancho - 2);
-            int z = Math.Clamp(cz + rnd.Next(-14, 15), 1, m.Profundo - 2);
+            if (!IntentarSpawnMob(mundo, rnd, centro: true, out _)) continue;
+        }
+    }
+
+    /// <summary>
+    /// Intenta colocar un mob en un punto valido: a una distancia del jugador
+    /// entre RadioSpawnMin y RadioSpawnMax (estilo Minecraft: ni muy cerca ni
+    /// muy lejos), sobre superficie solida con aire encima, y con el tipo
+    /// segun la hora del dia (de dia animales, de noche hostiles).
+    /// </summary>
+    bool IntentarSpawnMob(MundoServidor mundo, Random rnd, bool centro, out TipoMob tipo)
+    {
+        tipo = TipoMob.Cerdo;
+        var m = mundo.Mundo;
+        float minR = Ajustes.Actual.RadioSpawnMin;
+        float maxR = Math.Min(Ajustes.Actual.RadioSpawnMax, MathF.Min(m.Ancho, m.Profundo) / 2f - 4f);
+        bool deDia = MobsInfo.EsDeDia(mundo.Hora);
+        int intentos = 0;
+        while (intentos++ < 24)
+        {
+            float ox = m.Ancho / 2f, oz = m.Profundo / 2f;
+            if (!centro)
+            {
+                var j = mundo.Jugadores.Values.FirstOrDefault();
+                if (j != null) { ox = j.Pos.X; oz = j.Pos.Z; }
+            }
+            // Angulo y distancia aleatorios dentro del anillo [minR, maxR]
+            float ang = (float)(rnd.NextDouble() * Math.PI * 2);
+            float dist = minR + (float)rnd.NextDouble() * Math.Max(1f, maxR - minR);
+            int x = (int)MathF.Floor(ox + MathF.Cos(ang) * dist);
+            int z = (int)MathF.Floor(oz + MathF.Sin(ang) * dist);
+            if (x < 2 || x >= m.Ancho - 2 || z < 2 || z >= m.Profundo - 2) continue;
             int y = m.Superficie(x, z);
-            TipoMob tipo;
-            if (deDia)
-            {
-                tipo = (TipoMob)rnd.Next(3); // solo pasivos
-            }
-            else
-            {
-                // Noche: mezcla de pasivos (1/3) y hostiles (2/3)
-                tipo = rnd.Next(3) < 1 ? (TipoMob)rnd.Next(3) : (TipoMob)(3 + rnd.Next(3));
-            }
+            if (y <= 1 || y >= m.Alto - 3) continue;
+            // Debe haber suelo solido y 2 bloques de aire (cuerpo + cabeza)
+            if (!Bloques.EsSolido(m.Obtener(x, y - 1, z))) continue;
+            if (m.Obtener(x, y, z) != Bloques.Aire || m.Obtener(x, y + 1, z) != Bloques.Aire) continue;
+            // De dia solo pasivos; de noche hostiles (y algun pasivo)
+            if (deDia) tipo = (TipoMob)rnd.Next(3);
+            else tipo = rnd.Next(4) < 3 ? (TipoMob)(3 + rnd.Next(3)) : (TipoMob)rnd.Next(3);
             mundo.Mobs.Add(new Mob
             {
                 Id = ++mundo.SiguienteMobId,
@@ -1076,6 +1190,81 @@ public sealed class GameServer : IAsyncDisposable
                 TiempoCambio = (float)rnd.NextDouble() * 3f,
                 Salud = MobsInfo.SaludMaxima(tipo),
             });
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Mantiene la poblacion de mobs cerca del objetivo configurado, reponiendo
+    /// los que mueren (o se queman de dia). El tipo se elige segun la hora:
+    /// de dia animales (vaca, cerdo, oveja), de noche hostiles (zombi,
+    /// esqueleto, creeper). Se llama desde el ciclo del mundo (~2 Hz) y solo
+    /// repone de vez en cuando para no saturar el spawn.
+    /// Ciclo dinamico: al anochecer algunos pasivos desaparecen (despawn
+    /// parcial) para dejar sitio a los hostiles; al amanecer los hostiles se
+    /// queman con el sol y dejan sitio a los animales de nuevo.
+    /// </summary>
+    void ReponerMobs(MundoServidor mundo)
+    {
+        int objetivo = mundo.PoblacionMobs > 0 ? mundo.PoblacionMobs : Ajustes.Actual.CantidadMobs;
+        bool deDia = MobsInfo.EsDeDia(mundo.Hora);
+        var rnd = Random.Shared;
+
+        if (!deDia)
+        {
+            // Anochecer: los pasivos que sobreviven se quedan, pero algunos
+            // desaparecen progresivamente para dar lugar a los hostiles
+            // (cupo de hostiles ~80% del objetivo por la noche).
+            int hostiles = mundo.Mobs.Count(m => MobsInfo.Datos(m.Tipo).Hostil);
+            int pasivos = mundo.Mobs.Count - hostiles;
+            int cupoHostiles = Math.Max(1, (int)MathF.Round(objetivo * 0.8f));
+            int sobra = Math.Min(pasivos, Math.Max(0, pasivos - Math.Max(0, objetivo - cupoHostiles)));
+            if (sobra > 0)
+            {
+                for (int i = mundo.Mobs.Count - 1; i >= 0 && sobra > 0; i--)
+                {
+                    var mob = mundo.Mobs[i];
+                    if (MobsInfo.Datos(mob.Tipo).Hostil) continue;
+                    // ~30% por tick (~2 Hz): la noche va "vaciando" los pasivos
+                    if (rnd.NextDouble() < 0.3)
+                    {
+                        mundo.Mobs.RemoveAt(i);
+                        sobra--;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Amanecer: los hostiles se estan quemando; los que sobreviven en
+            // sombra tambien van desapareciendo para dar paso a los animales.
+            int hostiles = mundo.Mobs.Count(m => MobsInfo.Datos(m.Tipo).Hostil);
+            int cupoHostiles = Math.Max(0, (int)MathF.Round(objetivo * 0.2f));
+            int sobra = Math.Min(hostiles, Math.Max(0, hostiles - cupoHostiles));
+            if (sobra > 0)
+            {
+                for (int i = mundo.Mobs.Count - 1; i >= 0 && sobra > 0; i--)
+                {
+                    var mob = mundo.Mobs[i];
+                    if (!MobsInfo.Datos(mob.Tipo).Hostil) continue;
+                    if (rnd.NextDouble() < 0.3)
+                    {
+                        mundo.Mobs.RemoveAt(i);
+                        sobra--;
+                    }
+                }
+            }
+        }
+
+        int faltan = objetivo - mundo.Mobs.Count;
+        if (faltan <= 0) return;
+        // Reponer como maximo 2 por tick (a ~2 Hz) para que el spawn se note
+        // progresivo y no aparezcan todos a la vez.
+        int aPoner = Math.Min(faltan, 2);
+        for (int i = 0; i < aPoner; i++)
+        {
+            if (!IntentarSpawnMob(mundo, rnd, centro: false, out _)) break;
         }
     }
 
@@ -1128,9 +1317,11 @@ public sealed class GameServer : IAsyncDisposable
 
         // Quema solar: los mobs que solo salen de noche (zombi, esqueleto) se
         // queman si estan expuestos al sol de dia (sin bloque solido encima).
+        // Se marca `Quemando` para que el cliente dibuje particulas de fuego.
         for (int i = mundo.Mobs.Count - 1; i >= 0; i--)
         {
             var mob = mundo.Mobs[i];
+            mob.Quemando = false; // por defecto no se quema este tick
             if (!MobsInfo.SeQuemaConSol(mob.Tipo, mundo.Hora)) continue;
             int bx = (int)MathF.Floor(mob.Px), bz = (int)MathF.Floor(mob.Pz);
             int by = (int)MathF.Floor(mob.Py);
@@ -1139,6 +1330,7 @@ public sealed class GameServer : IAsyncDisposable
                 if (Bloques.EsSolido(m.Obtener(bx, yy, bz)) || m.Obtener(bx, yy, bz) == Bloques.Hoja)
                     expuesto = false;
             if (!expuesto) continue;
+            mob.Quemando = true;
             mob.Salud -= dt * 3f; // ~7 s para morir (Salud 20)
             if (mob.Salud <= 0)
             {
@@ -1162,7 +1354,7 @@ public sealed class GameServer : IAsyncDisposable
             if (!info.Hostil || info.Danio <= 0) continue;
             foreach (var j in mundo.Jugadores.Values)
             {
-                if (j.TiempoGolpe > 0) continue;
+                if (j.TiempoGolpe > 0 || j.Espectador) continue; // los espectadores son intocables
                 if (Vector3.Distance(j.Pos, new Vector3(mob.Px, mob.Py, mob.Pz)) < 1.6f)
                 {
                     if (mob.Tipo == TipoMob.Creeper)
@@ -1204,7 +1396,10 @@ public sealed class GameServer : IAsyncDisposable
 
     bool PuedeMoverse(Mundo m, float x, float z, InfoMob info, out int ySup)
     {
+        ySup = 1;
         int bx = (int)MathF.Floor(x), bz = (int)MathF.Floor(z);
+        // No salir del mapa: el borde es Vacio (zona de muerte)
+        if (bx < 2 || bx >= m.Ancho - 2 || bz < 2 || bz >= m.Profundo - 2) return false;
         ySup = m.Superficie(bx, bz);
         int alto = Math.Max(1, (int)MathF.Ceiling(info.Alto));
         for (int yy = ySup; yy < ySup + alto && yy < m.Alto; yy++)
@@ -1246,7 +1441,11 @@ public sealed class GameServer : IAsyncDisposable
             var r = Objetos.RecetasCrafteo[cr.Receta];
             var ings = r.Ingredientes();
             foreach (var ing in ings)
-                if (Contar(c, ing.Material) < ing.Cantidad) return;
+                if (Contar(c, ing.Material) < ing.Cantidad)
+                {
+                    System.Console.WriteLine($"[crafteo] faltan ingredientes para '{r.Nombre}': necesita {ing.Material}x{ing.Cantidad}, tiene {Contar(c, ing.Material)}");
+                    return;
+                }
             foreach (var ing in ings)
                 Quitar(c, ing.Material, ing.Cantidad);
             AgregarInventario(c, r.Salida, r.SalidaCantidad);
@@ -1359,11 +1558,7 @@ public sealed class GameServer : IAsyncDisposable
 
     static void Enviar(ConexionJugador c, Mensaje m)
     {
-        try
-        {
-            var datos = Protocolo.Codificar(m);
-            lock (c) c.Flujo.Write(datos);
-        }
+        try { c.Salida.Writer.TryWrite(m); }
         catch { /* el cierre se gestiona en Desconectar */ }
     }
 }

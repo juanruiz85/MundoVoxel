@@ -46,6 +46,13 @@ mundos.creando=Creando mundo…
 mundos.pedir_clave=Este mundo es privado. Escribe la clave de 4 dígitos:
 mundos.conectando=Conectando…
 
+# ---- Ajustes del mundo al crearlo ----
+mundos.cfg_tamano=Tamaño del mapa
+mundos.cfg_agua=Nivel de agua
+mundos.cfg_lava=Lagos de lava
+mundos.cfg_mobs=Cantidad de mobs
+mundos.cfg_dia=Duración del día
+
 # ---- Errores del servidor (mapeados por código) ----
 error.pin_incorrecto=Clave incorrecta.
 error.lleno=El mundo está lleno.
@@ -124,5 +131,7 @@ bloque.tnt=TNT
 bloque.antorcha=Antorcha
 bloque.cobre=Mineral de cobre
 bloque.lava=Lava
+bloque.piedra_madre=Piedra madre
+bloque.vacio=Vacío
 juego.espectador_on=Modo espectador activado (G para salir): vuelas y atraviesas bloques
 juego.espectador_off=Modo espectador desactivado

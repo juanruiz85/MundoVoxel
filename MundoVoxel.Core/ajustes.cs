@@ -24,6 +24,22 @@ public static class Ajustes
         public float DanioLavaPorSegundo { get; set; } = 4f;
         // Daño por segundo al quedarse sin oxígeno
         public float DanioAhogamientoPorSegundo { get; set; } = 2f;
+        // Ciclo dia/noche: segundos reales para un dia completo (24 h del juego).
+        // Default 1200 s = 20 min por dia (mas largo que los ~5 min anteriores).
+        public float SegundosPorDia { get; set; } = 1200f;
+        // Spawn de mobs estilo Minecraft: distancia minima y maxima al jugador.
+        public float RadioSpawnMin { get; set; } = 24f;
+        public float RadioSpawnMax { get; set; } = 128f;
+        // Generacion de mundos por defecto (se pueden ajustar por mundo desde el cliente).
+        public int AnchoMundo { get; set; } = 192;
+        public int AltoMundo { get; set; } = 64;
+        public int ProfundoMundo { get; set; } = 192;
+        public float NivelAgua { get; set; } = 0.42f;        // fraccion del alto que ocupa el mar
+        public int LagosLava { get; set; } = 14;             // intentos de lagos de lava
+        public int LagosAgua { get; set; } = 20;             // intentos de lagos de agua
+        public int CantidadMobs { get; set; } = 12;          // poblacion objetivo de mobs
+        public int ProfundidadLagoMin { get; set; } = 4;     // profundidad de lagos (agua/lava)
+        public int ProfundidadLagoMax { get; set; } = 20;
     }
 
     static Config _cfg = new();

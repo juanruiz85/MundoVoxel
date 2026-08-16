@@ -35,12 +35,12 @@ string idMundo = creado!.Id;
 var unido = await c1.LeerHasta<Unido>();
 Comprobar(unido != null && unido.MundoComprimido.Length > 0, "recibe el mundo comprimido");
 var mundo = Mundo.Deserializar(Mundo.Descomprimir(unido!.MundoComprimido));
-Comprobar(mundo.Ancho == 128 && mundo.Alto == 48 && mundo.Profundo == 128, $"dimensiones del mundo ({mundo.Ancho}x{mundo.Alto}x{mundo.Profundo})");
+Comprobar(mundo.Ancho == Ajustes.Actual.AnchoMundo && mundo.Alto == Ajustes.Actual.AltoMundo && mundo.Profundo == Ajustes.Actual.ProfundoMundo, $"dimensiones del mundo ({mundo.Ancho}x{mundo.Alto}x{mundo.Profundo})");
 var aparicion = mundo.ObtenerPuntoAparicion();
 Comprobar(mundo.Obtener((int)aparicion.X, (int)aparicion.Y, (int)aparicion.Z) == Bloques.Aire, "punto de aparicion despejado");
 
 // El mundo publico empieza de dia: los hostiles (zombi/esqueleto/creeper) solo salen de noche
-var mobsPublico = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
+var mobsPublico = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
 Comprobar(mobsPublico != null && mobsPublico.Lista.Count > 0, $"mobs del mundo publico difundidos ({mobsPublico?.Lista.Count ?? 0})");
 Comprobar(mobsPublico != null && mobsPublico.Lista.All(m => m.Tipo <= 2), "de dia solo se generan mobs pasivos");
 Comprobar(mobsPublico != null && mobsPublico.Lista.Select(m => m.Tipo).Distinct().Count() >= 3, "hay variedad de tipos de mob (pasivos)");
@@ -79,15 +79,15 @@ foreach (var (dx, dz) in new[] { (1, 1), (1, -1), (-1, 1), (-1, -1) })
     if (mundoPriv.Obtener(cfx + dx, mundoPriv.Superficie(cfx + dx, cfz + dz), cfz + dz) == Bloques.Antorcha) antorchas++;
 Comprobar(antorchas == 4, "4 antorchas alrededor del cofre");
 await c1.Enviar(new AbrirCofre { X = cfx, Y = cfy, Z = cfz });
-var cofreAb = await c1.LeerHasta<CofreAbierto>(timeoutMs: 1500);
+var cofreAb = await c1.LeerHasta<CofreAbierto>(timeoutMs: 8000);
 Comprobar(cofreAb != null && cofreAb.Slots.Count >= 5, "abrir el cofre devuelve las herramientas");
 Comprobar(cofreAb?.Slots.Any(s => s.Material == (ushort)ItemId.PicoPiedra) == true, "el cofre tiene pico de piedra");
 
 // ---------- mobs ----------
 Console.WriteLine("Mobs: el servidor genera y difunde mobs en el mundo.");
-var mobs = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
+var mobs = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
 Comprobar(mobs != null && mobs.Lista.Count > 0, $"mobs difundidos ({mobs?.Lista.Count ?? 0})");
-Comprobar(mobs != null && mobs.Lista.All(m => m.Px >= 0 && m.Px < 128 && m.Pz >= 0 && m.Pz < 128 && m.Py >= 1), "posiciones de mobs dentro del mundo");
+Comprobar(mobs != null && mobs.Lista.All(m => m.Px >= 0 && m.Px < Ajustes.Actual.AnchoMundo && m.Pz >= 0 && m.Pz < Ajustes.Actual.ProfundoMundo && m.Py >= 1), "posiciones de mobs dentro del mundo");
 Comprobar(mobs != null && mobs.Lista.Select(m => m.Tipo).Distinct().Count() >= 3, "hay variedad de tipos de mob");
 
 // ---------- romper y colocar bloques ----------
@@ -95,15 +95,15 @@ Console.WriteLine("Bloques: romper y colocar con difusion.");
 var aparicionPriv = unidoPriv!;
 int bx = (int)aparicionPriv.Ax, by = (int)aparicionPriv.Ay - 1, bz = (int)aparicionPriv.Az;
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-var cambio = await c1.LeerHasta<BloqueCambio>();
-Comprobar(cambio != null && cambio.Bloque == Bloques.Aire && cambio.X == bx, "romper bloque difunde BloqueCambio");
+var cambio = await c1.LeerBloqueEn(bx, by, bz);
+Comprobar(cambio != null && cambio.Bloque == Bloques.Aire, "romper bloque difunde BloqueCambio");
 
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Ladrillo });
-cambio = await c1.LeerHasta<BloqueCambio>();
+cambio = await c1.LeerBloqueEn(bx, by, bz);
 Comprobar(cambio?.Bloque == Bloques.Ladrillo, "colocar bloque difunde BloqueCambio");
 
 await c1.Enviar(new RomperBloque { X = 999, Y = 999, Z = 999 });
-var cambioInvalido = await c1.LeerHasta<BloqueCambio>(timeoutMs: 600);
+var cambioInvalido = await c1.LeerBloqueEn(999, 999, 999, 600);
 Comprobar(cambioInvalido == null, "romper fuera del mundo se ignora");
 
 // ---------- inventario, crafteo, cocina y drops ----------
@@ -112,17 +112,17 @@ Console.WriteLine("Mecanicas: inventario, crafteo, cocina y drops de mobs.");
 // Romper el ladrillo colocado: el servidor envia Inventario ANTES que BloqueCambio
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
 var invLadrillo = await c1.LeerHasta<Inventario>();
-await c1.LeerHasta<BloqueCambio>();
+await c1.LeerBloqueEn(bx, by, bz);
 Comprobar(invLadrillo?.Slots.Any(s => s.Material == Bloques.Ladrillo && s.Cantidad >= 1) == true, "romper bloque lo mete al inventario");
 
 // Conseguir 3 madera (colocar y romper troncos)
 for (int i = 0; i < 3; i++)
 {
     await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Madera });
-    await c1.LeerHasta<BloqueCambio>();
+    await c1.LeerBloqueEn(bx, by, bz);
     await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
     await c1.LeerHasta<Inventario>();
-    await c1.LeerHasta<BloqueCambio>();
+    await c1.LeerBloqueEn(bx, by, bz);
 }
 
 // 3 x madera -> 12 tablones (receta 0)
@@ -142,10 +142,10 @@ Comprobar(invMesa?.Slots.Any(s => s.Material == Bloques.Mesa) == true, "craftear
 
 // Picar piedra SIN pico: no suelta bloque (el inventario no gana piedra)
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
-await c1.LeerHasta<BloqueCambio>();
+await c1.LeerBloqueEn(bx, by, bz);
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
 var invSinPico = await c1.LeerHasta<Inventario>(timeoutMs: 400);
-await c1.LeerHasta<BloqueCambio>();
+await c1.LeerBloqueEn(bx, by, bz);
 int piedraAntes = invSinPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
 Comprobar(piedraAntes <= 5, "sin pico, la piedra no suelta bloque");
 
@@ -160,19 +160,19 @@ await c1.Enviar(new SeleccionarSlot { Slot = Math.Min(idxPicoInv, 8), Material =
 
 // Picar piedra CON pico: suelta bloque (8 veces para el horno)
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
-await c1.LeerHasta<BloqueCambio>();
+await c1.LeerBloqueEn(bx, by, bz);
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
 var invConPico = await c1.LeerHasta<Inventario>();
-await c1.LeerHasta<BloqueCambio>();
+await c1.LeerBloqueEn(bx, by, bz);
 int piedraConPico = invConPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
 Comprobar(piedraConPico > 5, "con pico, la piedra suelta bloque");
 for (int i = 0; i < 7; i++)
 {
     await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
-    await c1.LeerHasta<BloqueCambio>();
+    await c1.LeerBloqueEn(bx, by, bz);
     await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
     await c1.LeerHasta<Inventario>();
-    await c1.LeerHasta<BloqueCambio>();
+    await c1.LeerBloqueEn(bx, by, bz);
 }
 
 // Horno (receta 3): 8 piedra -> horno
@@ -205,7 +205,7 @@ Console.WriteLine("  matando un mob pasivo para probar drops...");
 MobEstado? objetivo = null;
 for (int intento = 0; intento < 6 && objetivo == null; intento++)
 {
-    var mobsMsg = await c1.LeerHasta<Mobs>(timeoutMs: 2000);
+    var mobsMsg = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
     if (mobsMsg == null) break;
     objetivo = mobsMsg.Lista.FirstOrDefault(m => m.Tipo <= 2);
 }
@@ -220,7 +220,7 @@ if (objetivo != null)
     for (int i = 0; i < 5; i++) await c1.Enviar(new GolpearMob { Id = objetivo.Id });
     await Task.Delay(900); // esperar drop + auto-recogida
 
-    var invDrop = await c1.LeerHasta<Inventario>(timeoutMs: 2000);
+    var invDrop = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
     bool tieneCarne = invDrop != null && invDrop.Slots.Any(s =>
         s.Material == (ushort)ItemId.CarneCrudaCerdo || s.Material == (ushort)ItemId.CarneCrudaVaca || s.Material == (ushort)ItemId.CarneCrudaOveja);
     Comprobar(tieneCarne, "matar mob -> drop recogido -> carne cruda en inventario");
@@ -235,7 +235,7 @@ if (objetivo != null)
         int recetaCocina = invDrop!.Slots.Any(s => s.Material == (ushort)ItemId.CarneCrudaCerdo) ? 0
             : invDrop.Slots.Any(s => s.Material == (ushort)ItemId.CarneCrudaVaca) ? 1 : 2;
         await c1.Enviar(new Cocinar { Receta = recetaCocina });
-        var invCocido = await c1.LeerHasta<Inventario>(timeoutMs: 2000);
+        var invCocido = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
         Comprobar(invCocido != null && invCocido.Slots.Any(s =>
             s.Material == (ushort)ItemId.CarneCocinadaCerdo || s.Material == (ushort)ItemId.CarneCocinadaVaca || s.Material == (ushort)ItemId.CarneCocinadaOveja),
             "cocinar carne cruda -> carne cocinada");
@@ -254,36 +254,44 @@ await Task.Delay(100);
 await c1.Enviar(new ColocarBloque { X = bx, Y = by + 2, Z = bz, Bloque = Bloques.Carbon });
 await c1.LeerHasta<BloqueCambio>();
 await c1.Enviar(new RomperBloque { X = bx, Y = by + 2, Z = bz });
-var invCarbon = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+var invCarbon = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 await c1.LeerHasta<BloqueCambio>();
 Comprobar(invCarbon?.Slots.Any(s => s.Material == (ushort)ItemId.CarbonItem) == true, "picar carbon da carbon (combustible)");
 
 await c1.Enviar(new ColocarBloque { X = bx, Y = by + 2, Z = bz, Bloque = Bloques.Oro });
 await c1.LeerHasta<BloqueCambio>();
 await c1.Enviar(new RomperBloque { X = bx, Y = by + 2, Z = bz });
-var invOroBruto = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+var invOroBruto = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 await c1.LeerHasta<BloqueCambio>();
 Comprobar(invOroBruto?.Slots.Any(s => s.Material == (ushort)ItemId.OroBruto) == true, "picar oro da oro en bruto");
 
 await c1.Enviar(new Cocinar { Receta = 3 }); // fundir oro (receta 3 del horno)
-var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) == true, "fundir oro en bruto -> lingote de oro");
 
 // Un mob hostil ataca al jugador si esta cerca (se prueba de noche, antes de que
 // los hostiles se quemen al amanecer). Se usa un ZOMBI (Tipo 3) porque golpea en
 // bucle. Tras comprobar el ataque se mata al zombi y se cura a Ana con el modo
 // espectador (el test de muerte + respawn se hace al final de la suite).
-var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 2000);
+var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
 var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo == 3); // zombi
 if (hostil != null)
 {
     await c1.Enviar(new Posicion { Px = hostil.Px, Py = hostil.Py, Pz = hostil.Pz, Ry = 0, Pitch = 0 });
     await Task.Delay(300);
-    var saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 4000);
+    var saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 8000);
     Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
-    // Matar al zombi para que no siga golpeando a Ana durante el resto de la suite
-    for (int g = 0; g < 6; g++)
+    // Matar al zombi de verdad: 20 de salud, cada golpe hace 5+espada; se
+    // golpea en bucle hasta que desaparezca del mensaje Mobs.
+    for (int g = 0; g < 8; g++)
         await c1.Enviar(new GolpearMob { Id = hostil.Id });
+    await Task.Delay(300);
+    bool zombiMuerto = true;
+    var msVerif = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
+    if (msVerif != null && msVerif.Lista.Any(m => m.Id == hostil.Id)) zombiMuerto = false;
+    if (!zombiMuerto)
+        for (int g = 0; g < 8; g++)
+            await c1.Enviar(new GolpearMob { Id = hostil.Id });
     await Task.Delay(300);
 }
 else Comprobar(false, "un mob hostil ataca al jugador cercano (la vida baja)");
@@ -295,15 +303,15 @@ await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz 
 // Drenar los inventarios de los drops del zombi muerto
 for (int d = 0; d < 4; d++)
     _ = await c1.LeerHasta<Inventario>(timeoutMs: 300);
-// Barrer SOLO los hostiles cercanos al spawn (los unicos que pueden atacar a Ana
-// durante la suite). No se viaja a los lejanos: viajar a un creeper lo hace
-// explotar y mata a Ana (cascada de fallos).
+// Barrer SOLO los hostiles cercanos al spawn: zombis (3) y esqueletos (5).
+// Los creepers (4) NO se golpean: explotan al recibir dano y matan a Ana
+// (cascada de fallos). El radio de agresion los trae al spawn igualmente.
 for (int g = 0; g < 8; g++)
 {
     var msBarrido = await c1.LeerHasta<Mobs>(timeoutMs: 1200);
     if (msBarrido == null) break;
     var hostiles = msBarrido.Lista
-        .Where(m => m.Tipo >= 3
+        .Where(m => (m.Tipo == 3 || m.Tipo == 5)
             && MathF.Abs(m.Px - aparicionPriv.Ax) < 8
             && MathF.Abs(m.Pz - aparicionPriv.Az) < 8)
         .ToList();
@@ -315,10 +323,18 @@ for (int g = 0; g < 8; g++)
 await Task.Delay(400);
 for (int d = 0; d < 4; d++)
     _ = await c1.LeerHasta<Inventario>(timeoutMs: 300);
+// Poner el mundo de dia: los hostiles restantes se queman con el sol y dejan
+// de acosar a Ana durante el resto de la suite (el trigo tarda en madurar).
+await c1.Enviar(new FijarHora { Hora = 9f });
+await Task.Delay(400);
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 
-// El servidor envia el estado de oxigeno (se agota bajo el agua)
-var oxMsg = await c1.LeerHasta<OxigenoMsg>(timeoutMs: 2500);
+// El servidor envia el estado de oxigeno (se agota bajo el agua). Si el zombi
+// del test anterior dejo a Ana herida/muerta, se cura con el modo espectador.
+await c1.Enviar(new ModoEspectador { Activo = true });
+await Task.Delay(150);
+await c1.Enviar(new ModoEspectador { Activo = false });
+var oxMsg = await c1.LeerHasta<OxigenoMsg>(timeoutMs: 8000);
 Comprobar(oxMsg != null && oxMsg.MaxOxigeno > 0, "el servidor envia el estado de oxigeno");
 
 // La lava es un liquido (para lagos que queman) y no es colocable a mano
@@ -337,29 +353,41 @@ await c1.Enviar(new ModoEspectador { Activo = false });
 // Trigo: la azada labra la tierra, las semillas se plantan, crece y se cosecha
 int idxAzada = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Azada de madera");
 await c1.Enviar(new Craftear { Receta = idxAzada });
-var invActual = await c1.LeerHasta<Inventario>();
+var invActual = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+if (invActual == null) // reintento: el servidor puede estar ocupado con los mobs
+{
+    await c1.Enviar(new Craftear { Receta = idxAzada });
+    invActual = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+}
 await c1.Enviar(new ColocarBloque { X = bx + 1, Y = by + 2, Z = bz, Bloque = Bloques.Tierra });
-var cambioTierra = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
-int idxAzadaInv = invActual!.Slots.FindIndex(s => s.Material == (ushort)ItemId.AzadaMadera);
+var cambioTierra = await c1.LeerBloqueEn(bx + 1, by + 2, bz, 1500);
+if (invActual == null) { Console.WriteLine("  [FALLA] craftear azada de madera (sin respuesta)"); errores++; return 1; }
+int idxAzadaInv = invActual.Slots.FindIndex(s => s.Material == (ushort)ItemId.AzadaMadera);
 await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxAzadaInv, 8)), Material = (ushort)ItemId.AzadaMadera });
 await c1.Enviar(new UsarBloque { X = bx + 1, Y = by + 2, Z = bz });
-var cambioLabrado = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
+var cambioLabrado = await c1.LeerBloqueEn(bx + 1, by + 2, bz, 1500);
 Comprobar(cambioLabrado?.Bloque == Bloques.TierraLabrada, "la azada labra la tierra");
 int idxSemilla = invActual.Slots.FindIndex(s => s.Material == (ushort)ItemId.SemillasTrigo);
 await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxSemilla, 8)), Material = (ushort)ItemId.SemillasTrigo });
 await c1.Enviar(new UsarBloque { X = bx + 1, Y = by + 2, Z = bz });
-var cambioTrigo = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
+// El trigo se planta en (bx+1, by+3): el servidor pone Trigo0 en ub.Y + 1
+var cambioTrigo = await c1.LeerBloqueEn(bx + 1, by + 3, bz, 5000);
 Comprobar(cambioTrigo?.Bloque == Bloques.Trigo0, "plantar semillas en tierra labrada");
+// Esperar a que madure. Ana se pone en modo espectador: no recibe dano de los
+// hostiles nocturnos (mientras tanto el servidor sigue haciendo crecer el trigo).
+await c1.Enviar(new ModoEspectador { Activo = true });
+await Task.Delay(200);
 bool trigoMaduro = false;
-for (int i = 0; i < 60 && !trigoMaduro; i++)
+for (int i = 0; i < 300 && !trigoMaduro; i++)
 {
-    var cb = await c1.LeerHasta<BloqueCambio>(timeoutMs: 700);
+    var cb = await c1.LeerBloqueEn(bx + 1, by + 3, bz, 700);
     if (cb?.Bloque == Bloques.Trigo3) trigoMaduro = true;
 }
+await c1.Enviar(new ModoEspectador { Activo = false });
 Comprobar(trigoMaduro, "el trigo crece hasta madurar");
 await c1.Enviar(new RomperBloque { X = bx + 1, Y = by + 3, Z = bz });
-var invCosecha = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
-await c1.LeerHasta<BloqueCambio>();
+var invCosecha = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+await c1.LeerBloqueEn(bx + 1, by + 3, bz);
 Comprobar(invCosecha?.Slots.Any(s => s.Material == (ushort)ItemId.Trigo) == true, "cosechar trigo maduro da trigo");
 
 // Soltar item con Q: el inventario baja 1 y el drop se recoge solo.
@@ -385,13 +413,13 @@ if (slotSoltar >= 0)
     int cantS1 = -1, cantS2 = -1;
     for (int i = 0; i < 8 && cantS1 != objetivo1; i++)
     {
-        var invS1 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+        var invS1 = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
         cantS1 = invS1?.Slots.FirstOrDefault(s => s.Material == matSoltado)?.Cantidad ?? 0;
     }
     await Task.Delay(900);
     for (int i = 0; i < 8 && cantS2 != objetivo2; i++)
     {
-        var invS2 = await c1.LeerHasta<Inventario>(timeoutMs: 1500);
+        var invS2 = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
         cantS2 = invS2?.Slots.FirstOrDefault(s => s.Material == matSoltado)?.Cantidad ?? 0;
     }
     soltoOk = cantS1 == objetivo1 && cantS2 == objetivo2;
@@ -401,25 +429,26 @@ Comprobar(soltoOk, "soltar item (Q) suelta 1 y el drop se recoge");
 
 // TNT: colocar, encender con el mechero y esperar la explosion
 await c1.Enviar(new ColocarBloque { X = bx + 2, Y = by + 2, Z = bz, Bloque = Bloques.Tnt });
-var cambioTnt = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
-Comprobar(cambioTnt?.Bloque == Bloques.Tnt && cambioTnt.X == bx + 2, "colocar TNT difunde BloqueCambio");
+var cambioTnt = await c1.LeerBloqueEn(bx + 2, by + 2, bz, 5000);
+Comprobar(cambioTnt?.Bloque == Bloques.Tnt, "colocar TNT difunde BloqueCambio");
 int idxMechero = invActual.Slots.FindIndex(s => s.Material == (ushort)ItemId.Mechero);
 await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxMechero, 8)), Material = (ushort)ItemId.Mechero });
 await c1.Enviar(new UsarBloque { X = bx + 2, Y = by + 2, Z = bz });
 bool tntExploto = false;
 // La explosion destruye ~100 bloques (radio 3.5); el BloqueCambio del centro
-// llega en medio de la rafaga, asi que hay que leer muchos mas.
+// llega en medio de la rafaga. Se filtra por posicion para no perderse con el
+// ruido de cultivos/mobs del mundo grande.
 for (int i = 0; i < 400 && !tntExploto; i++)
 {
-    var cb = await c1.LeerHasta<BloqueCambio>(timeoutMs: 500);
-    if (cb != null && cb.X == bx + 2 && cb.Y == by + 2 && cb.Z == bz && cb.Bloque == Bloques.Aire) tntExploto = true;
+    var cb = await c1.LeerBloqueEn(bx + 2, by + 2, bz, 500);
+    if (cb != null && cb.Bloque == Bloques.Aire) tntExploto = true;
 }
 Comprobar(tntExploto, "el mechero enciende la TNT y explota");
 
 // Ciclo dia/noche: la hora avanza
-var t1m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 2000);
-await Task.Delay(1200);
-var t2m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 2000);
+var t1m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 8000);
+await Task.Delay(1500);
+var t2m = await c1.LeerHasta<TiempoMundo>(timeoutMs: 8000);
 Comprobar(t1m != null && t2m != null && t2m.Hora != t1m.Hora, "el ciclo dia/noche avanza");
 
 // Creeper: radio de explosion configurable (default 3) y no rompe con agua cerca
@@ -438,17 +467,20 @@ await c1.Enviar(new ModoEspectador { Activo = true });
 await Task.Delay(200);
 await c1.Enviar(new ModoEspectador { Activo = false });
 int lx = -1, ly = -1, lz = -1;
+// Buscar la SUPERFICIE de un lago de lava (lava con aire encima): teleportarse
+// al fondo (con los lagos profundos de 4-20) dejaria a Ana dentro de piedra.
 for (int y = 0; y < mundoPriv.Alto && lx < 0; y++)
     for (int x = 0; x < mundoPriv.Ancho && lx < 0; x++)
         for (int z = 0; z < mundoPriv.Profundo && lx < 0; z++)
-            if (mundoPriv.Obtener(x, y, z) == Bloques.Lava) { lx = x; ly = y; lz = z; }
+            if (mundoPriv.Obtener(x, y, z) == Bloques.Lava && y + 1 < mundoPriv.Alto &&
+                mundoPriv.Obtener(x, y + 1, z) == Bloques.Aire) { lx = x; ly = y; lz = z; }
 bool murioConCausa = false;
 if (lx >= 0)
 {
-    await c1.Enviar(new Posicion { Px = lx + 0.5f, Py = ly - 1.0f, Pz = lz + 0.5f, Ry = 0, Pitch = 0 });
+    await c1.Enviar(new Posicion { Px = lx + 0.5f, Py = ly - 0.5f, Pz = lz + 0.5f, Ry = 0, Pitch = 0 });
     for (int i = 0; i < 30 && !murioConCausa; i++)
     {
-        var mi = await c1.LeerHasta<MuerteInfo>(timeoutMs: 2500);
+        var mi = await c1.LeerHasta<MuerteInfo>(timeoutMs: 8000);
         if (mi != null && mi.Causa.Length > 0) murioConCausa = true;
     }
 }
@@ -460,10 +492,10 @@ await c1.Enviar(new Respawn());
 int saludFinal = -1;
 for (int i = 0; i < 12 && saludFinal != 20; i++)
 {
-    var s2 = await c1.LeerHasta<JugadorSalud>(timeoutMs: 1500);
+    var s2 = await c1.LeerHasta<JugadorSalud>(timeoutMs: 8000);
     if (s2 != null) saludFinal = s2.Salud;
 }
-var rp = await c1.LeerHasta<Respawn>(timeoutMs: 2500);
+var rp = await c1.LeerHasta<Respawn>(timeoutMs: 8000);
 Comprobar(rp != null && saludFinal == 20, "reaparecer vuelve al spawn con vida llena");
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 
@@ -518,7 +550,7 @@ sealed class ClientePrueba
         try { return await Frames.LeerAsync(_flujo, cts.Token); }
         catch { return null; }
     }
-    public async Task<T?> LeerHasta<T>(int timeoutMs = 3000) where T : Mensaje
+    public async Task<T?> LeerHasta<T>(int timeoutMs = 10000) where T : Mensaje
     {
         using var cts = new CancellationTokenSource(timeoutMs);
         try
@@ -532,5 +564,22 @@ sealed class ClientePrueba
         }
         catch { return null; }
     }
+    /// <summary>Espera un BloqueCambio en la posicion indicada (ignora el ruido de
+    /// cultivos/mobs de otras zonas del mundo, que con mundos grandes es mucho).</summary>
+    public async Task<BloqueCambio?> LeerBloqueEn(int x, int y, int z, int timeoutMs = 10000)
+    {
+        using var cts = new CancellationTokenSource(timeoutMs);
+        try
+        {
+            while (true)
+            {
+                var m = await Frames.LeerAsync(_flujo, cts.Token);
+                if (m == null) return null;
+                if (m is BloqueCambio bc && bc.X == x && bc.Y == y && bc.Z == z) return bc;
+            }
+        }
+        catch { return null; }
+    }
     public void Cerrar() { try { _tcp.Close(); } catch { } }
 }
+

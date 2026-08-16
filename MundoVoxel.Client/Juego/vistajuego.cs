@@ -41,7 +41,7 @@ public sealed class VistaJuego : IDrawable
     public readonly Dictionary<int, JugadorRemoto> Remotos = new();
 
     // Mobs remotos (estado autoritativo del servidor)
-    public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos, float Ry, int Salud, int MaxSalud);
+    public sealed record MobRemoto(TipoMob Tipo, Vector3 Pos, float Ry, int Salud, int MaxSalud, bool Quemando);
     public readonly Dictionary<int, MobRemoto> Mobs = new();
 
     // Drops en el suelo (ítems que se recogen al pasar)
@@ -159,10 +159,53 @@ public sealed class VistaJuego : IDrawable
     // Acciones pendientes de enviar (las consume la página)
     public GolpeRayo GolpeActual;
     bool _romperPendiente, _colocarPendiente;
+    // Auto-golpe con clic sostenido: solo funciona con BLOQUES (a los mobs se
+    // les golpea una vez por clic). Mientras el bloque bajo la mira sea el mismo
+    // y no sea aire, se siguen enviando golpes cada ~0.25 s hasta romperlo.
+    bool _romperSostenido;
+    (int x, int y, int z)? _bloqueSostenido;
+    float _tiempoGolpeSostenido;
+
     public bool ConsumirRomper() { if (!_romperPendiente) return false; _romperPendiente = false; return GolpeActual.Impacto; }
     public bool ConsumirColocar() { if (!_colocarPendiente) return false; _colocarPendiente = false; return GolpeActual.Impacto; }
     public void PedirRomper() => _romperPendiente = true;
     public void PedirColocar() => _colocarPendiente = true;
+
+    /// <summary>Empieza el auto-golpe sobre el bloque que esta bajo la mira.</summary>
+    public void IniciarRomperSostenido()
+    {
+        if (!GolpeActual.Impacto) return;
+        _bloqueSostenido = (GolpeActual.X, GolpeActual.Y, GolpeActual.Z);
+        _romperSostenido = true;
+        _tiempoGolpeSostenido = 0f;
+    }
+
+    public void DetenerRomperSostenido()
+    {
+        _romperSostenido = false;
+        _bloqueSostenido = null;
+    }
+
+    /// <summary>
+    /// Devuelve true cuando hay que enviar otro golpe por mantener pulsado el
+    /// boton izquierdo sobre el MISMO bloque (se detiene al romperse o al
+    /// apuntar a otra cosa; los mobs NO se repiten, se golpean una sola vez).
+    /// </summary>
+    public bool ConsumirRomperSostenido(float dt)
+    {
+        if (!_romperSostenido || _bloqueSostenido is not var (bx, by, bz)) return false;
+        // Si la mira cambio de bloque (o ya no hay impacto), se detiene
+        if (!GolpeActual.Impacto || GolpeActual.X != bx || GolpeActual.Y != by || GolpeActual.Z != bz)
+        {
+            _romperSostenido = false;
+            _bloqueSostenido = null;
+            return false;
+        }
+        _tiempoGolpeSostenido -= dt;
+        if (_tiempoGolpeSostenido > 0f) return false;
+        _tiempoGolpeSostenido = 0.25f;
+        return true;
+    }
 
     // Estado táctil
     bool _joystickActivo;
@@ -198,6 +241,19 @@ public sealed class VistaJuego : IDrawable
         {
             _arrastrando = true;
         }
+    }
+
+    /// <summary>
+    /// Rota la camara con el movimiento del raton capturado (modo crosshair FPS):
+    /// el puntero queda clavado en el centro y cada desplazamiento se convierte
+    /// en giro. El raton se recentra en la pagina (Windows) para poder girar
+    /// sin limites.
+    /// </summary>
+    public void MoverRaton(float dx, float dy)
+    {
+        Jugador.Yaw += dx * 0.005f * Sensibilidad;
+        float lim = Ajustes.Actual.LimitePitch;
+        Jugador.Pitch = Math.Clamp(Jugador.Pitch + dy * 0.005f * Sensibilidad, -lim, lim);
     }
 
     public void ArrastrarInteraccion(PointF p)
@@ -350,6 +406,7 @@ public sealed class VistaJuego : IDrawable
             var alto = MobsInfo.Datos(m.Tipo).Alto;
             DibujarNombre(c, w, h, m.Pos + new Vector3(0, alto + 0.3f, 0), NombreMob(m.Tipo));
             DibujarBarraVida(c, w, h, m.Pos + new Vector3(0, alto + 0.22f, 0), m.Salud, m.MaxSalud);
+            if (m.Quemando) DibujarFuego(c, w, h, m.Pos, alto);
         }
 
         DibujarHud(c, w, h);
@@ -387,6 +444,42 @@ public sealed class VistaJuego : IDrawable
         c.FontSize = 11;
         c.FontColor = Colors.White;
         c.DrawString(nombre, sx - 70, sy - 24, 140, 18, HorizontalAlignment.Center, VerticalAlignment.Top);
+    }
+
+    /// <summary>
+    /// Particulas de fuego sobre un mob que se esta quemando con el sol de dia
+    /// (zombis y esqueletos). Pequenas llamas naranjas/amarillas que suben y
+    /// parpadean, proyectadas como el nombre del mob.
+    /// </summary>
+    void DibujarFuego(ICanvas c, int w, int h, Vector3 posMundo, float alto)
+    {
+        long t = Environment.TickCount64;
+        var basePos = posMundo + new Vector3(0, alto + 0.15f, 0);
+        for (int i = 0; i < 7; i++)
+        {
+            // Fase distinta por particula; suben y se apagan ciclicamente
+            float fase = (t / 90f + i * 1.7f) % 9f;
+            float subida = fase * 0.06f;
+            float deriva = MathF.Sin((t / 130f) + i * 2.1f) * 0.22f;
+            float vida = 1f - fase / 9f; // se desvanecen al subir
+            if (vida <= 0.15f) continue;
+            var p = basePos + new Vector3(deriva, subida, MathF.Cos((t / 110f) + i * 1.3f) * 0.18f);
+            var d = p - Cam.Pos;
+            float xc = Vector3.Dot(d, Cam.Derecha);
+            float yc = Vector3.Dot(d, Vector3.Cross(Cam.Derecha, Cam.Adelante));
+            float zc = Vector3.Dot(d, Cam.Adelante);
+            if (zc < 0.12f) continue;
+            float f = (h / 2f) / MathF.Tan(75f * MathF.PI / 180f / 2f);
+            float sx = w / 2f + xc * f / zc;
+            float sy = h / 2f - yc * f / zc;
+            float tam = 2.5f + vida * 2.5f;
+            // Naranja en la base, amarillo en la punta (parpadeo)
+            bool parpadea = (t / 60 + i) % 3 != 0;
+            c.FillColor = parpadea
+                ? new Color(1f, 0.72f, 0.25f, 0.75f * vida)
+                : new Color(0.95f, 0.45f, 0.12f, 0.7f * vida);
+            c.FillEllipse(sx - tam / 2f, sy - tam / 2f, tam, tam);
+        }
     }
 
     void DibujarHud(ICanvas c, int w, int h)

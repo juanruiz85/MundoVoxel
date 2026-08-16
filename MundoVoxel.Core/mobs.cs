@@ -80,4 +80,6 @@ public sealed class Mob
     public float VelX, VelZ;
     public float TiempoCambio;
     public float Salud;
+    /// <summary>True mientras el mob esta ardiendo por el sol (quema solar de dia).</summary>
+    public bool Quemando;
 }

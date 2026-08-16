@@ -38,6 +38,7 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(UsarBloque), "UsarBloque")]
 [JsonDerivedType(typeof(SeleccionarSlot), "SeleccionarSlot")]
 [JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
+[JsonDerivedType(typeof(FijarHora), "FijarHora")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
 [JsonDerivedType(typeof(OxigenoMsg), "Oxigeno")]
 [JsonDerivedType(typeof(MuerteInfo), "MuerteInfo")]
@@ -65,7 +66,23 @@ public sealed class InfoMundo : Mensaje
     public int Jugadores { get; set; }
     public int MaxJugadores { get; set; }
 }
-public sealed class CrearMundo : Mensaje { public string Nombre { get; set; } = ""; public string? Pin { get; set; } public bool Abierto { get; set; } public int Semilla { get; set; } public float HoraInicial { get; set; } = -1f; }
+public sealed class CrearMundo : Mensaje
+{
+    public string Nombre { get; set; } = "";
+    public string? Pin { get; set; }
+    public bool Abierto { get; set; }
+    public int Semilla { get; set; }
+    public float HoraInicial { get; set; } = -1f;
+    // Configuracion de generacion (0/negativo = usar los ajustes del servidor)
+    public int Ancho { get; set; }
+    public int Alto { get; set; }
+    public int Profundo { get; set; }
+    public float NivelAgua { get; set; }
+    public int LagosLava { get; set; } = -1;
+    public int LagosAgua { get; set; } = -1;
+    public int CantidadMobs { get; set; } = -1;
+    public float SegundosPorDia { get; set; }
+}
 public sealed class MundoCreado : Mensaje { public string Id { get; set; } = ""; }
 public sealed class Unirse : Mensaje { public string Id { get; set; } = ""; public string? Pin { get; set; } }
 public sealed class Unido : Mensaje
@@ -89,7 +106,7 @@ public sealed class BloqueCambio : Mensaje { public int X { get; set; } public i
 public sealed class Chat : Mensaje { public string Nombre { get; set; } = ""; public string Texto { get; set; } = ""; }
 public sealed class BorrarMundo : Mensaje { public string Id { get; set; } = ""; }
 public sealed class MundoBorrado : Mensaje { public string Id { get; set; } = ""; }
-public sealed class MobEstado { public int Id { get; set; } public byte Tipo { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } public float Ry { get; set; } public int Salud { get; set; } public int MaxSalud { get; set; } }
+public sealed class MobEstado { public int Id { get; set; } public byte Tipo { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } public float Ry { get; set; } public int Salud { get; set; } public int MaxSalud { get; set; } public bool Quemando { get; set; } }
 public sealed class Mobs : Mensaje { public List<MobEstado> Lista { get; set; } = new(); }
 public sealed class GolpearMob : Mensaje { public int Id { get; set; } }
 public sealed class DropEstado { public int Id { get; set; } public ushort Material { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
@@ -102,6 +119,9 @@ public sealed class SoltarItem : Mensaje { public int Slot { get; set; } }
 public sealed class UsarBloque : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } }
 public sealed class SeleccionarSlot : Mensaje { public int Slot { get; set; } public ushort Material { get; set; } }
 public sealed class TiempoMundo : Mensaje { public float Hora { get; set; } }
+
+/// <summary>Fija la hora del mundo actual (depuracion/pruebas).</summary>
+public sealed class FijarHora : Mensaje { public float Hora { get; set; } }
 public sealed class JugadorSalud : Mensaje { public int Salud { get; set; } public int MaxSalud { get; set; } }
 public sealed class OxigenoMsg : Mensaje { public float Oxigeno { get; set; } public float MaxOxigeno { get; set; } }
 public sealed class MuerteInfo : Mensaje { public string Causa { get; set; } = ""; }

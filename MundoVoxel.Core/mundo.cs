@@ -23,7 +23,7 @@ public class Mundo
     public bool Dentro(int x, int y, int z) => x >= 0 && x < Ancho && y >= 0 && y < Alto && z >= 0 && z < Profundo;
 
     public ushort Obtener(int x, int y, int z)
-        => Dentro(x, y, z) ? Datos[Idx(x, y, z)] : (ushort)(y < 0 ? Bloques.Lecho : Bloques.Aire);
+        => Dentro(x, y, z) ? Datos[Idx(x, y, z)] : (ushort)(y < 0 ? Bloques.Vacio : Bloques.Vacio);
 
     public void Poner(int x, int y, int z, ushort tipo)
     {
@@ -66,22 +66,40 @@ public class Mundo
         return 1;
     }
 
-    public static Mundo Generar(int semilla, int ancho = 128, int alto = 48, int profundo = 128)
+    public static Mundo Generar(int semilla, int ancho = 0, int alto = 0, int profundo = 0,
+        float nivelAgua = 0f, int lagosLava = -1, int lagosAgua = -1)
     {
+        var cfg = Ajustes.Actual;
+        if (ancho <= 0) ancho = cfg.AnchoMundo;
+        if (alto <= 0) alto = cfg.AltoMundo;
+        if (profundo <= 0) profundo = cfg.ProfundoMundo;
+        if (nivelAgua <= 0f) nivelAgua = cfg.NivelAgua;
+        if (lagosLava < 0) lagosLava = cfg.LagosLava;
+        if (lagosAgua < 0) lagosAgua = cfg.LagosAgua;
         var m = new Mundo(ancho, alto, profundo, semilla);
-        int nivelMar = (int)(alto * 0.42f);
+        int nivelMar = (int)(alto * nivelAgua);
         var rnd = new Random(semilla);
+        // Pared de Vacio alrededor del mundo: delimita el mapa (la zona fuera
+        // de los limites es Vacio, y caer alli (o bajo el mundo) mata).
+        for (int x = 0; x < ancho; x++)
+            for (int z = 0; z < profundo; z++)
+            {
+                bool borde = x == 0 || z == 0 || x == ancho - 1 || z == profundo - 1;
+                for (int y = 0; y < alto; y++)
+                    if (borde) m.Poner(x, y, z, Bloques.Vacio);
+            }
         for (int x = 0; x < ancho; x++)
         {
             for (int z = 0; z < profundo; z++)
             {
+                if (x == 0 || z == 0 || x == ancho - 1 || z == profundo - 1) continue;
                 float n = Ruido.FBM(x * 0.045f, z * 0.045f, semilla);
                 float n2 = Ruido.FBM(x * 0.12f + 77f, z * 0.12f + 77f, semilla + 5) * 0.5f;
                 int h = Math.Clamp((int)(nivelMar - 4 + n * 12 + n2 * 6), 2, alto - 6);
                 for (int y = 0; y < alto; y++)
                 {
                     ushort b;
-                    if (y == 0) b = Bloques.Lecho;
+                    if (y == 0) b = Bloques.PiedraMadre; // capa inferior irrompible
                     else if (y < h - 3) b = Bloques.Piedra;
                     else if (y < h) b = Bloques.Tierra;
                     else if (y == h) b = h <= nivelMar + 1 ? Bloques.Arena : Bloques.Cesped;
@@ -95,25 +113,29 @@ public class Mundo
         }
         PonerMinerales(m, rnd, nivelMar);
         PonerLagosLava(m, rnd, nivelMar);
+        PonerLagosAgua(m, rnd, nivelMar, lagosAgua);
         return m;
     }
 
     /// <summary>
-    /// Lagos de lava en la superficie (como lagos de agua, pero con lava).
-    /// La lava solo aparece en la superficie o en grietas; es rara.
+    /// Lagos de lava en la superficie (como lagos de agua, pero con lava),
+    /// con profundidad configurable (default 4-20 bloques).
     /// </summary>
-    static void PonerLagosLava(Mundo m, Random rnd, int nivelMar)
+    static void PonerLagosLava(Mundo m, Random rnd, int nivelMar, int? cantidad = null)
     {
+        var cfg = Ajustes.Actual;
+        int n = cantidad ?? cfg.LagosLava;
+        int profMin = cfg.ProfundidadLagoMin, profMax = cfg.ProfundidadLagoMax;
         int sx = m.Ancho / 2, sz = m.Profundo / 2;
-        for (int i = 0; i < 14; i++)
+        for (int i = 0; i < n; i++)
         {
-            int cx = rnd.Next(4, m.Ancho - 4);
-            int cz = rnd.Next(4, m.Profundo - 4);
+            int cx = rnd.Next(6, m.Ancho - 6);
+            int cz = rnd.Next(6, m.Profundo - 6);
             // No generar lava cerca del punto de aparicion (para no matar al jugador al entrar)
             if (MathF.Abs(cx - sx) < 8 && MathF.Abs(cz - sz) < 8) continue;
             int cy = m.Superficie(cx, cz) - 1;
             if (cy <= nivelMar) continue; // solo en tierra firme
-            int radio = rnd.Next(1, 3);
+            int radio = rnd.Next(2, 4);
             for (int dx = -radio; dx <= radio; dx++)
                 for (int dz = -radio; dz <= radio; dz++)
                 {
@@ -122,13 +144,49 @@ public class Mundo
                     if (!m.Dentro(x, cy, z)) continue;
                     var sup = m.Superficie(x, z);
                     if (sup - 1 != cy && MathF.Abs(sup - 1 - cy) > 1) continue;
-                    // Excavar 1-2 de profundidad y llenar con lava
-                    int prof = rnd.Next(1, 3);
+                    // Excavar 4-20 de profundidad y llenar con lava
+                    int prof = rnd.Next(profMin, profMax + 1);
                     for (int p = 0; p < prof; p++)
                     {
                         int y = sup - 1 - p;
-                        if (m.Dentro(x, y, z) && Bloques.EsSolido(m.Obtener(x, y, z)) && m.Obtener(x, y, z) != Bloques.Lecho)
+                        if (m.Dentro(x, y, z) && Bloques.EsSolido(m.Obtener(x, y, z)) && m.Obtener(x, y, z) != Bloques.Lecho && m.Obtener(x, y, z) != Bloques.PiedraMadre)
                             m.Poner(x, y, z, Bloques.Lava);
+                    }
+                }
+        }
+    }
+
+    /// <summary>
+    /// Lagos de agua en la superficie con profundidad configurable (default 4-20 bloques),
+    /// para que haya mas variedad de agua ademas del mar.
+    /// </summary>
+    static void PonerLagosAgua(Mundo m, Random rnd, int nivelMar, int n)
+    {
+        var cfg = Ajustes.Actual;
+        int profMin = cfg.ProfundidadLagoMin, profMax = cfg.ProfundidadLagoMax;
+        int sx = m.Ancho / 2, sz = m.Profundo / 2;
+        for (int i = 0; i < n; i++)
+        {
+            int cx = rnd.Next(6, m.Ancho - 6);
+            int cz = rnd.Next(6, m.Profundo - 6);
+            if (MathF.Abs(cx - sx) < 8 && MathF.Abs(cz - sz) < 8) continue;
+            int cy = m.Superficie(cx, cz) - 1;
+            if (cy <= nivelMar - 3) continue; // ya hay mar/agua ahi
+            int radio = rnd.Next(2, 4);
+            for (int dx = -radio; dx <= radio; dx++)
+                for (int dz = -radio; dz <= radio; dz++)
+                {
+                    if (dx * dx + dz * dz > radio * radio + 1) continue;
+                    int x = cx + dx, z = cz + dz;
+                    if (!m.Dentro(x, cy, z)) continue;
+                    var sup = m.Superficie(x, z);
+                    if (sup - 1 != cy && MathF.Abs(sup - 1 - cy) > 1) continue;
+                    int prof = rnd.Next(profMin, profMax + 1);
+                    for (int p = 0; p < prof; p++)
+                    {
+                        int y = sup - 1 - p;
+                        if (m.Dentro(x, y, z) && Bloques.EsSolido(m.Obtener(x, y, z)) && m.Obtener(x, y, z) != Bloques.Lecho && m.Obtener(x, y, z) != Bloques.PiedraMadre)
+                            m.Poner(x, y, z, Bloques.Agua);
                     }
                 }
         }

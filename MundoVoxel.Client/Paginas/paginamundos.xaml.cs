@@ -40,7 +40,49 @@ public partial class PaginaMundos : ContentPage
         BtnCancelar.Text = idioma.O("mundos.cancelar");
         SwPublico.Toggled += OnTipoCambio;
 
+        // Ajustes del mundo: tamano (ancho/alto/profundo) y poblacion de mobs
+        PkrTamano.ItemsSource = Tamanos;
+        PkrTamano.SelectedIndex = 2;
+        LblCfgTamano.Text = idioma.O("mundos.cfg_tamano");
+        LblCfgAgua.Text = idioma.O("mundos.cfg_agua");
+        LblCfgLava.Text = idioma.O("mundos.cfg_lava");
+        LblCfgMobs.Text = idioma.O("mundos.cfg_mobs");
+        LblCfgDia.Text = idioma.O("mundos.cfg_dia");
+        SldAgua.ValueChanged += (_, _) => LblCfgAgua.Text = idioma.O("mundos.cfg_agua") + " " + (int)(SldAgua.Value * 100) + "%";
+        SldLava.ValueChanged += (_, _) => LblCfgLava.Text = idioma.O("mundos.cfg_lava") + " " + (int)SldLava.Value;
+        SldMobs.ValueChanged += (_, _) => LblCfgMobs.Text = idioma.O("mundos.cfg_mobs") + " " + (int)SldMobs.Value;
+        SldDia.ValueChanged += (_, _) => LblCfgDia.Text = idioma.O("mundos.cfg_dia") + " " + (int)SldDia.Value + " min";
+
         _red.AlDesconectar += OnDesconectadoRed;
+    }
+
+    /// <summary>Opciones de tamano de mundo: (Ancho, Alto, Profundo).</summary>
+    static readonly (int Ancho, int Alto, int Profundo)[] Tamanos =
+    {
+        (96, 48, 96),
+        (128, 48, 128),
+        (192, 64, 192),
+        (256, 64, 256),
+    };
+
+    /// <summary>Envía la configuración de generación con el mensaje CrearMundo.</summary>
+    void EnviarCrearMundo(string nombre, bool publico, string? pin)
+    {
+        var (ancho, alto, profundo) = Tamanos[Math.Clamp(PkrTamano.SelectedIndex, 0, Tamanos.Length - 1)];
+        _red.Enviar(new CrearMundo
+        {
+            Nombre = nombre,
+            Pin = pin,
+            Abierto = publico,
+            Ancho = ancho,
+            Alto = alto,
+            Profundo = profundo,
+            NivelAgua = (float)SldAgua.Value,
+            LagosLava = (int)SldLava.Value,
+            LagosAgua = (int)(SldLava.Value * 1.4),
+            CantidadMobs = (int)SldMobs.Value,
+            SegundosPorDia = (int)SldDia.Value * 60,
+        });
     }
 
     protected override void OnAppearing()
@@ -191,7 +233,7 @@ public partial class PaginaMundos : ContentPage
             }
         }
         PanelCrear.IsVisible = false;
-        _red.Enviar(new CrearMundo { Nombre = nombre, Pin = pin, Abierto = publico });
+        EnviarCrearMundo(nombre, publico, pin);
     }
 
     void OnCancelarCrear(object? sender, EventArgs e) => PanelCrear.IsVisible = false;

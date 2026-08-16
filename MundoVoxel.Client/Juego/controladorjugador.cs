@@ -159,8 +159,10 @@ public sealed class ControladorJugador
 
     public void CaerAlVacio(Mundo mundo)
     {
-        // Si el jugador se queda fuera del mundo (o cae por un agujero), reaparece arriba.
-        if (Pos.Y < -16f || Pos.Y > mundo.Alto + 16f)
+        // El servidor mata al caer al vacio (fuera del mapa o bajo la piedra madre)
+        // con causa "cayo al vacio". Aqui solo un seguro de emergencia por si el
+        // servidor no responde: nunca dejar caer al jugador al infinito.
+        if (Pos.Y < -48f || Pos.Y > mundo.Alto + 48f)
         {
             var p = mundo.ObtenerPuntoAparicion();
             Pos = p;

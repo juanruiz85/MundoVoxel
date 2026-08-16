@@ -38,6 +38,7 @@
         <!-- Formulario de creación -->
         <Border x:Name="PanelCrear" Grid.Row="1" BackgroundColor="#e610161f" StrokeThickness="0" IsVisible="False"
                 VerticalOptions="Center" Padding="20" StrokeShape="RoundRectangle 16" Margin="8,0">
+            <ScrollView>
             <VerticalStackLayout Spacing="6">
                 <Label x:Name="LblCrearTitulo" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
                 <Label x:Name="LblCrearNombre" Margin="0,8,0,0" />
@@ -46,10 +47,24 @@
                 <Switch x:Name="SwPublico" IsToggled="True" HorizontalOptions="Start" />
                 <Label x:Name="LblCrearClave" Margin="0,8,0,0" IsVisible="False" />
                 <Entry x:Name="EntPin" Keyboard="Numeric" IsVisible="False" MaxLength="4" />
+
+                <!-- Ajustes del mundo (tamano, agua, lava, mobs, ciclo) -->
+                <Label x:Name="LblCfgTamano" Margin="0,10,0,0" FontAttributes="Bold" FontSize="14" />
+                <Picker x:Name="PkrTamano" />
+                <Label x:Name="LblCfgAgua" Margin="0,8,0,0" />
+                <Slider x:Name="SldAgua" Minimum="0.2" Maximum="0.6" Value="0.42" />
+                <Label x:Name="LblCfgLava" Margin="0,8,0,0" />
+                <Slider x:Name="SldLava" Minimum="0" Maximum="40" Value="14" />
+                <Label x:Name="LblCfgMobs" Margin="0,8,0,0" />
+                <Slider x:Name="SldMobs" Minimum="0" Maximum="40" Value="12" />
+                <Label x:Name="LblCfgDia" Margin="0,8,0,0" />
+                <Slider x:Name="SldDia" Minimum="5" Maximum="40" Value="20" />
+
                 <Label x:Name="LblCrearError" FontSize="13" TextColor="{StaticResource Peligro}" IsVisible="False" LineBreakMode="WordWrap" />
                 <Button x:Name="BtnCrearConfirmar" Clicked="OnCrearConfirmar" Margin="0,14,0,0" />
                 <Button x:Name="BtnCancelar" Style="{StaticResource BtnSecundario}" Clicked="OnCancelarCrear" />
             </VerticalStackLayout>
+            </ScrollView>
         </Border>
 
         <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,8,0,0">

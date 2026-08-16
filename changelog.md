@@ -2,6 +2,27 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.0] - 2026-08-16
+
+### Añadido
+- **Configuración del mundo al crearlo**: el diálogo de nuevo mundo permite ajustar tamaño (ancho/alto/profundidad), porcentajes de agua y lava, cantidad de mobs, duración del día y radio de aparición de mobs (mín/máx, estilo Minecraft). El protocolo `CrearMundo` se amplió con todos los ajustes y se guardan por mundo.
+- **Mundo más grande por defecto**: 192×64×192 (antes 96×64×96), con generación más rápida y lagos de agua/lava **profundos** (4–20 bloques).
+- **Ciclo día/noche más largo por defecto**: 1200 s por día completo (configurable por mundo).
+- **Mobs por franja horaria**: de día aparecen animales (vaca, cerdo, oveja); de noche zombis, esqueletos y creepers, en un anillo de aparición `[RadioSpawnMin, RadioSpawnMax]` alrededor del jugador.
+- **Ciclo de mobs dinámico (día/noche continuo)**: al anochecer los animales que sobreviven se quedan pero algunos desaparecen progresivamente para dejar sitio a los hostiles; al amanecer los zombis y esqueletos expuestos al sol **se queman con partículas de fuego visibles** (campo `Quemando` en el protocolo `Mobs`) y mueren, liberando sitio para los animales. Los hostiles que sobreviven en sombra también se van disipando de día (cupo ~20 %).
+- **Bloques nuevos**: `PiedraMadre` (id 31, irrompible, capa y=0) y `Vacio` (id 32, fuera del mundo y pared del borde); caer al vacío mata.
+- **Estabilidad del servidor**: cola de salida por conexión (`Channel` + writer asíncrono) para que un cliente que no lee no llene el buffer TCP y congele el servidor entero bajo el lock; `CrecerPlantas` por franjas por mundo, solo procesa franjas cerca de jugadores y solo difunde cambios visibles; búsqueda de agua más barata; mensaje `FijarHora` (depuración/pruebas).
+- **Espectadores intocables**: los mobs no golpean ni el ambiente daña a los jugadores en modo espectador (necesario para las esperas largas de la suite).
+
+### Probado
+- **Suite automática: PRUEBAS SUPERADAS de forma repetible (4 corridas verdes consecutivas)** tras estabilizar el servidor: mundo grande, lagos profundos, PiedraMadre/Vacio, muerte al vacío, día/noche largo, mobs por hora con ciclo dinámico (quema solar con `Quemando`), radio de spawn, trigo, TNT, crafteo, cofres, hostiles, minerales, multijugador, muerte con causa y respawn.
+- **Builds**: Core Release **0 errores**; cliente Windows `net10.0-windows10.0.19041.0` Debug **0 errores**; Android `net10.0-android` Release publish **exit 0** (APK `com.mundovoxel.app-Signed.apk`, 27.7 MB).
+
+### Corregido
+- **Congelación del servidor con clientes que no leen**: `Enviar` hacía `Flujo.Write` síncrono bajo `lock(_cerrojo)`; si un cliente acumulaba mensajes sin leerlos (p. ej. durante esperas largas), el buffer TCP se llenaba y el `Write` bloqueaba todos los ciclos y mensajes (los crafteos respondían en >8 s o el trigo no maduraba en 210 s). Ahora cada conexión tiene una cola `Channel` y un writer asíncrono dedicado.
+- **Crecimiento de cultivos con mundos grandes**: la franja de cultivos era un campo global compartido (el mundo privado nunca procesaba la suya) → ahora por mundo; además se saltan franjas sin jugadores cerca y se reduce el coste de `HayAguaCerca`.
+- **Fallos en cascada de la suite**: el mundo privado empezaba de noche y los hostiles repuestos constantemente mataban a Ana durante las esperas largas (trigo ~210 s) → la suite fija el mundo de día tras el test de ataque hostil (`FijarHora`) y los espectadores son intocables.
+
 ## [0.9.0] - 2026-08-16
 
 ### Añadido (mecánicas nuevas)

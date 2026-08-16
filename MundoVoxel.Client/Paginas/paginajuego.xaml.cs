@@ -186,13 +186,22 @@ public partial class PaginaJuego : ContentPage
                 int mobId = _vista.BuscarMobApuntado();
                 if (mobId >= 0)
                 {
+                    // Atacar: UN golpe por clic (aunque se mantenga pulsado, no repite)
                     _red.Enviar(new GolpearMob { Id = mobId });
+                    _vista.DetenerRomperSostenido();
                 }
                 else
                 {
                     var g = _vista.GolpeActual;
                     _red.Enviar(new RomperBloque { X = g.X, Y = g.Y, Z = g.Z });
                 }
+            }
+            // Clic sostenido: sigue golpeando el MISMO bloque hasta romperlo
+            // (solo bloques: si hay un mob bajo la mira no se repite el ataque)
+            if (!espectador && _vista.ConsumirRomperSostenido(dt) && _vista.BuscarMobApuntado() < 0)
+            {
+                var g = _vista.GolpeActual;
+                _red.Enviar(new RomperBloque { X = g.X, Y = g.Y, Z = g.Z });
             }
             if (!espectador && _vista.ConsumirColocar())
             {
@@ -343,7 +352,7 @@ public partial class PaginaJuego : ContentPage
             case Mobs ms:
                 _vista.Mobs.Clear();
                 foreach (var e in ms.Lista)
-                    _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz), e.Ry, e.Salud, e.MaxSalud);
+                    _vista.Mobs[e.Id] = new VistaJuego.MobRemoto((TipoMob)e.Tipo, new Vector3(e.Px, e.Py, e.Pz), e.Ry, e.Salud, e.MaxSalud, e.Quemando);
                 break;
 
             case Drops ds:
@@ -423,6 +432,9 @@ public partial class PaginaJuego : ContentPage
         QuitarFocoMenu();
         if (codigo == Teclas.Escape)
         {
+#if WINDOWS
+            LiberarRaton();
+#endif
             if (EntradaChat.IsVisible) OcultarChat();
             else MainThread.BeginInvokeOnMainThread(AlternarPausa);
             return;
@@ -463,6 +475,9 @@ public partial class PaginaJuego : ContentPage
 
     void MostrarChat()
     {
+#if WINDOWS
+        LiberarRaton();
+#endif
         EntradaChat.IsVisible = true;
         EntradaChat.Focus();
     }
@@ -493,11 +508,16 @@ public partial class PaginaJuego : ContentPage
     }
 
     bool _ratonVinculado;
+    bool _ratonCapturado;
+    int _centroRatonX, _centroRatonY;
 
 #if WINDOWS
     /// <summary>
     /// Clic izquierdo = romper/atacar, clic derecho = colocar (estilo Minecraft).
     /// Se enlaza al puntero nativo de WinUI porque los gestos de MAUI no distinguen botones.
+    /// Al hacer clic sobre el juego se CAPTURA el raton (modo crosshair FPS): el cursor
+    /// queda oculto y clavado en el centro de la pantalla, y al mover el raton la vista
+    /// gira con la cruz del centro (como en Minecraft). Escape libera el raton.
     /// </summary>
     void VincularRaton()
     {
@@ -513,15 +533,79 @@ public partial class PaginaJuego : ContentPage
                 {
                     _vista.PunteroRaton = true;
                     _vista.PedirRomper();
+                    // Auto-golpe SOLO con bloques: si hay un mob bajo la mira, el
+                    // golpe unico se envia en TickInterno y no se repite.
+                    if (_vista.BuscarMobApuntado() < 0) _vista.IniciarRomperSostenido();
+                    CapturarRaton(fe);
                 }
                 else if (props.IsRightButtonPressed)
                 {
                     _vista.PunteroRaton = true;
                     _vista.PedirColocar();
+                    CapturarRaton(fe);
                 }
             }), true);
+        fe.AddHandler(Microsoft.UI.Xaml.UIElement.PointerReleasedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+            {
+                if (e.GetCurrentPoint(fe).Properties.IsLeftButtonPressed == false)
+                    _vista.DetenerRomperSostenido();
+            }), true);
+        fe.AddHandler(Microsoft.UI.Xaml.UIElement.PointerMovedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+            {
+                if (!_ratonCapturado || _pausado || EntradaChat.IsVisible) return;
+                var pt = e.GetCurrentPoint(fe).Position;
+                float dx = (float)(pt.X - _centroRatonX);
+                float dy = (float)(pt.Y - _centroRatonY);
+                if (dx == 0 && dy == 0) return;
+                _vista.MoverRaton(dx, dy);
+                RecentrarRaton();
+            }), true);
+    }
+
+    /// <summary>Captura el raton: oculta el cursor y lo clava en el centro de la vista.</summary>
+    void CapturarRaton(Microsoft.UI.Xaml.FrameworkElement fe)
+    {
+        if (_ratonCapturado) return;
+        try
+        {
+            var winMaui = Application.Current!.Windows[0];
+            var content = winMaui.Handler?.PlatformView is Microsoft.UI.Xaml.Window wn ? wn.Content : null;
+            if (content == null) return;
+            var r = fe.TransformToVisual(content).TransformPoint(new Windows.Foundation.Point(0, 0));
+            double w = fe.ActualWidth, h = fe.ActualHeight;
+            int cx = (int)(r.X + w / 2), cy = (int)(r.Y + h / 2);
+            _centroRatonX = cx; _centroRatonY = cy;
+            Nativo.SetCursorPos(cx, cy);
+            _ratonCapturado = true;
+            Nativo.ShowCursor(false);
+        }
+        catch { }
+    }
+
+    void RecentrarRaton()
+    {
+        try { Nativo.SetCursorPos(_centroRatonX, _centroRatonY); } catch { }
+    }
+
+    void LiberarRaton()
+    {
+        if (!_ratonCapturado) return;
+        _ratonCapturado = false;
+        try { Nativo.ShowCursor(true); } catch { }
+        _vista.DetenerRomperSostenido();
     }
 #endif
+
+    /// <summary>Funciones nativas de Win32 para capturar/ocultar el cursor (solo Windows).</summary>
+    static partial class Nativo
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern bool SetCursorPos(int x, int y);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern int ShowCursor(bool mostrar);
+    }
 
     void OnSldSensibilidad(object? sender, ValueChangedEventArgs e)
     {
@@ -532,7 +616,16 @@ public partial class PaginaJuego : ContentPage
 
     // ------------------------------------------------------------- acciones
 
-    void OnBtnRomper(object? sender, EventArgs e) => _vista.PedirRomper();
+    void OnBtnRomperPulsado(object? sender, EventArgs e)
+    {
+        // Mantener pulsado = auto-golpe sobre el mismo bloque (solo bloques; si
+        // hay un mob bajo la mira, TickInterno envia el golpe unico y no repite)
+        _vista.PedirRomper();
+        _vista.IniciarRomperSostenido();
+    }
+
+    void OnBtnRomperSoltado(object? sender, EventArgs e) => _vista.DetenerRomperSostenido();
+
     void OnBtnColocar(object? sender, EventArgs e) => _vista.PedirColocar();
     void OnSaltarPulsado(object? sender, EventArgs e) => _vista.BotonSaltar = true;
     void OnSaltarSoltado(object? sender, EventArgs e) => _vista.BotonSaltar = false;
@@ -901,6 +994,9 @@ public partial class PaginaJuego : ContentPage
     {
         _pausado = !_pausado;
         Pausa.IsVisible = _pausado;
+#if WINDOWS
+        if (_pausado) LiberarRaton();
+#endif
         if (_pausado)
         {
             BtnBorrarMundo.IsVisible = _red.MiId == _datos.IdDueno;
