@@ -23,8 +23,12 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - **Suite automática: PRUEBAS SUPERADAS** (59+ comprobaciones): oxígeno (barra + daño), lava (líquido, no colocable, lagos fuera del spawn), espectador (no rompe/coloca, revive), muerte con causa + respawn con vida 20, soltar ítem direccional, trigo con agua, TNT, cofre inicial, hostiles de noche, minerales, multijugador y más.
 - **Builds**: Windows `net10.0-windows10.0.19041.0` Debug **0 errores**; Android `net10.0-android` Release publish **exit 0**; APK `com.mundovoxel.app-Signed.apk` instalado con `adb install -r` (Success).
 
+### Corregido
+- **Vista negra del mundo en Android al entrar a un mundo remoto (causa raíz)**: el bloque **Lava (id 30)** quedó fuera de la paleta de colores del renderizador (`ColoresBase` tenía 30 entradas, índices 0–29). Cuando un lago de lava quedaba visible a la cámara, `RasterizarCara` calculaba un índice fuera de rango y lanzaba `IndexOutOfRangeException` en **cada frame**, por lo que el BMP del mundo nunca se pintaba (pantalla negra con HUD y etiquetas de entidades visibles). En Windows no se manifestó porque en la semilla de prueba la lava no quedaba expuesta; el mundo remoto de la prueba sí la tenía visible. Fix: se añadió el color de la lava a `ColoresBase` y `RasterizarCara` ahora clampea el id de bloque al tamaño de la paleta (defensa ante futuros bloques). Verificado en Android con mundo remoto: cielo y terreno visibles, **2 jugadores** (AnaPC en Windows + Bruno en Android) en el mismo mundo con sus etiquetas visibles en ambas pantallas.
+- Diagnóstico: `Diag.Log` también escribe a **logcat** en Android (`adb logcat -s MVX`), y `RenderizadorVoxel` expone `NumMallas`.
+
 ### Conocido
-- Al entrar a un **mundo remoto** desde Android, el terreno puede tardar en renderizar (el frame del mundo llega por red y el renderer necesita un frame de invalidación; tocar Volar o moverse lo refresca). El mundo **local** en Android renderiza de inmediato.
+- Al entrar a un **mundo remoto** desde Android con varios clientes activos, el render por software del emulador puede tardar en refrescar el frame del mundo (alterna entre mundo visible y negro unos segundos bajo carga); el mundo **local** en Android renderiza de inmediato.
 
 ## [0.8.2] - 2026-08-16
 

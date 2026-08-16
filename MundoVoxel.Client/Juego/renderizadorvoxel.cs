@@ -20,7 +20,7 @@ public sealed class RenderizadorVoxel
         (70,70,72), (168,138,120), (212,178,72), (96,200,196),
         (110,80,52), (120,170,60), (140,180,70), (170,180,70), (200,180,70),
         (80,150,70), (200,60,50), (255,170,60), (200,120,90),
-        (168,128,72),
+        (168,128,72), (255,90,20),
     };
 
     // Sombreado por dirección de cara: +Y, -Y, +X, -X, +Z, -Z
@@ -29,6 +29,7 @@ public sealed class RenderizadorVoxel
     public const int NivelesNiebla = 16;
 
     readonly Dictionary<(int, int), ChunkMalla> _mallas = new();
+    public int NumMallas => _mallas.Count;
     readonly List<CaraVista> _visibles = new();
     byte[] _paletaRgb = Array.Empty<byte>(); // 4 bytes por entrada: R,G,B,alfa
     readonly float[] _sx = new float[4], _sy = new float[4], _zc = new float[4];
@@ -190,7 +191,11 @@ public sealed class RenderizadorVoxel
 
     void RasterizarCara(Rasterizador r, in CaraVista cv)
     {
-        int idx = (cv.Bloque * 6 * NivelesNiebla + cv.Dir * NivelesNiebla + cv.Niebla) * 4;
+        // El bloque puede exceder la paleta (p. ej. Lava=30 recien anadido):
+        // clampar para nunca salir del array (la paleta se dimensiona con el
+        // tamano de ColoresBase en PrepararPaleta).
+        int b = Math.Min((int)cv.Bloque, ColoresBase.Length - 1);
+        int idx = (b * 6 * NivelesNiebla + cv.Dir * NivelesNiebla + cv.Niebla) * 4;
         r.Cuadrilatero(cv.Ax, cv.Ay, cv.Bx, cv.By, cv.Cx, cv.Cy, cv.Dx, cv.Dy, cv.Prof,
             _paletaRgb[idx], _paletaRgb[idx + 1], _paletaRgb[idx + 2], _paletaRgb[idx + 3] / 255f);
     }

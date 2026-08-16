@@ -104,6 +104,8 @@ public partial class PaginaJuego : ContentPage
         _vista.Jugador.Pitch = 0;
         ActualizarLblBloque();
 
+        Diag.Log($"[diag] Mundo {mundo.Ancho}x{mundo.Alto}x{mundo.Profundo} mallas {_vista.Renderizador.NumMallas} spawn {datos.Ax:0.#},{datos.Ay:0.#},{datos.Az:0.#}");
+
         AgregarChat(_idioma.O("chat.sistema", _idioma.O("juego.bienvenido", datos.Nombre)));
 
         _red.AlDesconectar += OnDesconectadoRed;

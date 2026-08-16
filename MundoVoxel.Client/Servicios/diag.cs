@@ -12,5 +12,8 @@ public static class Diag
                 $"[{DateTime.Now:HH:mm:ss}] {m}{Environment.NewLine}");
         }
         catch { }
+#if ANDROID
+        try { Android.Util.Log.Info("MVX", m); } catch { }
+#endif
     }
 }
