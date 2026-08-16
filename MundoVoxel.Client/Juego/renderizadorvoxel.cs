@@ -188,6 +188,19 @@ public sealed class RenderizadorVoxel
                     indicesLiquido[j] = tmp;
                 }
         for (int i = 0; i < n; i++) RasterizarCara(r, _visibles[indicesLiquido[i]]);
+
+        // Tinte de liquido: si la camara esta DENTRO de agua/lava, se aplica un
+        // velo translucido a todo el frame (azul en agua, naranja en lava) para
+        // que se note que estas sumergido sin que los bloques solidos parezcan
+        // transparentes (antes, al no haber caras entre piedra y agua, se veia
+        // a traves de todo el terreno).
+        int ox = (int)MathF.Floor(ojo.X), oy = (int)MathF.Floor(ojo.Y), oz = (int)MathF.Floor(ojo.Z);
+        if (mundo.Dentro(ox, oy, oz))
+        {
+            ushort bloqueOjo = mundo.Obtener(ox, oy, oz);
+            if (bloqueOjo == Bloques.Agua) r.Tinte(40, 90, 190, 0.40f);
+            else if (bloqueOjo == Bloques.Lava) r.Tinte(230, 80, 20, 0.45f);
+        }
     }
 
     void RasterizarCara(Rasterizador r, in CaraVista cv)

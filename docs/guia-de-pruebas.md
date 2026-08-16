@@ -69,6 +69,21 @@ En la esquina superior izquierda se ve el HUD: corazones, barra de oxígeno,
 coordenadas y hora. Si el mundo se renderiza (cielo, terreno, árboles) y el HUD
 responde al mover el ratón, el cliente funciona.
 
+### 3.3 Verificar captura del ratón, espacio y agua/lava
+
+1. **Captura del ratón (FPS)**: dentro de un mundo, haz **clic izquierdo** en la
+   vista. El cursor debe **desaparecer y quedar clavado en el centro** de la
+   pantalla, y al mover el ratón la **vista gira** con él (el cursor no debe
+   salirse del centro). ESC libera el ratón.
+2. **Barra espaciadora**: pulsa **☰** (menú, arriba a la derecha) para darle
+   foco y ciérralo con ESC o «Reanudar». Pulsa **espacio**: el jugador salta y
+   el menú **no** debe abrirse. Después pulsa **T** (chat) y **ESC** (pausa):
+   deben seguir funcionando (la tecla no debe "morirse" tras saltar).
+3. **Agua/lava**: búscate un lago de agua (o crea un mundo con el nivel de agua
+   alto) y sumérgete. Debe verse un **velo azul translúcido** sobre el terreno,
+   con los **bloques sólidos visibles a través** (nada de "ver a través de
+   todo"). En un lago de lava el velo es **naranja**.
+
 ---
 
 ## 4. Probar el cliente en Android (emulador)

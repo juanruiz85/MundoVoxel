@@ -2,6 +2,17 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.1] - 2026-08-16
+
+### Corregido (entrada y render, reportados por el usuario)
+- **Captura del ratón en Windows**: al hacer clic en el juego el cursor desaparece y queda clavado en el centro de la vista, y la vista gira con el ratón (estilo FPS). Se unificaron los sistemas de coordenadas (antes se mezclaban coordenadas relativas al elemento, al contenido y de pantalla, por lo que la mira apuntaba a un lado y el cursor quedaba en otro): ahora el centro se calcula con `GetClientRect` + `ClientToScreen` (área cliente real, sin desviarse por la barra de título), el giro se lee con `GetCursorPos` contra el centro guardado en pantalla, y `VincularRaton` se reintenta en el tick si el handler no estaba listo al entrar. `ShowCursor` se oculta/muestra en bucle para no desbalancear el contador global.
+- **Barra espaciadora ya no activa el menú (☰)**: el espacio se intercepta en la **fase de túnel** (`PreviewKeyDown`/`PreviewKeyUp`, se ejecuta antes de que el botón con foco reciba la tecla), así el botón nunca se "arma" ni dispara su Click al soltar la tecla. Además ya no se desenfoca el control (dejar el foco en null hacía que WinUI dejara de enrutar TODAS las teclas siguientes: Escape, T, WASD...).
+- **Agua/lava ya no se ve "todo transparente"**: la interfaz piedra-agua no generaba ninguna cara (`EsVisible` hacía `if (!EsTransparente(bloque)) return false;` sin generar la cara del opaco contra el líquido) y se veía a través de todo el terreno. Ahora un bloque opaco genera cara si el vecino es transparente, y al estar sumergido se aplica un **velo translúcido** al frame completo (azul en agua 0.40, naranja en lava 0.45) con `Rasterizador.Tinte`: se nota que estás dentro del líquido pero los bloques sólidos se ven sólidos.
+
+### Probado
+- **Automatizado con UIA + análisis de píxeles (cliente Windows real)**: clic en el centro → cursor clavado en el centro exacto del área cliente; mover el ratón → la región central de la imagen cambia (la vista gira); espacio con foco en el botón ☰ → el menú NO se abre y las teclas siguientes (Escape abre la pausa, T abre el chat) siguen funcionando; modo espectador sumergido en un lago → tinte azul activo (B domina sobre R/G) y bloques con contraste visible (desviación de luminosidad alta), sin transparencias. La lava usa el mismo mecanismo (`Tinte` naranja 0.45) y su generación está cubierta por la suite.
+- Build cliente Windows `net10.0-windows10.0.19041.0`: **0 errores**.
+
 ## [0.10.0] - 2026-08-16
 
 ### Añadido

@@ -46,7 +46,11 @@ public sealed class ChunkMalla
     static bool EsVisible(ushort bloque, ushort vecino)
     {
         if (vecino == Bloques.Aire) return true;
-        if (!Bloques.EsTransparente(bloque)) return false; // opaco: oculto tras cualquier vecino no aire
+        // Un bloque opaco genera cara cuando el vecino es transparente (aire,
+        // agua, lava, hojas, cristal...). Sin esto, la interfaz agua-piedra no
+        // tenia NINGUNA cara: desde dentro del agua se veia a traves de la
+        // piedra ("todo transparente" / parecia que atravesabas los bloques).
+        if (!Bloques.EsTransparente(bloque)) return Bloques.EsTransparente(vecino);
         if (vecino == bloque) return false;                // agua-agua, hoja-hoja
         return Bloques.EsTransparente(vecino);             // transparente frente a otro transparente
     }

@@ -43,6 +43,31 @@ public sealed class Rasterizador
         Array.Fill(_prof, float.MaxValue);
     }
 
+    /// <summary>
+    /// Mezcla un color translúcido sobre TODO el frame (sin tocar el z-buffer).
+    /// Se usa para el tinte de agua/lava cuando la cámara está sumergida:
+    /// al nadar bajo el agua todo se ve con un velo azul (y naranja en lava),
+    /// pero los bloques sólidos se siguen viendo opacos detrás del velo.
+    /// </summary>
+    public void Tinte(byte r, byte g, byte b, float alpha)
+    {
+        if (alpha <= 0f || alpha >= 1f)
+        {
+            if (alpha >= 1f)
+                for (int i = 0; i < Pix.Length; i += 3)
+                {
+                    Pix[i] = b; Pix[i + 1] = g; Pix[i + 2] = r;
+                }
+            return;
+        }
+        for (int i = 0; i < Pix.Length; i += 3)
+        {
+            Pix[i] = (byte)(Pix[i] + (b - Pix[i]) * alpha);
+            Pix[i + 1] = (byte)(Pix[i + 1] + (g - Pix[i + 1]) * alpha);
+            Pix[i + 2] = (byte)(Pix[i + 2] + (r - Pix[i + 2]) * alpha);
+        }
+    }
+
     /// <summary>Dibuja un cuadrilátero convexo (dos triángulos) con z-test y alpha opcional.</summary>
     public void Cuadrilatero(
         float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy,

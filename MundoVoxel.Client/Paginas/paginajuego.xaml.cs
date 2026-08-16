@@ -70,7 +70,7 @@ public partial class PaginaJuego : ContentPage
         PanelMovil.IsVisible = _esMovil;
 
         // Entrada táctil / ratón sobre el área de juego
-        Vista.StartInteraction += (_, e) => { if (e.Touches.Length > 0) { _vista.IniciarInteraccion(e.Touches[0], _esMovil); QuitarFocoMenu(); } };
+        Vista.StartInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.IniciarInteraccion(e.Touches[0], _esMovil); };
         Vista.DragInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.ArrastrarInteraccion(e.Touches[0]); };
         Vista.EndInteraction += (_, e) => { if (e.Touches.Length > 0) _vista.TerminarInteraccion(e.Touches[0]); };
         BtnRomper.Text = T.Romper;
@@ -169,6 +169,11 @@ public partial class PaginaJuego : ContentPage
 
     void TickInterno()
     {
+#if WINDOWS
+        // Si el handler nativo no estaba listo en OnAppearing, reintentar el
+        // enlace del raton en el primer tick (una vez que la pagina ya renderizo).
+        if (!_ratonVinculado) VincularRaton();
+#endif
         float dt = Math.Clamp((float)_reloj.Elapsed.TotalSeconds, 0.001f, 0.06f);
         _reloj.Restart();
 
@@ -428,8 +433,9 @@ public partial class PaginaJuego : ContentPage
 
     void OnTecla(int codigo)
     {
-        // La barra espaciadora salta; nunca debe activar botones (menu, reanudar...).
-        QuitarFocoMenu();
+        // La barra espaciadora salta; nunca debe activar botones (menu, reanudar...):
+        // el teclado la intercepta en el tunel (PreviewKeyDown) antes de que llegue
+        // a cualquier boton con foco, asi que aqui no hay que tocar el foco.
         if (codigo == Teclas.Escape)
         {
 #if WINDOWS
@@ -500,13 +506,6 @@ public partial class PaginaJuego : ContentPage
 
     // ------------------------------------------------------------- ratA3n y foco
 
-    /// <summary>Quita el foco de los botones para que la barra espaciadora no los active.</summary>
-    void QuitarFocoMenu()
-    {
-        if (BtnMenu.IsFocused) BtnMenu.Unfocus();
-        if (BtnReanudar.IsFocused) BtnReanudar.Unfocus();
-    }
-
     bool _ratonVinculado;
     bool _ratonCapturado;
     int _centroRatonX, _centroRatonY;
@@ -516,7 +515,7 @@ public partial class PaginaJuego : ContentPage
     /// Clic izquierdo = romper/atacar, clic derecho = colocar (estilo Minecraft).
     /// Se enlaza al puntero nativo de WinUI porque los gestos de MAUI no distinguen botones.
     /// Al hacer clic sobre el juego se CAPTURA el raton (modo crosshair FPS): el cursor
-    /// queda oculto y clavado en el centro de la pantalla, y al mover el raton la vista
+    /// queda oculto y clavado en el centro de la vista, y al mover el raton la vista
     /// gira con la cruz del centro (como en Minecraft). Escape libera el raton.
     /// </summary>
     void VincularRaton()
@@ -551,16 +550,20 @@ public partial class PaginaJuego : ContentPage
                 if (e.GetCurrentPoint(fe).Properties.IsLeftButtonPressed == false)
                     _vista.DetenerRomperSostenido();
             }), true);
+        // El giro se calcula con la posicion REAL del cursor en pantalla
+        // (GetCursorPos) contra el centro guardado en pantalla: asi no se
+        // mezclan sistemas de coordenadas (antes se comparaban coordenadas
+        // relativas al elemento con otras del contenido y el delta salia mal).
         fe.AddHandler(Microsoft.UI.Xaml.UIElement.PointerMovedEvent,
             new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
             {
                 if (!_ratonCapturado || _pausado || EntradaChat.IsVisible) return;
-                var pt = e.GetCurrentPoint(fe).Position;
-                float dx = (float)(pt.X - _centroRatonX);
-                float dy = (float)(pt.Y - _centroRatonY);
+                if (!Nativo.GetCursorPos(out var pt)) return;
+                float dx = pt.X - _centroRatonX;
+                float dy = pt.Y - _centroRatonY;
                 if (dx == 0 && dy == 0) return;
                 _vista.MoverRaton(dx, dy);
-                RecentrarRaton();
+                Nativo.SetCursorPos(_centroRatonX, _centroRatonY);
             }), true);
     }
 
@@ -570,18 +573,39 @@ public partial class PaginaJuego : ContentPage
         if (_ratonCapturado) return;
         try
         {
-            var winMaui = Application.Current!.Windows[0];
-            var content = winMaui.Handler?.PlatformView is Microsoft.UI.Xaml.Window wn ? wn.Content : null;
-            if (content == null) return;
-            var r = fe.TransformToVisual(content).TransformPoint(new Windows.Foundation.Point(0, 0));
-            double w = fe.ActualWidth, h = fe.ActualHeight;
-            int cx = (int)(r.X + w / 2), cy = (int)(r.Y + h / 2);
-            _centroRatonX = cx; _centroRatonY = cy;
-            Nativo.SetCursorPos(cx, cy);
+            if (Application.Current?.Windows[0]?.Handler?.PlatformView is not Microsoft.UI.Xaml.Window wn) return;
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(wn);
+            // Centro de la vista en coordenadas de PANTALLA (pixeles fisicos).
+            // La vista de juego llena todo el area cliente de la ventana, asi que
+            // el centro del area cliente ES el centro de la vista: GetClientRect +
+            // ClientToScreen. (TransformToVisual(null) se desvia ~40px en Y por la
+            // barra de titulo; GetWindowRect mezclaba bordes con el area cliente.)
+            if (!Nativo.GetClientRect(hwnd, out var cr)) return;
+            var pt = new Nativo.POINT
+            {
+                X = (cr.Right - cr.Left) / 2,
+                Y = (cr.Bottom - cr.Top) / 2,
+            };
+            if (!Nativo.ClientToScreen(hwnd, ref pt)) return;
+            _centroRatonX = pt.X;
+            _centroRatonY = pt.Y;
+            Nativo.SetCursorPos(_centroRatonX, _centroRatonY);
             _ratonCapturado = true;
-            Nativo.ShowCursor(false);
+            OcultarCursorNativo();
         }
         catch { }
+    }
+
+    /// <summary>ShowCursor usa un contador global: ocultar/mostrar en bucle garantiza
+    /// el estado final aunque una llamada previa dejara el contador desbalanceado.</summary>
+    static void OcultarCursorNativo()
+    {
+        try { while (Nativo.ShowCursor(false) >= 0) { } } catch { }
+    }
+
+    static void MostrarCursorNativo()
+    {
+        try { while (Nativo.ShowCursor(true) < 0) { } } catch { }
     }
 
     void RecentrarRaton()
@@ -593,7 +617,7 @@ public partial class PaginaJuego : ContentPage
     {
         if (!_ratonCapturado) return;
         _ratonCapturado = false;
-        try { Nativo.ShowCursor(true); } catch { }
+        MostrarCursorNativo();
         _vista.DetenerRomperSostenido();
     }
 #endif
@@ -604,7 +628,18 @@ public partial class PaginaJuego : ContentPage
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         public static extern bool SetCursorPos(int x, int y);
         [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern bool GetCursorPos(out POINT pt);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern bool ClientToScreen(IntPtr hwnd, ref POINT pt);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern bool GetClientRect(IntPtr hwnd, out RECT rect);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
         public static extern int ShowCursor(bool mostrar);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        public struct POINT { public int X; public int Y; }
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        public struct RECT { public int Left, Top, Right, Bottom; }
     }
 
     void OnSldSensibilidad(object? sender, ValueChangedEventArgs e)
