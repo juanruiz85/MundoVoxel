@@ -409,7 +409,25 @@ public sealed class VistaJuego : IDrawable
             if (m.Quemando) DibujarFuego(c, w, h, m.Pos, alto);
         }
 
+        DibujarAntorchas(c, w, h);
+
         DibujarHud(c, w, h);
+    }
+
+    /// <summary>Particulas de fuego animadas sobre las antorchas cercanas: llamas
+    /// naranjas/amarillas que suben y parpadean (solo visual, no queman). Se buscan
+    /// antorchas en un radio alrededor de la camara y se reutiliza DibujarFuego.</summary>
+    void DibujarAntorchas(ICanvas c, int w, int h)
+    {
+        const int radio = 12;
+        int x0 = (int)Cam.Pos.X - radio, x1 = (int)Cam.Pos.X + radio;
+        int y0 = Math.Max(0, (int)Cam.Pos.Y - 6), y1 = Math.Min(Mundo.Alto - 1, (int)Cam.Pos.Y + 12);
+        int z0 = (int)Cam.Pos.Z - radio, z1 = (int)Cam.Pos.Z + radio;
+        for (int x = x0; x <= x1; x++)
+            for (int z = z0; z <= z1; z++)
+                for (int y = y0; y <= y1; y++)
+                    if (Mundo.Dentro(x, y, z) && Mundo.Obtener(x, y, z) == Bloques.Antorcha)
+                        DibujarFuego(c, w, h, new Vector3(x + 0.5f, y + 0.58f, z + 0.5f), 0.30f);
     }
 
     void DibujarBarraVida(ICanvas c, int w, int h, Vector3 posMundo, int salud, int maxSalud)

@@ -12,16 +12,28 @@ namespace MundoVoxel.Client.Juego;
 public sealed class RenderizadorVoxel
 {
     // Colores base por bloque (RGB)
+    // Los minerales usan el color de la PIEDRA: su textura de mena (manchas del
+    // color del metal) la dibuja AgregarManchas al proyectar cada cara.
     static readonly (byte r, byte g, byte b)[] ColoresBase =
     {
         (0,0,0), (122,92,60), (128,128,128), (110,78,45), (226,208,160), (52,110,190),
         (96,160,52), (136,128,120), (170,90,70), (70,120,60), (200,220,230), (60,60,70),
         (176,140,84), (90,90,96), (160,130,80), (216,204,160),
-        (70,70,72), (168,138,120), (212,178,72), (96,200,196),
+        (122,118,112), (126,122,116), (124,120,114), (120,116,110), (96,200,196),
         (110,80,52), (120,170,60), (140,180,70), (170,180,70), (200,180,70),
         (80,150,70), (200,60,50), (255,170,60), (200,120,90),
-        (168,128,72), (255,90,20),
+        (123,119,113), (255,90,20),
         (40,40,46), (12,10,20),
+    };
+
+    // Colores de las manchas de mena (RGB)
+    static readonly (byte r, byte g, byte b)[] ColoresMena =
+    {
+        (35,35,38),    // carbon
+        (205,160,105), // hierro
+        (220,140,70),  // cobre
+        (245,205,60),  // oro
+        (125,230,225), // diamante
     };
 
     // Sombreado por dirección de cara: +Y, -Y, +X, -X, +Z, -Z
@@ -43,6 +55,12 @@ public sealed class RenderizadorVoxel
     const float InicioNiebla = 0.30f;
 
     public int DistanciaChunks { get; set; } = 2;
+
+    // Luz de antorchas: mapa 3D (0-15) del tamano del mundo, recalculado cuando
+    // cambia una antorcha. La luz se suma al brillo global (de dia casi no se
+    // nota; de noche ilumina alrededor de la llama).
+    byte[] _luz = Array.Empty<byte>();
+    int _anchoMundo, _profMundo;
 
     /// <summary>
     /// Aplica la hora del mundo (0-24h) a la luz global y al color del cielo.
@@ -72,6 +90,9 @@ public sealed class RenderizadorVoxel
     {
         public float Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, Prof;
         public byte Bloque, Dir, Niebla;
+        public int ColorArgb;   // >= 0: color base propio (con sombra/niebla)
+        public byte Luz;        // luz de antorcha 0-15 en la celda del bloque
+        public bool Emisivo;    // ignora sombra/niebla (llama de antorcha)
     }
 
     public void ConstruirMallas(Mundo mundo)
@@ -86,11 +107,13 @@ public sealed class RenderizadorVoxel
                 m.Reconstruir(mundo);
                 _mallas[(x, z)] = m;
             }
+        RecalcularLuz(mundo);
         PrepararPaleta();
     }
 
-    /// <summary>Reconstruye el chunk afectado por un cambio de bloque y los vecinos del borde.</summary>
-    public void ReconstruirAlrededor(Mundo mundo, int x, int y, int z)
+    /// <summary>Reconstruye el chunk afectado por un cambio de bloque y los vecinos del borde.
+    /// Con recalcularLuz=true se recalcula el mapa de luz de antorchas (colocar/romper antorcha).</summary>
+    public void ReconstruirAlrededor(Mundo mundo, int x, int y, int z, bool recalcularLuz = false)
     {
         int cx = x / ChunkMalla.Tam, cz = z / ChunkMalla.Tam;
         var conjunto = new HashSet<(int, int)> { (cx, cz) };
@@ -100,6 +123,54 @@ public sealed class RenderizadorVoxel
         if (z % ChunkMalla.Tam == 0) Anadir(cx, cz - 1);
         if (z % ChunkMalla.Tam == ChunkMalla.Tam - 1 || z == mundo.Profundo - 1) Anadir(cx, cz + 1);
         foreach (var (px, pz) in conjunto) _mallas[(px, pz)].Reconstruir(mundo);
+        if (recalcularLuz) RecalcularLuz(mundo);
+    }
+
+    /// <summary>Recalcula la luz de antorchas con un BFS multi-fuente. La luz (15 en la
+    /// antorcha) decae 1 por bloque y solo la propagan los bloques transparentes; los
+    /// opacos reciben luz pero no la dejan pasar (como en Minecraft).</summary>
+    public void RecalcularLuz(Mundo mundo)
+    {
+        int ancho = mundo.Ancho, alto = mundo.Alto, prof = mundo.Profundo;
+        _anchoMundo = ancho; _profMundo = prof;
+        if (_luz.Length != ancho * alto * prof) _luz = new byte[ancho * alto * prof];
+        Array.Clear(_luz);
+        var cola = new Queue<(int, int, int)>();
+        for (int x = 0; x < ancho; x++)
+            for (int z = 0; z < prof; z++)
+                for (int y = 0; y < alto; y++)
+                    if (mundo.Obtener(x, y, z) == Bloques.Antorcha)
+                    {
+                        _luz[(y * prof + z) * ancho + x] = 15;
+                        cola.Enqueue((x, y, z));
+                    }
+        Span<(int dx, int dy, int dz)> dirs = stackalloc (int, int, int)[6]
+        {
+            (1,0,0), (-1,0,0), (0,1,0), (0,-1,0), (0,0,1), (0,0,-1),
+        };
+        while (cola.Count > 0)
+        {
+            var (x, y, z) = cola.Dequeue();
+            int li = _luz[(y * prof + z) * ancho + x] - 1;
+            if (li <= 0) continue;
+            for (int k = 0; k < 6; k++)
+            {
+                int nx = x + dirs[k].dx, ny = y + dirs[k].dy, nz = z + dirs[k].dz;
+                if (nx < 0 || ny < 0 || nz < 0 || nx >= ancho || ny >= alto || nz >= prof) continue;
+                int ni = (ny * prof + nz) * ancho + nx;
+                if (_luz[ni] >= li) continue;
+                _luz[ni] = (byte)li;
+                ushort nb = mundo.Obtener(nx, ny, nz);
+                if (Bloques.EsTransparente(nb) || nb == Bloques.Antorcha) cola.Enqueue((nx, ny, nz));
+            }
+        }
+    }
+
+    byte LuzEn(int x, int y, int z)
+    {
+        if (_luz.Length == 0) return 0;
+        if (x < 0 || y < 0 || z < 0 || x >= _anchoMundo || y >= _luz.Length / (_anchoMundo * _profMundo) || z >= _profMundo) return 0;
+        return _luz[(y * _profMundo + z) * _anchoMundo + x];
     }
 
     void PrepararPaleta()
@@ -209,6 +280,40 @@ public sealed class RenderizadorVoxel
         // clampar para nunca salir del array (la paleta se dimensiona con el
         // tamano de ColoresBase en PrepararPaleta).
         int b = Math.Min((int)cv.Bloque, ColoresBase.Length - 1);
+
+        if (cv.Emisivo)
+        {
+            // Llama de antorcha: color fijo, siempre brillante (sin sombra ni niebla)
+            int er = (cv.ColorArgb >> 16) & 0xFF, eg = (cv.ColorArgb >> 8) & 0xFF, eb = cv.ColorArgb & 0xFF;
+            r.Cuadrilatero(cv.Ax, cv.Ay, cv.Bx, cv.By, cv.Cx, cv.Cy, cv.Dx, cv.Dy, cv.Prof, (byte)er, (byte)eg, (byte)eb);
+            return;
+        }
+
+        int br, bg, bb;
+        if (cv.ColorArgb >= 0 || cv.Luz > 0)
+        {
+            if (cv.ColorArgb >= 0)
+            {
+                br = (cv.ColorArgb >> 16) & 0xFF;
+                bg = (cv.ColorArgb >> 8) & 0xFF;
+                bb = cv.ColorArgb & 0xFF;
+            }
+            else
+            {
+                br = ColoresBase[b].r; bg = ColoresBase[b].g; bb = ColoresBase[b].b;
+            }
+            // La luz de antorcha se SUMA al brillo global: de dia no cambia casi
+            // nada, de noche ilumina la zona alrededor de la llama.
+            float sombra = MathF.Min(1f, MathF.Max(Brillo[cv.Dir] * _brillo, cv.Luz / 15f));
+            float t = cv.Niebla / (float)(NivelesNiebla - 1);
+            float rr = br / 255f * sombra * (1 - t) + _cieloAbajo.Red * t;
+            float gg = bg / 255f * sombra * (1 - t) + _cieloAbajo.Green * t;
+            float bl = bb / 255f * sombra * (1 - t) + _cieloAbajo.Blue * t;
+            r.Cuadrilatero(cv.Ax, cv.Ay, cv.Bx, cv.By, cv.Cx, cv.Cy, cv.Dx, cv.Dy, cv.Prof,
+                (byte)(rr * 255), (byte)(gg * 255), (byte)(bl * 255), 1f);
+            return;
+        }
+
         int idx = (b * 6 * NivelesNiebla + cv.Dir * NivelesNiebla + cv.Niebla) * 4;
         r.Cuadrilatero(cv.Ax, cv.Ay, cv.Bx, cv.By, cv.Cx, cv.Cy, cv.Dx, cv.Dy, cv.Prof,
             _paletaRgb[idx], _paletaRgb[idx + 1], _paletaRgb[idx + 2], _paletaRgb[idx + 3] / 255f);
@@ -241,11 +346,168 @@ public sealed class RenderizadorVoxel
 
         int niebla = (int)((prof - inicioNiebla) / (maxDist - inicioNiebla) * NivelesNiebla);
         niebla = Math.Clamp(niebla, 0, NivelesNiebla - 1);
+        float areaPx = (maxX - minX) * (maxY - minY);
+        var (bx, by, bz) = BloqueDeCara(in cara);
+        byte luz = LuzEn(bx, by, bz);
         _visibles.Add(new CaraVista
         {
             Ax = _sx[0], Ay = _sy[0], Bx = _sx[1], By = _sy[1],
             Cx = _sx[2], Cy = _sy[2], Dx = _sx[3], Dy = _sy[3],
             Prof = prof, Bloque = (byte)cara.Bloque, Dir = cara.Dir, Niebla = (byte)niebla,
+            ColorArgb = cara.ColorArgb, Luz = luz, Emisivo = cara.Emisivo,
+        });
+        // Textura procedural: manchas de mena, vetas, franjas y bocas de horno
+        // (solo cuando la cara ocupa suficiente area en pantalla).
+        if (areaPx >= 200f) AgregarDetalle(in cara, bx, by, bz, ojo, der, arriba, fwd, f, cxp, cyp, prof, (byte)niebla);
+    }
+
+    /// <summary>Bloque al que pertenece una cara (el centro de la cara esta en el
+    /// plano desplazado segun la direccion: +X -> x+1, +Y -> y+1, +Z -> z+1).</summary>
+    static (int x, int y, int z) BloqueDeCara(in Cara cara)
+    {
+        float cx = (cara.A.X + cara.B.X + cara.C.X + cara.D.X) * 0.25f;
+        float cy = (cara.A.Y + cara.B.Y + cara.C.Y + cara.D.Y) * 0.25f;
+        float cz = (cara.A.Z + cara.B.Z + cara.C.Z + cara.D.Z) * 0.25f;
+        int bx = (int)MathF.Floor(cx) - (cara.Dir == 0 ? 1 : 0);
+        int by = (int)MathF.Floor(cy) - (cara.Dir == 2 ? 1 : 0);
+        int bz = (int)MathF.Floor(cz) - (cara.Dir == 4 ? 1 : 0);
+        return (bx, by, bz);
+    }
+
+    static uint Hash3(int x, int y, int z)
+    {
+        uint h = (uint)(x * 374761393 + y * 668265263 + z * 2147483647);
+        h = (h ^ (h >> 13)) * 1274126177;
+        return h ^ (h >> 16);
+    }
+
+    /// <summary>Ejes del plano de la cara (origen en una esquina de la celda del
+    /// bloque) para dibujar detalles sobre ella.</summary>
+    static (Vector3 orig, Vector3 u, Vector3 v) EjesCara(byte dir, int x, int y, int z)
+    {
+        switch (dir)
+        {
+            case 0: return (new(x + 1, y, z), new(0, 0, 1), new(0, 1, 0)); // +X
+            case 1: return (new(x, y, z), new(0, 0, 1), new(0, 1, 0));     // -X
+            case 2: return (new(x, y + 1, z), new(1, 0, 0), new(0, 0, 1)); // +Y
+            case 3: return (new(x, y, z), new(1, 0, 0), new(0, 0, 1));     // -Y
+            case 4: return (new(x, y, z + 1), new(1, 0, 0), new(0, 1, 0)); // +Z
+            default: return (new(x, y, z), new(1, 0, 0), new(0, 1, 0));    // -Z
+        }
+    }
+
+    /// <summary>Dibuja la textura procedural sobre la cara: manchas de mena en los
+    /// minerales, vetas en madera/tablones, franja en TNT y boca en el horno.</summary>
+    void AgregarDetalle(in Cara cara, int bx, int by, int bz,
+        Vector3 ojo, Vector3 der, Vector3 arriba, Vector3 fwd,
+        float f, float cxp, float cyp, float profCara, byte niebla)
+    {
+        ushort b = cara.Bloque;
+        bool mineral = Bloques.EsMineral(b);
+        bool lateral = cara.Dir == 0 || cara.Dir == 1 || cara.Dir == 4 || cara.Dir == 5;
+        if (!mineral && b != Bloques.Madera && b != Bloques.Tablones && b != Bloques.Tnt && b != Bloques.Horno) return;
+
+        var (orig, u, v) = EjesCara(cara.Dir, bx, by, bz);
+        uint h = Hash3(bx, by, bz);
+        byte luz = LuzEn(bx, by, bz);
+
+        if (mineral)
+        {
+            int color = ColorMenaArgb(b);
+            for (int i = 0; i < 4; i++)
+            {
+                uint s = h + (uint)i * 2654435761u;
+                float cu = 0.13f + ((s >> 8) & 0xFF) / 255f * 0.74f;
+                float cv = 0.13f + ((s >> 16) & 0xFF) / 255f * 0.74f;
+                float tam = 0.09f + ((s >> 24) & 0xFF) / 255f * 0.14f;
+                Mancha(orig, u, v, cu, cv, tam, tam, color, ojo, der, arriba, fwd, f, cxp, cyp, profCara, cara.Bloque, cara.Dir, niebla, luz);
+            }
+            return;
+        }
+
+        if (b == Bloques.Madera)
+        {
+            if (cara.Dir == 2) // tope del tronco: duramen mas claro
+                Mancha(orig, u, v, 0.5f, 0.5f, 0.62f, 0.62f, 0x8C6946, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz);
+            else if (lateral) // corteza: vetas verticales oscuras
+                for (int i = 0; i < 3; i++)
+                {
+                    uint s = h + (uint)i * 40503u;
+                    float cu = 0.18f + ((s >> 8) & 0xFF) / 255f * 0.64f;
+                    Mancha(orig, u, v, cu, 0.5f, 0.075f, 0.98f, 0x5F442A, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz);
+                }
+            return;
+        }
+
+        if (b == Bloques.Tablones)
+        {
+            // vetas horizontales de la madera
+            for (int i = 0; i < 3; i++)
+            {
+                uint s = h + (uint)i * 7919u;
+                float cv = 0.22f + ((s >> 8) & 0xFF) / 255f * 0.56f;
+                Mancha(orig, u, v, 0.5f, cv, 0.96f, 0.055f, 0x966E46, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz);
+            }
+            return;
+        }
+
+        if (b == Bloques.Tnt)
+        {
+            // franja blanca horizontal (estilo dinamita)
+            Mancha(orig, u, v, 0.5f, 0.5f, 0.96f, 0.16f, 0xEBEBEB, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz);
+            return;
+        }
+
+        if (b == Bloques.Horno && cara.Dir == 4)
+        {
+            // boca del horno: marco gris y hueco oscuro
+            Mancha(orig, u, v, 0.5f, 0.45f, 0.52f, 0.56f, 0x969696, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz, 0.002f);
+            Mancha(orig, u, v, 0.5f, 0.45f, 0.36f, 0.40f, 0x1C1C1E, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz, 0.004f);
+        }
+    }
+
+    static int ColorMenaArgb(ushort b)
+    {
+        var c = b switch
+        {
+            Bloques.Carbon => ColoresMena[0],
+            Bloques.Hierro => ColoresMena[1],
+            Bloques.Cobre => ColoresMena[2],
+            Bloques.Oro => ColoresMena[3],
+            _ => ColoresMena[4], // diamante
+        };
+        return (c.r << 16) | (c.g << 8) | c.b;
+    }
+
+    /// <summary>Proyecta y encola un pequeno cuadrilatero (detalle de textura) sobre
+    /// la cara; profundidad ligeramente menor que la cara para ganar el z-test.</summary>
+    void Mancha(Vector3 orig, Vector3 u, Vector3 v, float cu, float cv, float tu, float tv,
+        int color, Vector3 ojo, Vector3 der, Vector3 arriba, Vector3 fwd,
+        float f, float cxp, float cyp, float profCara, ushort bloque, byte dir, byte niebla, byte luz, float desvio = 0.003f)
+    {
+        var p0 = orig + u * (cu - tu * 0.5f) + v * (cv - tv * 0.5f);
+        var p1 = orig + u * (cu + tu * 0.5f) + v * (cv - tv * 0.5f);
+        var p2 = orig + u * (cu + tu * 0.5f) + v * (cv + tv * 0.5f);
+        var p3 = orig + u * (cu - tu * 0.5f) + v * (cv + tv * 0.5f);
+        Span<Vector3> pts = stackalloc Vector3[4] { p0, p1, p2, p3 };
+        float zcTotal = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            var d = pts[i] - ojo;
+            float xc = Vector3.Dot(d, der);
+            float yc = Vector3.Dot(d, arriba);
+            float zc = Vector3.Dot(d, fwd);
+            if (zc < 0.12f) return;
+            zcTotal += zc;
+            _sx[i] = cxp + xc * f / zc;
+            _sy[i] = cyp - yc * f / zc;
+        }
+        _visibles.Add(new CaraVista
+        {
+            Ax = _sx[0], Ay = _sy[0], Bx = _sx[1], By = _sy[1],
+            Cx = _sx[2], Cy = _sy[2], Dx = _sx[3], Dy = _sy[3],
+            Prof = profCara - desvio, Bloque = (byte)bloque, Dir = dir, Niebla = niebla,
+            ColorArgb = color, Luz = luz,
         });
     }
 

@@ -2,6 +2,19 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.3] - 2026-08-16
+
+### Añadido (apariencia y control, pedidos por el usuario)
+- **Sincronización hotbar ↔ inventario**: al mover ítems dentro del inventario (tecla E, clic izquierdo/derecho en los slots) la barra inferior (hotbar) refleja al instante los primeros 9 slots. Antes la hotbar solo se actualizaba al recibir el inventario del servidor.
+- **Rueda del ratón para cambiar de ítem**: la rueda cambia el slot seleccionado de la hotbar (arriba = hacia la izquierda, estilo Minecraft) y avisa al servidor con `SeleccionarSlot`. Funciona con el ratón capturado (modo FPS).
+- **Textura de minerales**: carbón, hierro, cobre, oro y diamante ya no son cubos de un solo color: se ven como **piedra con manchas del metal** (patrón procedural por cara con hash determinista por bloque, con sombreado y niebla).
+- **Antorcha con forma, llama y luz**: la antorcha ya no es un cubo naranja — es un **poste delgado de madera con una llama** de dos planos cruzados (naranja/amarillo, siempre brillante aunque sea de noche) más **partículas de fuego animadas** que suben y parpadean (solo visuales, no queman). Además emite **luz real**: un mapa de luz 3D (BFS desde las antorchas, la luz decae 1 por bloque y no atraviesa bloques opacos) se suma al brillo global — de noche ilumina la zona alrededor de la llama. El mapa se recalcula al colocar o romper una antorcha.
+- **Cofre y mesa de crafteo con forma**: el cofre es una caja con tapa sobresaliente y cerradura metálica; la mesa de trabajo tiene tablero y 4 patas. El césped ahora tiene los **lados de tierra** (antes todo verde) y los troncos, tablones, TNT y el horno ganaron detalles (vetas, franja blanca de dinamita y boca de horno).
+
+### Probado
+- **Suite automática: PRUEBAS SUPERADAS**; build cliente Windows `net10.0-windows10.0.19041.0`: **0 errores**.
+- **Verificación en el cliente real (capturas + análisis de píxeles)**: la antorcha colocada muestra su llama (1285 píxeles naranjas/amarillos con R=255); el crafteo con clics derechos (1 madera → tablones) funciona en el cliente. El crafteo de mesa/cofre con el grid 3x3 quedó para prueba manual (el flujo de UIA es frágil, el mecanismo está cubierto por la suite).
+
 ## [0.10.2] - 2026-08-16
 
 ### Corregido (inventario, crafteo y menas, reportados por el usuario)

@@ -106,6 +106,23 @@ responde al mover el ratón, el cliente funciona.
    oro (≈ 4-12) y diamante (≈ 2-8). Las menas se ven como bloques veteados en
    la piedra.
 
+### 3.5 Verificar hotbar, rueda del ratón y apariencia de los bloques
+
+1. **Hotbar sincronizada con el inventario**: pulsa **E**, mueve un ítem de los
+   primeros 9 slots a otro hueco (clic izquierdo = stack completo, clic derecho =
+   1 ítem) y cierra con **E**: la barra inferior debe reflejar el cambio al momento.
+2. **Rueda del ratón**: dentro del mundo (ratón capturado), gira la rueda: el
+   recuadro blanco de la hotbar se mueve y el bloque seleccionado cambia.
+3. **Antorcha**: coloca una antorcha (tecla 7, clic derecho mirando al suelo):
+   se ve como un **poste con llama** naranja/amarilla con **partículas de fuego**
+   que suben y parpadean. De noche ilumina el suelo a su alrededor.
+4. **Minerales**: mina con el pico: las menas se ven como **piedra con manchas**
+   del color del metal (carbón oscuro, hierro, cobre, oro, diamante).
+5. **Mesa y cofre**: craftea 4 tablones (1 tronco → 4) y haz la **Mesa de
+   trabajo** (4 tablones en 2x2); colócala y acércate: el grid del inventario
+   pasa a **3x3**. Con 8 tablones en anillo craftea el **Cofre** y colócalo: se
+   ve la caja con tapa y cerradura.
+
 ---
 
 ## 4. Probar el cliente en Android (emulador)

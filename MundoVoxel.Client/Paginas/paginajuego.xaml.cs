@@ -335,8 +335,10 @@ public partial class PaginaJuego : ContentPage
         switch (m)
         {
             case BloqueCambio bc:
+                // Si se coloca o rompe una antorcha, recalcular la luz que emite
+                bool eraAntorcha = _vista.Mundo.Obtener(bc.X, bc.Y, bc.Z) == Bloques.Antorcha;
                 _vista.Mundo.Poner(bc.X, bc.Y, bc.Z, bc.Bloque);
-                _vista.Renderizador.ReconstruirAlrededor(_vista.Mundo, bc.X, bc.Y, bc.Z);
+                _vista.Renderizador.ReconstruirAlrededor(_vista.Mundo, bc.X, bc.Y, bc.Z, eraAntorcha || bc.Bloque == Bloques.Antorcha);
                 break;
 
             case Posiciones ps:
@@ -572,6 +574,19 @@ public partial class PaginaJuego : ContentPage
                 if (dx == 0 && dy == 0) return;
                 _vista.MoverRaton(dx, dy);
                 Nativo.SetCursorPos(_centroRatonX, _centroRatonY);
+            }), true);
+        // Rueda del raton: cambia el item seleccionado de la hotbar (estilo Minecraft)
+        fe.AddHandler(Microsoft.UI.Xaml.UIElement.PointerWheelChangedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+            {
+                if (_pausado || EntradaChat.IsVisible) return;
+                int delta = e.GetCurrentPoint(fe).Properties.MouseWheelDelta;
+                if (delta == 0) return;
+                const int n = 9;
+                // Rueda arriba = slot anterior (hacia la izquierda)
+                _vista.Slot = (_vista.Slot + (delta > 0 ? -1 : 1) + n) % n;
+                var mat = _vista.Hotbar[_vista.Slot].Material;
+                _red.Enviar(new SeleccionarSlot { Slot = _vista.Slot, Material = mat });
             }), true);
     }
 
@@ -916,6 +931,10 @@ public partial class PaginaJuego : ContentPage
         LblCursor.Text = _cursorMaterial == 0
             ? "Cursor: (vacío)"
             : $"Cursor: {Objetos.Nombre(_cursorMaterial)} x {_cursorCantidad}";
+        // La hotbar refleja los primeros 9 slots del inventario: al mover items
+        // dentro del inventario (tecla E) la barra inferior se actualiza al momento.
+        for (int k = 0; k < 9; k++)
+            _vista.Hotbar[k] = (_slots[k].Material, _slots[k].Cantidad);
     }
 
     void ActualizarResultado()
@@ -967,9 +986,6 @@ public partial class PaginaJuego : ContentPage
         _indiceResultado = -1;
         RefrescarInventario();
         RefrescarCrafteo();
-        // Hotbar: primeros 9 slots
-        for (int k = 0; k < 9; k++)
-            _vista.Hotbar[k] = (_slots[k].Material, _slots[k].Cantidad);
     }
 
     void OnCocinar(object? sender, EventArgs e)
