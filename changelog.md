@@ -2,6 +2,24 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.4] - 2026-08-30
+
+### Corregido
+- **"Cuadro negro" al colocar items**: `EsColocable` aceptaba items que no son bloques (palo, pico, semillas... id >= 1000): el servidor los colocaba y el renderizador clampeaba su color al ultimo de la paleta (casi negro). Ahora solo los bloques reales (`id < Info.Length`) son colocables, y el cliente ni siquiera envía la colocación con un item no colocable (las semillas se plantan con la tecla U, por `UsarBloque`, sin cambios).
+- **Transparencias en cofre y mesa**: la malla omitía sus caras contra vecinos opacos y quedaban huecos. Ahora se generan TODAS las caras de la forma (el z-buffer oculta las que no se ven).
+
+### Añadido (texturas e iconos procedurales, pedidos por el usuario)
+- **Sistema de iconos de items** (`iconositems.cs`): cada item/bloque tiene un **diseno dibujado con primitivas** sobre un lienzo de 32x32, con dos salidas del mismo diseño: `LienzoCanvas` (ICanvas, para la hotbar del HUD y los drops) y `LienzoRaster` (buffer RGBA -> PNG con transparencia via encoder PNG mínimo, para los slots del inventario y el cofre como `ImageSource` del botón).
+- **Diseños**: herramientas (pico/espada/hacha/pala/azada con cabeza por material y mango), palo, semillas, mechero con llama, lingotes con brillo, menas en bruto, carbón, diamante, manzana, zanahoria, trigo, lana, cuero, hueso, polvora, carnes, antorcha, TNT, cofre, mesa, tronco con anillos, tablones con vetas, cesped con capa de tierra, horno con boca, bloques con textura y fallback de bloque de color con borde.
+- **Drops con icono en el mundo**: los items caidos ya no son cajas de color — se ven como **iconos flotantes** (cuadro oscuro + diseño del item) con balanceo vertical.
+- **Trigo y plantón con forma de planta** (dos planos cruzados verdes/amarillos) en la malla.
+- **Guía de texturas**: `docs/guia-de-texturas.md` — explica las 3 capas (colores del mundo, detalles procedurales, iconos), cómo editar un icono, cómo añadir un item nuevo (checklist) y las limitaciones del renderizador por software.
+
+### Probado
+- Suite automática: **PRUEBAS SUPERADAS**; build cliente: **0 errores**.
+- Verificación en el cliente real: la hotbar pasa de bloques de color plano (1 tono por slot) a iconos con diseño (6-11 tonos por slot); los slots del inventario muestran el icono PNG con transparencia sobre el fondo.
+- **Nota de entorno**: el `dotnet` del PATH de AutoClaw (solo runtime 8.0) pisa al SDK del sistema y el exe ya no arranca sin `DOTNET_ROOT`. Los scripts de prueba fijan `DOTNET_ROOT=C:\Program Files\dotnet` y los builds usan la ruta completa del SDK.
+
 ## [0.10.3] - 2026-08-16
 
 ### Añadido (apariencia y control, pedidos por el usuario)

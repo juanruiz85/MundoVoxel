@@ -410,8 +410,36 @@ public sealed class VistaJuego : IDrawable
         }
 
         DibujarAntorchas(c, w, h);
+        DibujarDrops(c, w, h);
 
         DibujarHud(c, w, h);
+    }
+
+    /// <summary>Drops en el mundo: cada item caido se dibuja como un icono flotante
+    /// (cuadro oscuro + diseno del item) proyectado como un billboard, igual que
+    /// los nombres de los mobs. Se recogen al pasar por encima.</summary>
+    void DibujarDrops(ICanvas c, int w, int h)
+    {
+        if (Drops.Count == 0) return;
+        long t = Environment.TickCount64;
+        float f = (h / 2f) / MathF.Tan(75f * MathF.PI / 180f / 2f);
+        foreach (var d in Drops.Values)
+        {
+            var pos = d.Pos + new Vector3(0, 0.32f + MathF.Sin((t / 400f) + d.Pos.X * 3f + d.Pos.Z) * 0.06f, 0);
+            var dd = pos - Cam.Pos;
+            float xc = Vector3.Dot(dd, Cam.Derecha);
+            float yc = Vector3.Dot(dd, Vector3.Cross(Cam.Derecha, Cam.Adelante));
+            float zc = Vector3.Dot(dd, Cam.Adelante);
+            if (zc < 0.3f) continue;
+            float sx = w / 2f + xc * f / zc;
+            float sy = h / 2f - yc * f / zc;
+            float tam = Math.Clamp(30f * 2f / zc, 8f, 26f);
+            // Cuadro oscuro de fondo
+            c.FillColor = new Color(0, 0, 0, 0.55f);
+            c.FillRoundedRectangle(sx - tam / 2, sy - tam / 2, tam, tam, 4);
+            // Icono del item (escalado del diseno de 32x32)
+            IconosItems.Dibujar(new LienzoCanvas(c, new RectF(sx - tam / 2 + 2, sy - tam / 2 + 2, tam - 4, tam - 4)), d.Material);
+        }
     }
 
     /// <summary>Particulas de fuego animadas sobre las antorchas cercanas: llamas
@@ -527,9 +555,8 @@ public sealed class VistaJuego : IDrawable
             var (mat, cant) = Hotbar[i];
             if (mat != 0 && cant > 0)
             {
-                var (cr, cg, cb) = Objetos.Color(mat);
-                c.FillColor = new Color(cr / 255f, cg / 255f, cb / 255f);
-                c.FillRoundedRectangle(x + 5, y0 + 5, slot - 10, slot - 10, 4);
+                // Icono con el diseno del item (herramientas, comida, bloques...)
+                IconosItems.Dibujar(new LienzoCanvas(c, new RectF(x + 5, y0 + 5, slot - 10, slot - 10)), mat);
                 if (cant > 1)
                 {
                     c.FontSize = 12;

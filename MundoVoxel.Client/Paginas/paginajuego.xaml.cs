@@ -227,6 +227,10 @@ public partial class PaginaJuego : ContentPage
                 }
                 else
                 {
+                    // Solo se colocan BLOQUES reales: con un item (palo, pico,
+                    // semillas...) el clic derecho no hace nada (evita el bloque
+                    // fantasma negro que antes aparecia al colocarlos).
+                    if (!Bloques.EsColocable(_vista.BloqueSeleccionado)) return;
                     int tx = g.X + (int)g.Normal.X, ty = g.Y + (int)g.Normal.Y, tz = g.Z + (int)g.Normal.Z;
                     _red.Enviar(new ColocarBloque { X = tx, Y = ty, Z = tz, Bloque = _vista.BloqueSeleccionado });
                 }
@@ -285,14 +289,8 @@ public partial class PaginaJuego : ContentPage
                 j.Color));
         foreach (var m in _vista.Mobs.Values)
             VistaJuego.AgregarMobFigura(cajas, m.Tipo, m.Pos, m.Ry);
-        foreach (var d in _vista.Drops.Values)
-        {
-            const float s = 0.25f;
-            cajas.Add(new VistaJuego.CajaJugador(
-                new Vector3(d.Pos.X - s, d.Pos.Y, d.Pos.Z - s),
-                new Vector3(d.Pos.X + s, d.Pos.Y + 0.5f, d.Pos.Z + s),
-                VistaJuego.ColorMaterial(d.Material)));
-        }
+        // Los drops ya no se dibujan como cajas 3D: se ven como iconos flotantes
+        // con el diseno del item (VistaJuego.DibujarDrops).
         // Herramienta en mano (si el slot seleccionado es una herramienta)
         var camTemp = new Camara { Pos = camPos, Yaw = yaw, Pitch = pitch };
         var itemMano = _vista.ItemEnMano;
@@ -795,9 +793,11 @@ public partial class PaginaJuego : ContentPage
     {
         BackgroundColor = Color.FromArgb("#333a45"),
         TextColor = Colors.White,
-        FontSize = 14,
+        FontSize = 12,
         Padding = 0,
         CornerRadius = 4,
+        // Icono arriba (PNG del item) y cantidad debajo
+        ContentLayout = new Button.ButtonContentLayout(Button.ButtonContentLayout.ImagePosition.Top, 0),
     };
 
     /// <summary>Clic derecho en un slot = mover UN item (Windows). MAUI Button no
@@ -893,11 +893,13 @@ public partial class PaginaJuego : ContentPage
         {
             b.BackgroundColor = Color.FromArgb("#333a45");
             b.Text = "";
+            b.ImageSource = null;
         }
         else
         {
-            var (r, g, bl) = Objetos.Color(slot.Material);
-            b.BackgroundColor = Color.FromRgb(r, g, bl);
+            // Icono con el diseno del item (PNG con transparencia) + cantidad
+            b.BackgroundColor = Color.FromArgb("#333a45");
+            b.ImageSource = IconosItemsCache.De(slot.Material);
             b.Text = slot.Cantidad > 1 ? slot.Cantidad.ToString() : "";
         }
     }

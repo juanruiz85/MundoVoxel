@@ -8,7 +8,9 @@ namespace MundoVoxel.Client.Juego;
 /// sombra/niebla (llamas de antorcha: siempre brillan).</summary>
 public readonly record struct Cara(Vector3 A, Vector3 B, Vector3 C, Vector3 D, ushort Bloque, byte Dir, int ColorArgb = -1, bool Emisivo = false);
 
-/// <summary>Malla de un chunk: solo las caras expuestas (vecino transparente o aire).</summary>
+/// <summary>Malla de un chunk: solo las caras expuestas (vecino transparente o aire)
+/// para los cubos; las formas especiales (antorcha, cofre, mesa, plantas) generan
+/// TODAS sus caras (el z-buffer oculta lo que no se ve y no quedan transparencias).</summary>
 public sealed class ChunkMalla
 {
     public const int Tam = 16;
@@ -46,8 +48,9 @@ public sealed class ChunkMalla
                     ushort b = mundo.Obtener(x, y, z);
                     if (b == Bloques.Aire) continue;
                     if (b == Bloques.Antorcha) { AgregarAntorcha(caras, x, y, z); continue; }
-                    if (b == Bloques.Cofre) { AgregarCofre(caras, x, y, z, mundo); continue; }
-                    if (b == Bloques.Mesa) { AgregarMesa(caras, x, y, z, mundo); continue; }
+                    if (b == Bloques.Cofre) { AgregarCofre(caras, x, y, z); continue; }
+                    if (b == Bloques.Mesa) { AgregarMesa(caras, x, y, z); continue; }
+                    if (EsPlanta(b)) { AgregarPlanta(caras, x, y, z, b); continue; }
                     if (EsVisible(b, mundo.Obtener(x + 1, y, z))) Agregar(caras, x, y, z, 0, b, ColorCara(b, 0));
                     if (EsVisible(b, mundo.Obtener(x - 1, y, z))) Agregar(caras, x, y, z, 1, b, ColorCara(b, 1));
                     if (EsVisible(b, mundo.Obtener(x, y + 1, z))) Agregar(caras, x, y, z, 2, b, ColorCara(b, 2));
@@ -72,8 +75,7 @@ public sealed class ChunkMalla
         return Bloques.EsTransparente(vecino);             // transparente frente a otro transparente
     }
 
-    static bool EsOpaco(Mundo mundo, int x, int y, int z)
-        => mundo.Dentro(x, y, z) && !Bloques.EsTransparente(mundo.Obtener(x, y, z));
+    static bool EsPlanta(ushort b) => b >= Bloques.Trigo0 && b <= Bloques.Trigo3 || b == Bloques.Planton;
 
     /// <summary>Color base propio de la cara (o -1 para usar la paleta del bloque).
     /// El cesped tiene los lados y la cara inferior de tierra; la superior verde.</summary>
@@ -121,42 +123,71 @@ public sealed class ChunkMalla
         AgregarCara(caras, new(x + 0.50f, y + ly1, z + 0.44f), new(x + 0.50f, y + ly1, z + 0.56f), new(x + 0.50f, y + ly2, z + 0.56f), new(x + 0.50f, y + ly2, z + 0.44f), Bloques.Antorcha, 4, C_Llama2, emisivo: true);
     }
 
-    /// <summary>Cofre: caja con tapa sobresaliente y cerradura metalica al frente (+Z).</summary>
-    static void AgregarCofre(List<Cara> caras, int x, int y, int z, Mundo mundo)
+    /// <summary>Trigo (en crecimiento) y planton: dos planos cruzados verdes/amarillos,
+    /// como una planta. La altura y el color dependen del estado.</summary>
+    static void AgregarPlanta(List<Cara> caras, int x, int y, int z, ushort b)
+    {
+        float alto = b switch
+        {
+            Bloques.Planton => 0.45f,
+            Bloques.Trigo0 => 0.55f,
+            Bloques.Trigo1 => 0.70f,
+            Bloques.Trigo2 => 0.85f,
+            _ => 1.00f,
+        };
+        int color = b switch
+        {
+            Bloques.Planton => 0x50964A,   // verde planton
+            Bloques.Trigo0 => 0x78AA3C,
+            Bloques.Trigo1 => 0x8CB446,
+            Bloques.Trigo2 => 0xAAB446,
+            _ => 0xC8B446,                 // trigo maduro: amarillo
+        };
+        int oscuro = (color >> 1) & 0x7F7F7F; // mismo tono mas oscuro
+        float a = 0.30f, b2 = 0.70f, m = 0.50f;
+        // Plano en Z (visible desde +X/-X)
+        AgregarCara(caras, new(x + a, y, z + m), new(x + b2, y, z + m), new(x + b2, y + alto, z + m), new(x + a, y + alto, z + m), b, 0, oscuro);
+        // Plano en X (visible desde +Z/-Z)
+        AgregarCara(caras, new(x + m, y, z + a), new(x + m, y, z + b2), new(x + m, y + alto, z + b2), new(x + m, y + alto, z + a), b, 4, color);
+    }
+
+    /// <summary>Cofre: caja con tapa sobresaliente y cerradura metalica al frente (+Z).
+    /// Se generan TODAS las caras: el z-buffer oculta las que no se ven.</summary>
+    static void AgregarCofre(List<Cara> caras, int x, int y, int z)
     {
         // Base
-        if (!EsOpaco(mundo, x + 1, y, z)) AgregarCara(caras, new(x + 0.94f, y, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.94f), new(x + 0.94f, y, z + 0.94f), Bloques.Cofre, 0, C_Cofre);
-        if (!EsOpaco(mundo, x - 1, y, z)) AgregarCara(caras, new(x + 0.06f, y, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.06f), new(x + 0.06f, y, z + 0.06f), Bloques.Cofre, 1, C_Cofre);
-        if (!EsOpaco(mundo, x, y, z + 1)) AgregarCara(caras, new(x + 0.06f, y, z + 0.94f), new(x + 0.94f, y, z + 0.94f), new(x + 0.94f, y + 0.55f, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.94f), Bloques.Cofre, 4, C_Cofre);
-        if (!EsOpaco(mundo, x, y, z - 1)) AgregarCara(caras, new(x + 0.94f, y, z + 0.06f), new(x + 0.06f, y, z + 0.06f), new(x + 0.06f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.06f), Bloques.Cofre, 5, C_Cofre);
-        if (!EsOpaco(mundo, x, y + 1, z)) AgregarCara(caras, new(x + 0.06f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.94f), Bloques.Cofre, 2, C_Cofre);
+        AgregarCara(caras, new(x + 0.94f, y, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.94f), new(x + 0.94f, y, z + 0.94f), Bloques.Cofre, 0, C_Cofre);
+        AgregarCara(caras, new(x + 0.06f, y, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.06f), new(x + 0.06f, y, z + 0.06f), Bloques.Cofre, 1, C_Cofre);
+        AgregarCara(caras, new(x + 0.06f, y, z + 0.94f), new(x + 0.94f, y, z + 0.94f), new(x + 0.94f, y + 0.55f, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.94f), Bloques.Cofre, 4, C_Cofre);
+        AgregarCara(caras, new(x + 0.94f, y, z + 0.06f), new(x + 0.06f, y, z + 0.06f), new(x + 0.06f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.06f), Bloques.Cofre, 5, C_Cofre);
+        AgregarCara(caras, new(x + 0.06f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.06f), new(x + 0.94f, y + 0.55f, z + 0.94f), new(x + 0.06f, y + 0.55f, z + 0.94f), Bloques.Cofre, 2, C_Cofre);
         // Cerradura metalica en la cara frontal (+Z)
-        if (!EsOpaco(mundo, x, y, z + 1)) AgregarCara(caras, new(x + 0.44f, y + 0.22f, z + 0.94f), new(x + 0.56f, y + 0.22f, z + 0.94f), new(x + 0.56f, y + 0.34f, z + 0.94f), new(x + 0.44f, y + 0.34f, z + 0.94f), Bloques.Cofre, 4, C_CofreMetal);
+        AgregarCara(caras, new(x + 0.44f, y + 0.22f, z + 0.94f), new(x + 0.56f, y + 0.22f, z + 0.94f), new(x + 0.56f, y + 0.34f, z + 0.94f), new(x + 0.44f, y + 0.34f, z + 0.94f), Bloques.Cofre, 4, C_CofreMetal);
         // Tapa (sobresale un poco)
-        if (!EsOpaco(mundo, x + 1, y, z)) AgregarCara(caras, new(x + 0.98f, y + 0.55f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.98f), new(x + 0.98f, y + 0.55f, z + 0.98f), Bloques.Cofre, 0, C_CofreTapa);
-        if (!EsOpaco(mundo, x - 1, y, z)) AgregarCara(caras, new(x + 0.02f, y + 0.55f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.02f), new(x + 0.02f, y + 0.55f, z + 0.02f), Bloques.Cofre, 1, C_CofreTapa);
-        if (!EsOpaco(mundo, x, y, z + 1)) AgregarCara(caras, new(x + 0.02f, y + 0.55f, z + 0.98f), new(x + 0.98f, y + 0.55f, z + 0.98f), new(x + 0.98f, y + 0.80f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.98f), Bloques.Cofre, 4, C_CofreTapa);
-        if (!EsOpaco(mundo, x, y, z - 1)) AgregarCara(caras, new(x + 0.98f, y + 0.55f, z + 0.02f), new(x + 0.02f, y + 0.55f, z + 0.02f), new(x + 0.02f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.02f), Bloques.Cofre, 5, C_CofreTapa);
-        if (!EsOpaco(mundo, x, y + 1, z)) AgregarCara(caras, new(x + 0.02f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.98f), Bloques.Cofre, 2, C_CofreTapa);
+        AgregarCara(caras, new(x + 0.98f, y + 0.55f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.98f), new(x + 0.98f, y + 0.55f, z + 0.98f), Bloques.Cofre, 0, C_CofreTapa);
+        AgregarCara(caras, new(x + 0.02f, y + 0.55f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.02f), new(x + 0.02f, y + 0.55f, z + 0.02f), Bloques.Cofre, 1, C_CofreTapa);
+        AgregarCara(caras, new(x + 0.02f, y + 0.55f, z + 0.98f), new(x + 0.98f, y + 0.55f, z + 0.98f), new(x + 0.98f, y + 0.80f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.98f), Bloques.Cofre, 4, C_CofreTapa);
+        AgregarCara(caras, new(x + 0.98f, y + 0.55f, z + 0.02f), new(x + 0.02f, y + 0.55f, z + 0.02f), new(x + 0.02f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.02f), Bloques.Cofre, 5, C_CofreTapa);
+        AgregarCara(caras, new(x + 0.02f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.02f), new(x + 0.98f, y + 0.80f, z + 0.98f), new(x + 0.02f, y + 0.80f, z + 0.98f), Bloques.Cofre, 2, C_CofreTapa);
     }
 
-    /// <summary>Mesa de crafteo: tablero grueso con 4 patas.</summary>
-    static void AgregarMesa(List<Cara> caras, int x, int y, int z, Mundo mundo)
+    /// <summary>Mesa de crafteo: tablero grueso con 4 patas (todas las caras).</summary>
+    static void AgregarMesa(List<Cara> caras, int x, int y, int z)
     {
         // Tablero (y+0.82..0.96)
-        if (!EsOpaco(mundo, x + 1, y, z)) AgregarCara(caras, new(x + 0.96f, y + 0.82f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.96f), new(x + 0.96f, y + 0.82f, z + 0.96f), Bloques.Mesa, 0, C_Mesa);
-        if (!EsOpaco(mundo, x - 1, y, z)) AgregarCara(caras, new(x + 0.04f, y + 0.82f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.04f), new(x + 0.04f, y + 0.82f, z + 0.04f), Bloques.Mesa, 1, C_Mesa);
-        if (!EsOpaco(mundo, x, y, z + 1)) AgregarCara(caras, new(x + 0.04f, y + 0.82f, z + 0.96f), new(x + 0.96f, y + 0.82f, z + 0.96f), new(x + 0.96f, y + 0.96f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.96f), Bloques.Mesa, 4, C_Mesa);
-        if (!EsOpaco(mundo, x, y, z - 1)) AgregarCara(caras, new(x + 0.96f, y + 0.82f, z + 0.04f), new(x + 0.04f, y + 0.82f, z + 0.04f), new(x + 0.04f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.04f), Bloques.Mesa, 5, C_Mesa);
-        if (!EsOpaco(mundo, x, y + 1, z)) AgregarCara(caras, new(x + 0.04f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.96f), Bloques.Mesa, 2, C_Mesa);
+        AgregarCara(caras, new(x + 0.96f, y + 0.82f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.96f), new(x + 0.96f, y + 0.82f, z + 0.96f), Bloques.Mesa, 0, C_Mesa);
+        AgregarCara(caras, new(x + 0.04f, y + 0.82f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.04f), new(x + 0.04f, y + 0.82f, z + 0.04f), Bloques.Mesa, 1, C_Mesa);
+        AgregarCara(caras, new(x + 0.04f, y + 0.82f, z + 0.96f), new(x + 0.96f, y + 0.82f, z + 0.96f), new(x + 0.96f, y + 0.96f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.96f), Bloques.Mesa, 4, C_Mesa);
+        AgregarCara(caras, new(x + 0.96f, y + 0.82f, z + 0.04f), new(x + 0.04f, y + 0.82f, z + 0.04f), new(x + 0.04f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.04f), Bloques.Mesa, 5, C_Mesa);
+        AgregarCara(caras, new(x + 0.04f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.04f), new(x + 0.96f, y + 0.96f, z + 0.96f), new(x + 0.04f, y + 0.96f, z + 0.96f), Bloques.Mesa, 2, C_Mesa);
         // 4 patas (y+0..0.82)
-        AgregarPata(caras, x, y, z, 0.08f, 0.22f, 0.08f, 0.22f, mundo);
-        AgregarPata(caras, x, y, z, 0.78f, 0.92f, 0.08f, 0.22f, mundo);
-        AgregarPata(caras, x, y, z, 0.08f, 0.22f, 0.78f, 0.92f, mundo);
-        AgregarPata(caras, x, y, z, 0.78f, 0.92f, 0.78f, 0.92f, mundo);
+        AgregarPata(caras, x, y, z, 0.08f, 0.22f, 0.08f, 0.22f);
+        AgregarPata(caras, x, y, z, 0.78f, 0.92f, 0.08f, 0.22f);
+        AgregarPata(caras, x, y, z, 0.08f, 0.22f, 0.78f, 0.92f);
+        AgregarPata(caras, x, y, z, 0.78f, 0.92f, 0.78f, 0.92f);
     }
 
-    static void AgregarPata(List<Cara> caras, int x, int y, int z, float xa, float xb, float za, float zb, Mundo mundo)
+    static void AgregarPata(List<Cara> caras, int x, int y, int z, float xa, float xb, float za, float zb)
     {
         AgregarCara(caras, new(x + xb, y, z + za), new(x + xb, y + 0.82f, z + za), new(x + xb, y + 0.82f, z + zb), new(x + xb, y, z + zb), Bloques.Mesa, 0, C_MesaPata);
         AgregarCara(caras, new(x + xa, y, z + zb), new(x + xa, y + 0.82f, z + zb), new(x + xa, y + 0.82f, z + za), new(x + xa, y, z + za), Bloques.Mesa, 1, C_MesaPata);

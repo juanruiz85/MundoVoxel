@@ -80,7 +80,10 @@ public static class Bloques
     public static bool EsSolido(ushort b) => b < Info.Length && Info[b].Solido;
     public static bool EsTransparente(ushort b) => b < Info.Length && Info[b].Transparente;
     public static bool EsLiquido(ushort b) => b < Info.Length && Info[b].Liquido;
-    public static bool EsColocable(ushort b) => b > Aire && b != Lecho && b != Agua && b != Lava && b != PiedraMadre && b != Vacio && !EsCultivo(b) && b != TierraLabrada && b != Planton;
+    /// <summary>Se puede colocar en el mundo solo si es un BLOQUE real (id &lt; Info.Length):
+    /// los items (id >= 1000) no son colocables. Sin esta comprobacion, colocar un palo,
+    /// un pico o unas semillas creaba un bloque fantasma con el color clampeado (negro).</summary>
+    public static bool EsColocable(ushort b) => b > Aire && b < Info.Length && b != Lecho && b != Agua && b != Lava && b != PiedraMadre && b != Vacio && !EsCultivo(b) && b != TierraLabrada && b != Planton;
     public static bool EsRompible(ushort b) => b != Aire && b != Lecho && b != Agua && b != Lava && b != PiedraMadre && b != Vacio;
     public static bool EsMineral(ushort b) => b == Carbon || b == Hierro || b == Oro || b == Diamante || b == Cobre;
     public static bool EsCultivo(ushort b) => b >= Trigo0 && b <= Trigo3;
