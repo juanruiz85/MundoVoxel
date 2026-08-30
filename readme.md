@@ -70,6 +70,30 @@ dotnet build MundoVoxel.Client -f net10.0-windows10.0.19041.0
 dotnet run --project MundoVoxel.Client -f net10.0-windows10.0.19041.0
 ```
 
+**Lanzador recomendado en este equipo**: si el `dotnet` del PATH no es el SDK
+del sistema (por ejemplo, el de AutoClaw trae solo el runtime 8.0), el
+ejecutable no encontrará el runtime 10 y no arrancará. Usa el lanzador que
+incluye el repositorio:
+
+```bat
+lanzar-mundovoxel.bat
+```
+
+Ese archivo fija `DOTNET_ROOT=C:\Program Files\dotnet` antes de arrancar el
+exe compilado. Equivalente manual:
+
+```bat
+set DOTNET_ROOT=C:\Program Files\dotnet
+MundoVoxel.Client\bin\Debug\net10.0-windows10.0.19041.0\win-x64\MundoVoxel.Client.exe
+```
+
+Para que el `dotnet build` del paso anterior funcione también con el SDK
+adecuado, invócalo con la ruta completa:
+
+```bat
+"C:\Program Files\dotnet\dotnet.exe" build MundoVoxel.Client -f net10.0-windows10.0.19041.0
+```
+
 ### 5) Cliente MAUI (Android)
 ```bash
 dotnet build MundoVoxel.Client -f net10.0-android
