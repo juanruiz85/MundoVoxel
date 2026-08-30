@@ -405,7 +405,7 @@ public sealed class RenderizadorVoxel
         ushort b = cara.Bloque;
         bool mineral = Bloques.EsMineral(b);
         bool lateral = cara.Dir == 0 || cara.Dir == 1 || cara.Dir == 4 || cara.Dir == 5;
-        if (!mineral && b != Bloques.Madera && b != Bloques.Tablones && b != Bloques.Tnt && b != Bloques.Horno) return;
+        if (!mineral && b != Bloques.Madera && b != Bloques.Tablones && b != Bloques.Tnt && b != Bloques.Horno && b != Bloques.Hoja) return;
 
         var (orig, u, v) = EjesCara(cara.Dir, bx, by, bz);
         uint h = Hash3(bx, by, bz);
@@ -447,6 +447,21 @@ public sealed class RenderizadorVoxel
                 uint s = h + (uint)i * 7919u;
                 float cv = 0.22f + ((s >> 8) & 0xFF) / 255f * 0.56f;
                 Mancha(orig, u, v, 0.5f, cv, 0.96f, 0.055f, 0x966E46, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz);
+            }
+            return;
+        }
+
+        if (b == Bloques.Hoja)
+        {
+            // Matas de hojas: manchas verde oscuro/claro (follaje)
+            for (int i = 0; i < 5; i++)
+            {
+                uint s = h + (uint)i * 73856093u;
+                float cu = 0.12f + ((s >> 8) & 0xFF) / 255f * 0.72f;
+                float cv = 0.12f + ((s >> 16) & 0xFF) / 255f * 0.72f;
+                float tam = 0.16f + ((s >> 24) & 0xFF) / 255f * 0.10f;
+                bool claro = (i & 1) == 0;
+                Mancha(orig, u, v, cu, cv, tam, tam, claro ? 0x5AA84A : 0x2D5A28, ojo, der, arriba, fwd, f, cxp, cyp, profCara, b, cara.Dir, niebla, luz);
             }
             return;
         }

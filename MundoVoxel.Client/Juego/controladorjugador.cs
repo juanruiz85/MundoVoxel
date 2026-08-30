@@ -127,6 +127,26 @@ public sealed class ControladorJugador
                 ResolverEje(mundo, eje, paso);
             }
         }
+        // Anti-atasco: si por lag, al salir del modo espectador o por un bloque
+        // recien colocado el jugador quedo DENTRO de un solido, empujarlo hacia
+        // arriba hasta que el cuerpo quede libre (evita atravesar/encerrarse).
+        if (Colisiona(mundo))
+        {
+            for (int i = 0; i < 8 && Colisiona(mundo); i++) Pos.Y += 0.25f;
+            Vel.Y = 0;
+        }
+    }
+
+    /// <summary>True si el cuerpo del jugador (caja de Radio x Altura) toca un bloque solido.</summary>
+    bool Colisiona(Mundo mundo)
+    {
+        var min = Pos - new Vector3(Radio, 0, Radio);
+        var max = Pos + new Vector3(Radio, Altura, Radio);
+        for (int x = (int)MathF.Floor(min.X); x <= (int)MathF.Floor(max.X); x++)
+            for (int y = (int)MathF.Floor(min.Y); y <= (int)MathF.Floor(max.Y); y++)
+                for (int z = (int)MathF.Floor(min.Z); z <= (int)MathF.Floor(max.Z); z++)
+                    if (Bloques.EsSolido(mundo.Obtener(x, y, z))) return true;
+        return false;
     }
 
     void ResolverEje(Mundo mundo, int eje, Vector3 delta)

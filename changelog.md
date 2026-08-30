@@ -5,6 +5,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 ## [0.10.4] - 2026-08-30
 
 ### Corregido
+- **"Atraviesa bloques" / bloques invisibles**: era el mismo bug de los items fantasma — los items no-colocables se colocaban como bloques con id invalido que no eran solidos (se atravesaban) y se pintaban negros. Arreglado con `EsColocable`. Ademas se añadio un **anti-atasco**: si por lag o al salir del modo espectador el jugador queda dentro de un solido, se empuja hacia arriba hasta quedar libre (antes se quedaba encerrado o atravesando la pared).
 - **"Cuadro negro" al colocar items**: `EsColocable` aceptaba items que no son bloques (palo, pico, semillas... id >= 1000): el servidor los colocaba y el renderizador clampeaba su color al ultimo de la paleta (casi negro). Ahora solo los bloques reales (`id < Info.Length`) son colocables, y el cliente ni siquiera envía la colocación con un item no colocable (las semillas se plantan con la tecla U, por `UsarBloque`, sin cambios).
 - **Transparencias en cofre y mesa**: la malla omitía sus caras contra vecinos opacos y quedaban huecos. Ahora se generan TODAS las caras de la forma (el z-buffer oculta las que no se ven).
 
@@ -12,6 +13,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - **Lanzador `lanzar-mundovoxel.bat`**: el `dotnet` del PATH de AutoClaw (solo runtime 8.0) pisa al SDK del sistema y el exe ya no encuentra el runtime 10 al hacer doble clic. El lanzador fija `DOTNET_ROOT` y arranca el juego; documentado en el README (sección «Cliente MAUI (Windows)»).
 - **Sistema de iconos de items** (`iconositems.cs`): cada item/bloque tiene un **diseno dibujado con primitivas** sobre un lienzo de 32x32, con dos salidas del mismo diseño: `LienzoCanvas` (ICanvas, para la hotbar del HUD y los drops) y `LienzoRaster` (buffer RGBA -> PNG con transparencia via encoder PNG mínimo, para los slots del inventario y el cofre como `ImageSource` del botón).
 - **Diseños**: herramientas (pico/espada/hacha/pala/azada con cabeza por material y mango), palo, semillas, mechero con llama, lingotes con brillo, menas en bruto, carbón, diamante, manzana, zanahoria, trigo, lana, cuero, hueso, polvora, carnes, antorcha, TNT, cofre, mesa, tronco con anillos, tablones con vetas, cesped con capa de tierra, horno con boca, bloques con textura y fallback de bloque de color con borde.
+- **Textura de hojas**: el follaje ya no es un cubo verde plano — tiene manchas de matas verdes oscuras y claras.
 - **Drops con icono en el mundo**: los items caidos ya no son cajas de color — se ven como **iconos flotantes** (cuadro oscuro + diseño del item) con balanceo vertical.
 - **Trigo y plantón con forma de planta** (dos planos cruzados verdes/amarillos) en la malla.
 - **Guía de texturas**: `docs/guia-de-texturas.md` — explica las 3 capas (colores del mundo, detalles procedurales, iconos), cómo editar un icono, cómo añadir un item nuevo (checklist) y las limitaciones del renderizador por software.
