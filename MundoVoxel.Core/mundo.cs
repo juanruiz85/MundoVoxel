@@ -116,6 +116,13 @@ public class Mundo
                 }
                 if (h > nivelMar + 2 && !desierto && !tundra && rnd.NextDouble() < 0.006)
                     PonerArbol(m, x, h + 1, z, rnd);
+                // Cactus en el desierto (columnas de 1-3 bloques)
+                if (desierto && h > nivelMar + 2 && rnd.NextDouble() < 0.010)
+                {
+                    int altoCactus = 1 + rnd.Next(3);
+                    for (int k = 1; k <= altoCactus; k++)
+                        m.Poner(x, h + k, z, Bloques.Cactus);
+                }
             }
         }
         PonerMinerales(m, rnd, nivelMar);

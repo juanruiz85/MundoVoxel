@@ -134,5 +134,6 @@ bloque.lava=Lava
 bloque.piedra_madre=Piedra madre
 bloque.vacio=Vacío
 bloque.nieve=Nieve
+bloque.cactus=Cactus
 juego.espectador_on=Modo espectador activado (G para salir): vuelas y atraviesas bloques
 juego.espectador_off=Modo espectador desactivado

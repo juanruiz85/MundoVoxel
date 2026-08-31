@@ -93,6 +93,7 @@ public static class IconosItems
             case Bloques.Hoja: BloqueTexturado(l, 70, 120, 60, 45, 90, 40); return;
             case Bloques.Cristal: Cristal(l); return;
             case Bloques.Nieve: Nieve(l); return;
+            case Bloques.Cactus: Cactus(l); return;
             case Bloques.Grava: BloqueTexturado(l, 118, 112, 108, 88, 82, 80); return;
             case Bloques.Arenisca: Arenisca(l); return;
             case Bloques.Tablones: Tablones(l); return;
@@ -318,6 +319,18 @@ public static class IconosItems
         l.Elipse(11, 10, 4, 3, 255, 255, 255);
         l.Elipse(21, 20, 3.5f, 3, 255, 255, 255);
         l.Rect(1, 29, 30, 2, 200, 210, 220);
+    }
+
+    static void Cactus(ILienzoIcono l)
+    {
+        l.Rect(12, 4, 8, 26, 90, 140, 60);
+        l.Rect(8, 10, 4, 5, 90, 140, 60);
+        l.Rect(20, 16, 4, 5, 90, 140, 60);
+        l.Rect(13, 6, 2, 22, 115, 170, 80);
+        for (int i = 0; i < 5; i++)
+        {
+            l.Rect(14, 7 + i * 5, 2, 1.5f, 230, 230, 190);
+        }
     }
 
     static void Tronco(ILienzoIcono l)
