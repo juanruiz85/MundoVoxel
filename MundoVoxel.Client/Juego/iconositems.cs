@@ -91,6 +91,9 @@ public static class IconosItems
             case Bloques.Arena: BloqueTexturado(l, 226, 208, 160, 190, 172, 130); return;
             case Bloques.Cesped: Cesped(l); return;
             case Bloques.Hoja: BloqueTexturado(l, 70, 120, 60, 45, 90, 40); return;
+            case Bloques.Cristal: Cristal(l); return;
+            case Bloques.Grava: BloqueTexturado(l, 118, 112, 108, 88, 82, 80); return;
+            case Bloques.Arenisca: Arenisca(l); return;
             case Bloques.Tablones: Tablones(l); return;
             case Bloques.Horno: Horno(l); return;
             case Bloques.Mesa: MesaIcono(l); return;
@@ -285,6 +288,27 @@ public static class IconosItems
             l.Rect(x, y, 3.5f, 3.5f, r2, g2, b2);
         }
         l.Rect(1, 29, 30, 2, (byte)(r / 2), (byte)(g / 2), (byte)(b / 2));
+    }
+
+    static void Cristal(ILienzoIcono l)
+    {
+        // Marco celeste + destellos diagonales (vidrio)
+        l.Rect(1, 1, 30, 30, 150, 200, 225);
+        l.Rect(4, 4, 24, 24, 200, 230, 245);
+        l.Linea(6, 25, 25, 6, 2.5f, 235, 250, 255);
+        l.Linea(10, 27, 27, 10, 1.5f, 220, 240, 250);
+        l.Rect(1, 1, 30, 2, 130, 185, 215);
+        l.Rect(1, 29, 30, 2, 110, 165, 195);
+    }
+
+    static void Arenisca(ILienzoIcono l)
+    {
+        l.Rect(1, 1, 30, 30, 222, 204, 150);
+        for (int i = 0; i < 4; i++)
+        {
+            l.Rect(1, 6 + i * 6, 30, 1.8f, 198, 180, 128);
+        }
+        l.Rect(1, 29, 30, 2, 180, 162, 115);
     }
 
     static void Tronco(ILienzoIcono l)
