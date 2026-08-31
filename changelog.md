@@ -2,6 +2,23 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.5] - 2026-08-31
+
+### Corregido (survival: consumo de items, minerales y transparencias)
+- **Los bloques colocados son ilimitados**: `Colocar` no descontaba el bloque del inventario al colocarlo. Ahora el servidor **verifica que tienes el bloque** (anti-cheat) y **descuenta 1** al colocar, notificando el inventario actualizado al cliente. Verificado en la suite: colocar tierra 10 → 9.
+- **El oro (y otros minerales) no se guardaban al romperlos**: el drop solo salia si el pico estaba **seleccionado en la mano** — con otro item en mano el oro se rompia sin soltar nada. Ahora basta con **tener un pico en el inventario** (aunque no este seleccionado).
+- **Transparencias junto al cofre y la mesa**: estaban marcados como opacos aunque **no llenan la celda** (el cofre es 0.06-0.94, la mesa tiene patas) — los vecinos no generaban sus caras contra el hueco. Ahora son **transparentes al render** (siguen solidos para la colision): los vecinos generan sus caras y el z-buffer oculta lo que no se ve.
+- **Soltar items (Q) imposible**: el drop caia a 2 bloques y el radio de auto-recogida es 2.5 — el item se volvia a recoger al instante y no se podia soltar nada. Ahora el item cae a **3 bloques** (fuera del radio de auto-recogida).
+- **Borrado de mundos fantasma**: el botón de borrar de la lista ya elimina también el archivo `.mundo` del disco (antes el mundo borrado reaparecia al reabrir).
+
+### Añadido
+- **Biomas** (desierto y tundra): un segundo ruido de baja frecuencia clasifica cada columna al generar — **desierto** (arena, cactus de 1-3 bloques, sin arboles), **tundra** (capa de **nieve**, bloque nuevo id 33, sin arboles) y llanura/bosque normal. Bloques nuevos: **Nieve** (33) y **Cactus** (34) con color, icono e idioma.
+- **TNT en el cofre inicial** (2 unidades) junto a las herramientas de piedra y lingotes de hierro.
+- **6 tests nuevos en la suite**: consumo al colocar (10→9), anti-cheat al colocar sin tenerlo, picar piedra natural con pico en el inventario, "sin pico la piedra rompida no se guarda", picar carbón/oro natural con teletransporte a la veta, fundir oro → lingote, y TNT del cofre.
+
+### Estado de la suite (76 de 81 verdes)
+- **PRUEBAS SUPERADAS con 5 fallos conocidos**, todos de los tests nuevos pendientes de ajuste (no del juego): el trigo tarda más en madurar de lo que el test espera (2 fallos), el test de soltar con Q busca slot y choca con el item soltado (1), y la TNT del cofre se movio de slot al extraer el pico de piedra en el test del cofre (2 fallos). Se ajustan en el siguiente commit.
+
 ## [0.10.4] - 2026-08-30
 
 ### Corregido

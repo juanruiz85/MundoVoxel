@@ -695,7 +695,10 @@ public sealed class GameServer : IAsyncDisposable
             }
 
             // La herramienta en la mano decide que cae (pico para piedra/menas, etc.)
-            bool conPico = Objetos.EsPico(ItemEnMano(c));
+            // PERO basta con tener un pico en el inventario: si rompes oro con la
+            // tierra seleccionada, el oro cae igual (los drops no se perdian y el
+            // jugador creia que el oro "no se guardaba").
+            bool conPico = Objetos.EsPico(ItemEnMano(c)) || c.Inventario.Any(s => Objetos.EsPico(s.Material));
             var rnd = Random.Shared;
             var drops = Objetos.DropAlRomper(actual, conPico, rnd);
             bool algo = false;
@@ -728,7 +731,12 @@ public sealed class GameServer : IAsyncDisposable
                     j.Pos.Y + 1.8f > cb.Y && j.Pos.Y < cb.Y + 1f)
                     return;
             }
+            // Survival: hay que TENER el bloque y se consume 1 al colocarlo
+            // (antes los bloques eran ilimitados y no se descontaban).
+            if (Contar(c, cb.Bloque) <= 0) return;
             m.Poner(cb.X, cb.Y, cb.Z, cb.Bloque);
+            Quitar(c, cb.Bloque, 1);
+            Enviar(c, InventarioActual(c));
             Broadcast(mundo.Id, new BloqueCambio { X = cb.X, Y = cb.Y, Z = cb.Z, Bloque = cb.Bloque });
         }
     }
@@ -756,11 +764,12 @@ public sealed class GameServer : IAsyncDisposable
             if (s.Cantidad <= 0) return;
             Quitar(c, s.Material, 1);
             Enviar(c, InventarioActual(c));
-            // El item cae frente al jugador: distancia segun a donde mira (1-3 bloques)
+            // El item cae frente al jugador a 3 BLOQUES (fuera del radio de
+            // auto-recogida de 2.5): con 2 se volvia a recoger al instante y
+            // no se podia soltar nada con Q.
             float ya = c.Ry;
-            float pitch = c.Pitch;
-            float dist = pitch < -0.5f ? 1f : pitch > 0.5f ? 3f : 2f;
-            float altura = 0.4f + (pitch > 0.5f ? 1f : pitch < -0.5f ? 0.2f : 0.5f);
+            float dist = 3f;
+            float altura = 0.4f;
             var pos = c.Pos + new Vector3(MathF.Sin(ya) * dist, altura, -MathF.Cos(ya) * dist);
             mundo.Drops.Add(new Drop { Id = ++mundo.SiguienteDropId, Material = s.Material, Px = pos.X, Py = pos.Y, Pz = pos.Z });
         }
@@ -1139,6 +1148,8 @@ public sealed class GameServer : IAsyncDisposable
             new((ushort)ItemId.EspadaPiedra, 1),
             new((ushort)ItemId.PalaPiedra, 1),
             new((ushort)ItemId.AzadaPiedra, 1),
+            new((ushort)ItemId.LingoteHierro, 3),
+            new(Bloques.Tnt, 2),
         };
         mundo.Cofres[(cx, sy, cz)] = contenido;
         // 4 antorchas en DIAGONAL alrededor del cofre (sobre el terreno real); las

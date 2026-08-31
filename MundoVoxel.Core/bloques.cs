@@ -58,7 +58,7 @@ public static class Bloques
         new("bloque.lecho",   true,  false, false), // 11
         new("bloque.tablones", true,  false, false), // 12
         new("bloque.horno",    true,  false, false), // 13
-        new("bloque.mesa",     true,  false, false), // 14
+        new("bloque.mesa",     true,  true,  false), // 14: transparente para el render: no llena la celda y los vecinos necesitan sus caras
         new("bloque.arenisca", true,  false, false), // 15
         new("bloque.carbon",   true,  false, false), // 16
         new("bloque.hierro",   true,  false, false), // 17
@@ -73,7 +73,7 @@ public static class Bloques
         new("bloque.tnt",      true,  false, false), // 26
         new("bloque.antorcha", false, true,  false), // 27
         new("bloque.cobre",    true,  false, false), // 28
-        new("bloque.cofre",    true,  false, false), // 29
+        new("bloque.cofre",    true,  true,  false), // 29: transparente para el render (no llena la celda)
         new("bloque.lava",     false, true,  true ), // 30
         new("bloque.piedra_madre", true, false, false), // 31
         new("bloque.vacio",    false, true,  false), // 32

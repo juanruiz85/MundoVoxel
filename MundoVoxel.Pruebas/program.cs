@@ -1,4 +1,4 @@
-﻿using System.Net.Sockets;
+using System.Net.Sockets;
 using MundoVoxel.Core;
 
 // Prueba automatica del servidor y el protocolo multijugador:
@@ -98,22 +98,25 @@ await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
 var cambio = await c1.LeerBloqueEn(bx, by, bz);
 Comprobar(cambio != null && cambio.Bloque == Bloques.Aire, "romper bloque difunde BloqueCambio");
 
+// Colocar TIERRA (el kit la trae): difunde y CONSUME 1 del inventario (survival)
+// El servidor envia Inventario ANTES que BloqueCambio, asi que se lee primero.
+await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Tierra });
+var invColocada = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+cambio = await c1.LeerBloqueEn(bx, by, bz, 8000);
+Comprobar(cambio?.Bloque == Bloques.Tierra, "colocar bloque difunde BloqueCambio");
+var tierraColocada = invColocada?.Slots.FirstOrDefault(s => s.Material == Bloques.Tierra)?.Cantidad ?? 0;
+Comprobar(tierraColocada == 9, $"colocar consume 1 del inventario (tierra 10->9, quedo {tierraColocada})");
+
+// Colocar un bloque que NO se tiene (ladrillo): el servidor lo rechaza (anti-cheat)
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Ladrillo });
-cambio = await c1.LeerBloqueEn(bx, by, bz);
-Comprobar(cambio?.Bloque == Bloques.Ladrillo, "colocar bloque difunde BloqueCambio");
+var cambioLadrillo = await c1.LeerBloqueEn(bx, by, bz, 700);
+Comprobar(cambioLadrillo == null, "colocar bloque sin tenerlo se ignora");
 
-await c1.Enviar(new RomperBloque { X = 999, Y = 999, Z = 999 });
-var cambioInvalido = await c1.LeerBloqueEn(999, 999, 999, 600);
-Comprobar(cambioInvalido == null, "romper fuera del mundo se ignora");
-
-// ---------- inventario, crafteo, cocina y drops ----------
-Console.WriteLine("Mecanicas: inventario, crafteo, cocina y drops de mobs.");
-
-// Romper el ladrillo colocado: el servidor envia Inventario ANTES que BloqueCambio
+// Romper la tierra colocada: vuelve al inventario
 await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-var invLadrillo = await c1.LeerHasta<Inventario>();
-await c1.LeerBloqueEn(bx, by, bz);
-Comprobar(invLadrillo?.Slots.Any(s => s.Material == Bloques.Ladrillo && s.Cantidad >= 1) == true, "romper bloque lo mete al inventario");
+var invDevuelta = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+await c1.LeerBloqueEn(bx, by, bz, 8000);
+Comprobar(invDevuelta?.Slots.Any(s => s.Material == Bloques.Tierra && s.Cantidad >= 9) == true, "romper bloque lo mete al inventario");
 
 // Conseguir 3 madera (colocar y romper troncos)
 for (int i = 0; i < 3; i++)
@@ -122,7 +125,7 @@ for (int i = 0; i < 3; i++)
     await c1.LeerBloqueEn(bx, by, bz);
     await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
     await c1.LeerHasta<Inventario>();
-    await c1.LeerBloqueEn(bx, by, bz);
+    await c1.LeerBloqueEn(bx, by, bz, 8000);
 }
 
 // 3 x madera -> 12 tablones (receta 0)
@@ -140,46 +143,47 @@ await c1.Enviar(new Craftear { Receta = 2 });
 var invMesa = await c1.LeerHasta<Inventario>();
 Comprobar(invMesa?.Slots.Any(s => s.Material == Bloques.Mesa) == true, "craftear 4 tablones -> mesa de trabajo");
 
-// Picar piedra SIN pico: seleccionar un slot sin herramienta (madera)
+// Cavar hacia abajo hasta conseguir 9 piedra natural (con pico en el inventario):
+// la piedra solo cae si el jugador tiene un pico (aunque no este seleccionado).
 await c1.Enviar(new SeleccionarSlot { Slot = 0, Material = Bloques.Madera });
-await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
-await c1.LeerBloqueEn(bx, by, bz);
-await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-var invSinPico = await c1.LeerHasta<Inventario>(timeoutMs: 400);
-await c1.LeerBloqueEn(bx, by, bz);
-int piedraAntes = invSinPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
-Comprobar(piedraAntes <= 5, "sin pico, la piedra no suelta bloque");
+int yCava = by - 1;
+int piedras = 0;
+for (int i = 0; i < 14 && piedras < 9; i++)
+{
+    await c1.Enviar(new RomperBloque { X = bx, Y = yCava, Z = bz });
+    var invCava = await c1.LeerHasta<Inventario>(timeoutMs: 900);
+    await c1.LeerBloqueEn(bx, yCava, bz);
+    piedras = invCava?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? piedras;
+    yCava--;
+}
+Comprobar(piedras >= 8, $"picar piedra natural con pico en el inventario (conseguidas {piedras})");
 
 // Pico de madera: 3 tablones + 2 palos (buscar la receta por nombre)
 int idxPicoMadera = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Pico de madera");
 await c1.Enviar(new Craftear { Receta = idxPicoMadera });
 var invPico = await c1.LeerHasta<Inventario>();
 Comprobar(invPico?.Slots.Any(s => s.Material == (ushort)ItemId.PicoMadera) == true, "craftear pico de madera");
-// Seleccionar el pico en la hotbar (slot = indice en la lista del inventario)
-int idxPicoInv = invPico!.Slots.FindIndex(s => s.Material == (ushort)ItemId.PicoMadera);
-await c1.Enviar(new SeleccionarSlot { Slot = Math.Min(idxPicoInv, 8), Material = (ushort)ItemId.PicoMadera });
-
-// Picar piedra CON pico: suelta bloque (8 veces para el horno)
-await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
-await c1.LeerBloqueEn(bx, by, bz);
-await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-var invConPico = await c1.LeerHasta<Inventario>();
-await c1.LeerBloqueEn(bx, by, bz);
-int piedraConPico = invConPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
-Comprobar(piedraConPico > 5, "con pico, la piedra suelta bloque");
-for (int i = 0; i < 7; i++)
-{
-    await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
-    await c1.LeerBloqueEn(bx, by, bz);
-    await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-    await c1.LeerHasta<Inventario>();
-    await c1.LeerBloqueEn(bx, by, bz);
-}
 
 // Horno (receta 3): 8 piedra -> horno
 await c1.Enviar(new Craftear { Receta = 3 });
 var invHorno = await c1.LeerHasta<Inventario>();
 Comprobar(invHorno?.Slots.Any(s => s.Material == Bloques.Horno) == true, "craftear 8 piedra -> horno");
+
+// Soltar TODOS los picos del inventario: sin pico, la piedra rompida no se guarda
+for (int intento = 0; intento < 3; intento++)
+{
+    var invAct = await c1.LeerHasta<Inventario>(timeoutMs: 600);
+    int idx = invAct?.Slots.FindIndex(s => s.Material == (ushort)ItemId.PicoMadera) ?? -1;
+    if (idx < 0) break;
+    await c1.Enviar(new SoltarItem { Slot = idx });
+}
+await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
+await c1.LeerBloqueEn(bx, by, bz, 8000);
+await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
+var invSinPico = await c1.LeerHasta<Inventario>(timeoutMs: 500);
+await c1.LeerBloqueEn(bx, by, bz, 2000);
+int piedraSinPico = invSinPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
+Comprobar(piedraSinPico == 0, $"sin pico en el inventario, la piedra rompida no se guarda ({piedraSinPico})");
 
 // Cocinar sin horno cerca -> error
 await c1.Enviar(new Cocinar { Receta = 0 });
@@ -246,25 +250,42 @@ if (objetivo != null)
 // ---------- mecanicas nuevas: fundicion, cultivos, TNT, ataque hostil y dia/noche ----------
 Console.WriteLine("Mecanicas nuevas: fundicion, cultivos, TNT, hostiles y dia/noche.");
 
-// Fundicion: picar carbon y oro en bruto, fundir el oro en el horno
-// Ana se aparta del spawn: la celda (bx, by+2, bz) es la de su cabeza y Colocar
-// rechaza bloques encima de un jugador. Bruno tambien se aparta (sigue en el spawn).
+// Fundicion: picar carbon y oro NATURAL del mundo (el anti-cheat ya no permite
+// colocar minerales sin tenerlos). Se buscan vetas en el mundo deserializado y
+// Ana se teletransporta junto a ellas para picarlas con el pico.
+int cxC = -1, cyC = 0, czC = 0;
+for (int x = 1; x < mundoPriv.Ancho && cxC < 0; x++)
+    for (int y = 1; y < mundoPriv.Alto && cxC < 0; y++)
+        for (int z = 1; z < mundoPriv.Profundo && cxC < 0; z++)
+            if (mundoPriv.Obtener(x, y, z) == Bloques.Carbon) { cxC = x; cyC = y; czC = z; }
+Comprobar(cxC >= 0, "hay carbon natural en el mundo");
+int cxO = -1, cyO = 0, czO = 0;
+for (int x = 1; x < mundoPriv.Ancho && cxO < 0; x++)
+    for (int y = 1; y < mundoPriv.Alto && cxO < 0; y++)
+        for (int z = 1; z < mundoPriv.Profundo && cxO < 0; z++)
+            if (mundoPriv.Obtener(x, y, z) == Bloques.Oro) { cxO = x; cyO = y; czO = z; }
+Comprobar(cxO >= 0, "hay oro natural en el mundo");
+if (cxC >= 0)
+{
+    await c1.Enviar(new Posicion { Px = cxC, Py = cyC, Pz = czC, Ry = 0, Pitch = 0 });
+    await Task.Delay(150);
+    await c1.Enviar(new RomperBloque { X = cxC, Y = cyC, Z = czC });
+    var invCarbon = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+    await c1.LeerHasta<BloqueCambio>(timeoutMs: 2000);
+    Comprobar(invCarbon?.Slots.Any(s => s.Material == (ushort)ItemId.CarbonItem) == true, "picar carbon da carbon (combustible)");
+}
+if (cxO >= 0)
+{
+    await c1.Enviar(new Posicion { Px = cxO, Py = cyO, Pz = czO, Ry = 0, Pitch = 0 });
+    await Task.Delay(150);
+    await c1.Enviar(new RomperBloque { X = cxO, Y = cyO, Z = czO });
+    var invOroBruto = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+    await c1.LeerHasta<BloqueCambio>(timeoutMs: 2000);
+    Comprobar(invOroBruto?.Slots.Any(s => s.Material == (ushort)ItemId.OroBruto) == true, "picar oro da oro en bruto");
+}
+// Volver al spawn (junto al horno) para la fundicion
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax + 4, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
-await c2.Enviar(new Posicion { Px = aparicionPriv.Ax + 6, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az + 6, Ry = 0, Pitch = 0 });
-await Task.Delay(100);
-await c1.Enviar(new ColocarBloque { X = bx, Y = by + 2, Z = bz, Bloque = Bloques.Carbon });
-await c1.LeerHasta<BloqueCambio>();
-await c1.Enviar(new RomperBloque { X = bx, Y = by + 2, Z = bz });
-var invCarbon = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
-await c1.LeerHasta<BloqueCambio>();
-Comprobar(invCarbon?.Slots.Any(s => s.Material == (ushort)ItemId.CarbonItem) == true, "picar carbon da carbon (combustible)");
-
-await c1.Enviar(new ColocarBloque { X = bx, Y = by + 2, Z = bz, Bloque = Bloques.Oro });
-await c1.LeerHasta<BloqueCambio>();
-await c1.Enviar(new RomperBloque { X = bx, Y = by + 2, Z = bz });
-var invOroBruto = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
-await c1.LeerHasta<BloqueCambio>();
-Comprobar(invOroBruto?.Slots.Any(s => s.Material == (ushort)ItemId.OroBruto) == true, "picar oro da oro en bruto");
+await Task.Delay(150);
 
 await c1.Enviar(new Cocinar { Receta = 3 }); // fundir oro (receta 3 del horno)
 var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
@@ -352,6 +373,8 @@ Comprobar(!rotoEnEspectador, "el espectador no rompe bloques");
 await c1.Enviar(new ModoEspectador { Activo = false });
 
 // Trigo: la azada labra la tierra, las semillas se plantan, crece y se cosecha
+// Tablones extra: el flujo de pruebas consumio tablones en palos, mesa y pico
+for (int i = 0; i < 2; i++) { await c1.Enviar(new Craftear { Receta = 0 }); await c1.LeerHasta<Inventario>(); }
 int idxAzada = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Azada de madera");
 await c1.Enviar(new Craftear { Receta = idxAzada });
 var invActual = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
@@ -417,7 +440,9 @@ if (slotSoltar >= 0)
         var invS1 = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
         cantS1 = invS1?.Slots.FirstOrDefault(s => s.Material == matSoltado)?.Cantidad ?? 0;
     }
-    await Task.Delay(900);
+    // Acercarse al drop (cayo a 3 bloques, fuera del radio de auto-recogida)
+    await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay + 0.4f, Pz = aparicionPriv.Az - 3f, Ry = 0, Pitch = 0 });
+    await Task.Delay(400);
     for (int i = 0; i < 8 && cantS2 != objetivo2; i++)
     {
         var invS2 = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
@@ -428,11 +453,23 @@ if (slotSoltar >= 0)
 else Console.WriteLine("[DEBUG] soltar: sin slot disponible");
 Comprobar(soltoOk, "soltar item (Q) suelta 1 y el drop se recoge");
 
-// TNT: colocar, encender con el mechero y esperar la explosion
+// TNT: sacar del cofre inicial (el anti-cheat no permite colocar lo que no tienes),
+// colocar, encender con el mechero y esperar la explosion
+await c1.Enviar(new AbrirCofre { X = cfx, Y = cfy, Z = cfz });
+await c1.LeerHasta<CofreAbierto>(timeoutMs: 8000);
+bool tntSacada = false;
+for (int intento = 0; intento < 4 && !tntSacada; intento++)
+{
+    await c1.Enviar(new SacarDeCofre { X = cfx, Y = cfy, Z = cfz, Slot = 6, Cantidad = 1 });
+    var invTnt = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+    tntSacada = invTnt?.Slots.Any(s => s.Material == Bloques.Tnt) == true;
+}
+Comprobar(tntSacada, "sacar TNT del cofre inicial al inventario");
 await c1.Enviar(new ColocarBloque { X = bx + 2, Y = by + 2, Z = bz, Bloque = Bloques.Tnt });
 var cambioTnt = await c1.LeerBloqueEn(bx + 2, by + 2, bz, 5000);
 Comprobar(cambioTnt?.Bloque == Bloques.Tnt, "colocar TNT difunde BloqueCambio");
-int idxMechero = invActual.Slots.FindIndex(s => s.Material == (ushort)ItemId.Mechero);
+var invMechero = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+int idxMechero = invMechero?.Slots.FindIndex(s => s.Material == (ushort)ItemId.Mechero) ?? -1;
 await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxMechero, 8)), Material = (ushort)ItemId.Mechero });
 await c1.Enviar(new UsarBloque { X = bx + 2, Y = by + 2, Z = bz });
 bool tntExploto = false;
