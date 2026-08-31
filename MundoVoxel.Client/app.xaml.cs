@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MundoVoxel.Client.Paginas;
+using MundoVoxel.Client.Servicios;
 
 namespace MundoVoxel.Client;
 
@@ -11,6 +12,13 @@ public partial class App : Application
     {
         InitializeComponent();
         _servicios = servicios;
+    }
+
+    protected override void OnSleep()
+    {
+        // Guardar los mundos del servidor local a disco al cerrar o suspender
+        // la app (sin esto, al cerrar el juego se perdia todo el progreso).
+        ServidorLocal.GuardarMundos();
     }
 
     protected override Window CreateWindow(IActivationState? activationState)

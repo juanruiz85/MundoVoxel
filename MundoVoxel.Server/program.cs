@@ -24,7 +24,9 @@ public static class Program
         var maxMundos = builder.Configuration.GetValue("Servidor:MaxMundos", 40);
         var maxJugadores = builder.Configuration.GetValue("Servidor:MaxJugadoresPorMundo", 12);
 
-        builder.Services.AddSingleton(new GameServer(puerto, nombre, maxMundos, maxJugadores));
+        var servidor = new GameServer(puerto, nombre, maxMundos, maxJugadores);
+        servidor.CargarMundos(); // mundos guardados de sesiones anteriores
+        builder.Services.AddSingleton(servidor);
         builder.Services.AddHostedService<ServidorServicio>();
         builder.Services.AddLogging(l =>
         {
@@ -61,6 +63,7 @@ public sealed class ServidorServicio : BackgroundService
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        _servidor.GuardarMundos(); // persistir mundos al apagar el servidor
         await _servidor.DetenerAsync();
         await base.StopAsync(cancellationToken);
     }

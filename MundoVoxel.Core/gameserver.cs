@@ -157,6 +157,9 @@ public sealed class GameServer : IAsyncDisposable
         public float SegundosPorDia;   // duracion real de un dia (0 = usar ajuste global)
         public int PoblacionMobs = -1; // cantidad objetivo de mobs (config del mundo)
         public int FranjaCultivos;     // franja X de cultivos que toca procesar (round-robin)
+        /// <summary>Inventarios persistidos por nombre de jugador: al volver a entrar
+        /// se restaura el suyo en vez de dar el kit de nuevo.</summary>
+        public readonly Dictionary<string, List<SlotInventario>> Inventarios = new();
         public readonly List<(int x, int y, int z, float t)> Tnts = new();
         /// <summary>Contenido de los cofres por posicion (x,y,z).</summary>
         public readonly Dictionary<(int x, int y, int z), List<SlotInventario>> Cofres = new();
@@ -355,6 +358,114 @@ public sealed class GameServer : IAsyncDisposable
         }
     }
 
+    // ------------------------------------------------------------------ persistencia de mundos
+
+    /// <summary>Carpeta donde se guardan los mundos (AppData local del usuario).</summary>
+    public static string CarpetaMundos => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MundoVoxel", "mundos");
+
+    /// <summary>Guarda todos los mundos en disco: metadata del mundo, bloques
+    /// comprimidos (gzip) y los inventarios persistidos por jugador. Se llama al
+    /// cerrar la app/servidor y al crear un mundo nuevo.</summary>
+    public void GuardarMundos()
+    {
+        lock (_cerrojo)
+        {
+            try
+            {
+                Directory.CreateDirectory(CarpetaMundos);
+                foreach (var ms in _mundos.Values)
+                {
+                    // Snapshot de los inventarios de los jugadores conectados
+                    foreach (var j in ms.Jugadores.Values)
+                        ms.Inventarios[j.Nombre] = j.Inventario.ToList();
+
+                    using var mem = new MemoryStream();
+                    using (var bw = new BinaryWriter(mem))
+                    {
+                        bw.Write(ms.Nombre);
+                        bw.Write(ms.Pin);
+                        bw.Write(ms.Abierto);
+                        bw.Write(ms.NombreDueno);
+                        bw.Write(ms.Hora);
+                        bw.Write(ms.SegundosPorDia);
+                        bw.Write(ms.PoblacionMobs);
+                        var comp = Mundo.Comprimir(ms.Mundo.Serializar());
+                        bw.Write(comp.Length);
+                        bw.Write(comp);
+                        bw.Write(ms.Inventarios.Count);
+                        foreach (var kv in ms.Inventarios)
+                        {
+                            bw.Write(kv.Key);
+                            bw.Write(kv.Value.Count);
+                            foreach (var s in kv.Value)
+                            {
+                                bw.Write(s.Material);
+                                bw.Write(s.Cantidad);
+                            }
+                        }
+                    }
+                    File.WriteAllBytes(Path.Combine(CarpetaMundos, ms.Id + ".mundo"), mem.ToArray());
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("Error al guardar mundos: " + ex.Message);
+            }
+        }
+    }
+
+    /// <summary>Carga los mundos guardados en disco (servidor local al arrancar y
+    /// servidor dedicado). Los archivos corruptos se ignoran.</summary>
+    public void CargarMundos()
+    {
+        lock (_cerrojo)
+        {
+            try
+            {
+                if (!Directory.Exists(CarpetaMundos)) return;
+                foreach (var archivo in Directory.GetFiles(CarpetaMundos, "*.mundo"))
+                {
+                    try
+                    {
+                        var ms = new MundoServidor();
+                        ms.Id = Path.GetFileNameWithoutExtension(archivo);
+                        using var br = new BinaryReader(File.OpenRead(archivo));
+                        ms.Nombre = br.ReadString();
+                        ms.Pin = br.ReadString();
+                        ms.Abierto = br.ReadBoolean();
+                        ms.NombreDueno = br.ReadString();
+                        ms.Hora = br.ReadSingle();
+                        ms.SegundosPorDia = br.ReadSingle();
+                        ms.PoblacionMobs = br.ReadInt32();
+                        int len = br.ReadInt32();
+                        ms.Mundo = Mundo.Deserializar(Mundo.Descomprimir(br.ReadBytes(len)));
+                        int nj = br.ReadInt32();
+                        for (int i = 0; i < nj; i++)
+                        {
+                            var nombre = br.ReadString();
+                            int ni = br.ReadInt32();
+                            var inv = new List<SlotInventario>();
+                            for (int k = 0; k < ni; k++)
+                                inv.Add(new SlotInventario(br.ReadUInt16(), br.ReadInt32()));
+                            ms.Inventarios[nombre] = inv;
+                        }
+                        _mundos[ms.Id] = ms;
+                        Log($"Mundo cargado: {ms.Nombre}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Archivo de mundo dagnado, se ignora: {Path.GetFileName(archivo)} ({ex.Message})");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("Error al cargar mundos: " + ex.Message);
+            }
+        }
+    }
+
     void NotificarListas()
     {
         var lista = ListaMundosActual();
@@ -405,6 +516,7 @@ public sealed class GameServer : IAsyncDisposable
             GenerarMobs(mundo);
             ColocarCofreInicial(mundo);
             _mundos[mundo.Id] = mundo;
+            GuardarMundos(); // persistir el mundo nuevo desde el primer momento
             Log($"{c.Nombre} creÃ³ el mundo Â«{nombre}Â» ({(cm.Abierto ? "pÃºblico" : "privado")}).");
             Enviar(c, new MundoCreado { Id = mundo.Id });
             UnirseInterno(c, mundo);
@@ -458,7 +570,13 @@ public sealed class GameServer : IAsyncDisposable
             MundoComprimido = Mundo.Comprimir(mundo.Mundo.Serializar()),
             Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
         });
-        // Kit de inicio la primera vez que el jugador entra a un mundo
+        // Si el jugador ya tuvo inventario en este mundo (persistido), restaurarlo;
+        // si no, dar el kit de inicio la primera vez que entra.
+        if (c.Inventario.Count == 0 && mundo.Inventarios.TryGetValue(c.Nombre, out var guardado) && guardado.Count > 0)
+        {
+            c.Inventario.AddRange(guardado);
+            Enviar(c, InventarioActual(c));
+        }
         if (c.Inventario.Count == 0)
         {
             AgregarInventario(c, Bloques.Madera, 10);
@@ -488,6 +606,8 @@ public sealed class GameServer : IAsyncDisposable
             c.EnMundo = false;
             if (_mundos.TryGetValue(id, out var mundo))
             {
+                // Persistir el inventario del jugador para restaurarlo cuando vuelva
+                mundo.Inventarios[c.Nombre] = c.Inventario.ToList();
                 mundo.Jugadores.Remove(c.Id);
                 if (notificar) Broadcast(id, new JugadorSalio { Id = c.Id, Nombre = c.Nombre });
                 // El mundo se mantiene en memoria aunque quede vacÃ­o: se puede volver a entrar despuÃ©s.
