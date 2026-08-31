@@ -128,6 +128,8 @@ public sealed class GameServer : IAsyncDisposable
         public int Salud = 20;         // vida del jugador (max 20)
         public float TiempoGolpe;      // cooldown para recibir dano de mobs
         public float Oxigeno;          // oxigeno restante (se agota bajo el agua)
+        public float Hambre = 20f;      // hambre: baja con el tiempo, se restaura comiendo
+        public float TiempoDanoHambre;  // acumulador: con hambre 0 se pierde salud poco a poco
         public bool Muerto;            // si murio, espera a que el jugador pida reaparecer
         public string CausaMuerte = "";
         public bool Espectador;        // modo espectador: vuela y atraviesa bloques, no rompe/coloca
@@ -628,6 +630,9 @@ public sealed class GameServer : IAsyncDisposable
             }
             var jugadores = mundo.Jugadores.Values.ToList();
             _mundos.Remove(bm.Id);
+            // Borrar tambien el archivo persistido: sin esto el mundo borrado
+            // reaparecia como fantasma al reabrir el juego (se cargaba del disco).
+            try { File.Delete(Path.Combine(CarpetaMundos, bm.Id + ".mundo")); } catch { }
             foreach (var j in jugadores)
             {
                 j.MundoId = null;
@@ -739,6 +744,19 @@ public sealed class GameServer : IAsyncDisposable
         lock (_cerrojo)
         {
             if (!c.EnMundo || c.MundoId == null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+            // Comer: si el item en mano es comida, se consume y restaura hambre
+            // (independiente del bloque apuntado; X = -1 significa "sin bloque").
+            var manoItem = ItemEnMano(c);
+            var valorComida = Objetos.ValorComida(manoItem);
+            if (valorComida > 0 && c.Hambre < 19.5f)
+            {
+                c.Hambre = MathF.Min(20f, c.Hambre + valorComida);
+                Quitar(c, manoItem, 1);
+                Enviar(c, InventarioActual(c));
+                Enviar(c, new HambreMsg { Hambre = c.Hambre, HambreMax = 20f });
+                return;
+            }
+            if (ub.X < 0) return; // usar sin bloque apuntado y sin comida en la mano
             var m = mundo.Mundo;
             if (!m.Dentro(ub.X, ub.Y, ub.Z)) return;
             if (Vector3.Distance(c.Pos, new Vector3(ub.X + 0.5f, ub.Y + 0.5f, ub.Z + 0.5f)) > 7f) return;
@@ -860,6 +878,24 @@ public sealed class GameServer : IAsyncDisposable
             }
             Enviar(j, new OxigenoMsg { Oxigeno = j.Oxigeno, MaxOxigeno = maxOx });
 
+            // Hambre: baja despacio (20 puntos = ~17 min). Con 0, la salud baja
+            // poco a poco hasta quedarse en 2 (no mata, como en Minecraft facil).
+            j.Hambre = MathF.Max(0f, j.Hambre - 0.02f);
+            if (j.Hambre <= 0f)
+            {
+                j.TiempoDanoHambre += 0.5f;
+                if (j.TiempoDanoHambre >= 4f)
+                {
+                    j.TiempoDanoHambre = 0f;
+                    if (j.Salud > 2)
+                    {
+                        j.Salud--;
+                        Enviar(j, new JugadorSalud { Salud = j.Salud, MaxSalud = 20 });
+                    }
+                }
+            }
+            Enviar(j, new HambreMsg { Hambre = j.Hambre, HambreMax = 20f });
+
             // Lava: dano continuo mientras la cabeza este en lava
             if (enLava)
             {
@@ -889,10 +925,13 @@ public sealed class GameServer : IAsyncDisposable
         j.Pos = p;
         j.Salud = 20;
         j.Oxigeno = Ajustes.Actual.OxigenoMaximo;
+        j.Hambre = 20f;
+        j.TiempoDanoHambre = 0f;
         j.Muerto = false;
         j.CausaMuerte = "";
         Enviar(j, new JugadorSalud { Salud = 20, MaxSalud = 20 });
         Enviar(j, new OxigenoMsg { Oxigeno = j.Oxigeno, MaxOxigeno = Ajustes.Actual.OxigenoMaximo });
+        Enviar(j, new HambreMsg { Hambre = j.Hambre, HambreMax = 20f });
         Enviar(j, new Respawn { Px = p.X, Py = p.Y, Pz = p.Z });
     }
 

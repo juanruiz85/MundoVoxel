@@ -30,6 +30,7 @@ public sealed class VistaJuego : IDrawable
 
     // Oxigeno (lo envia el servidor; se agota bajo el agua)
     public float Oxigeno = 15f, MaxOxigeno = 15f;
+    public float Hambre = 20f, HambreMax = 20f;   // barra de comida del HUD
 
     // Entrada
     public bool BotonSaltar, BotonBajar;
@@ -588,6 +589,17 @@ public sealed class VistaJuego : IDrawable
             c.FontSize = 13;
             c.FontColor = llena ? new Color(0.45f, 0.65f, 0.95f) : new Color(0.22f, 0.25f, 0.3f);
             c.DrawString("●", cx0 + i * 20, cyO - 6, 20, 20, HorizontalAlignment.Center, VerticalAlignment.Center);
+        }
+
+        // Comida (hambre): marcas naranjas que bajan con el tiempo; comer las restaura
+        float cyC = cyH - 44;
+        float hamPct = HambreMax > 0 ? Math.Clamp(Hambre / HambreMax, 0f, 1f) : 0f;
+        for (int i = 0; i < 10; i++)
+        {
+            bool llena = hamPct >= (i + 1) / 10f;
+            c.FontSize = 13;
+            c.FontColor = llena ? new Color(0.95f, 0.55f, 0.15f) : new Color(0.25f, 0.2f, 0.15f);
+            c.DrawString("●", cx0 + i * 20, cyC - 6, 20, 20, HorizontalAlignment.Center, VerticalAlignment.Center);
         }
 
         // Pantalla roja al ahogarse (oxigeno agotado): pulsa suave

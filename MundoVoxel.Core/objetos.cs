@@ -103,6 +103,19 @@ public static class Objetos
 {
     public static bool EsBloque(ushort material) => material < 1000;
 
+    /// <summary>Puntos de hambre que restaura un item comestible (0 = no comestible).
+    /// Las carnes cocinadas sacian mas que las crudas.</summary>
+    public static int ValorComida(ushort m) => m switch
+    {
+        (ushort)ItemId.CarneCocinadaCerdo or (ushort)ItemId.CarneCocinadaVaca or (ushort)ItemId.CarneCocinadaOveja => 8,
+        (ushort)ItemId.Manzana or (ushort)ItemId.CarneCrudaCerdo or (ushort)ItemId.CarneCrudaVaca or (ushort)ItemId.CarneCrudaOveja => 4,
+        (ushort)ItemId.Zanahoria or (ushort)ItemId.CarnePodrida => 3,
+        (ushort)ItemId.Trigo => 2,
+        _ => 0,
+    };
+
+    public static bool EsComida(ushort m) => ValorComida(m) > 0;
+
     // Materiales abreviados para las recetas
     static ushort T => Bloques.Tablones;   // tablones
     static ushort P => (ushort)ItemId.Palo; // palos

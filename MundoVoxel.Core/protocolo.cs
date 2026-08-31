@@ -41,6 +41,7 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(FijarHora), "FijarHora")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
 [JsonDerivedType(typeof(OxigenoMsg), "Oxigeno")]
+[JsonDerivedType(typeof(HambreMsg), "Hambre")]
 [JsonDerivedType(typeof(MuerteInfo), "MuerteInfo")]
 [JsonDerivedType(typeof(ModoEspectador), "ModoEspectador")]
 [JsonDerivedType(typeof(Respawn), "Respawn")]
@@ -124,6 +125,9 @@ public sealed class TiempoMundo : Mensaje { public float Hora { get; set; } }
 public sealed class FijarHora : Mensaje { public float Hora { get; set; } }
 public sealed class JugadorSalud : Mensaje { public int Salud { get; set; } public int MaxSalud { get; set; } }
 public sealed class OxigenoMsg : Mensaje { public float Oxigeno { get; set; } public float MaxOxigeno { get; set; } }
+
+/// <summary>Nivel de hambre del jugador (0 = hambriento, 20 = lleno).</summary>
+public sealed class HambreMsg : Mensaje { public float Hambre { get; set; } public float HambreMax { get; set; } }
 public sealed class MuerteInfo : Mensaje { public string Causa { get; set; } = ""; }
 public sealed class ModoEspectador : Mensaje { public bool Activo { get; set; } }
 public sealed class Respawn : Mensaje { public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }

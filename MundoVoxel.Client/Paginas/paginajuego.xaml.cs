@@ -228,9 +228,15 @@ public partial class PaginaJuego : ContentPage
                 else
                 {
                     // Solo se colocan BLOQUES reales: con un item (palo, pico,
-                    // semillas...) el clic derecho no hace nada (evita el bloque
+                    // semillas...) el clic derecho no coloca nada (evita el bloque
                     // fantasma negro que antes aparecia al colocarlos).
-                    if (!Bloques.EsColocable(_vista.BloqueSeleccionado)) return;
+                    if (!Bloques.EsColocable(_vista.BloqueSeleccionado))
+                    {
+                        // Pero si lo que hay en mano es comida, el clic derecho come
+                        if (Objetos.EsComida(_vista.BloqueSeleccionado))
+                            _red.Enviar(new UsarBloque { X = -1, Y = -1, Z = -1 });
+                        return;
+                    }
                     int tx = g.X + (int)g.Normal.X, ty = g.Y + (int)g.Normal.Y, tz = g.Z + (int)g.Normal.Z;
                     _red.Enviar(new ColocarBloque { X = tx, Y = ty, Z = tz, Bloque = _vista.BloqueSeleccionado });
                 }
@@ -399,6 +405,11 @@ public partial class PaginaJuego : ContentPage
                 _vista.MaxOxigeno = om.MaxOxigeno;
                 break;
 
+            case HambreMsg hm:
+                _vista.Hambre = hm.Hambre;
+                _vista.HambreMax = hm.HambreMax;
+                break;
+
             case MuerteInfo mi:
                 MostrarMuerte(mi.Causa);
                 break;
@@ -478,11 +489,19 @@ public partial class PaginaJuego : ContentPage
         }
     }
 
-    /// <summary>Usa el item en mano sobre el bloque apuntado (azada, semillas, planton, mechero...).</summary>
+    /// <summary>Usa el item en mano sobre el bloque apuntado (azada, semillas, planton, mechero...).
+    /// Si no hay bloque apuntado pero lo que hay en mano es comida, se come (restaura hambre).</summary>
     void UsarItemApuntado()
     {
         var g = _vista.GolpeActual;
-        _red.Enviar(new UsarBloque { X = g.X, Y = g.Y, Z = g.Z });
+        if (g.Impacto)
+        {
+            _red.Enviar(new UsarBloque { X = g.X, Y = g.Y, Z = g.Z });
+            return;
+        }
+        // Sin bloque apuntado: comer si lo que hay en mano es comida
+        if (Objetos.EsComida(_vista.BloqueSeleccionado))
+            _red.Enviar(new UsarBloque { X = -1, Y = -1, Z = -1 });
     }
 
     // ------------------------------------------------------------- chat
