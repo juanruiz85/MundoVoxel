@@ -24,6 +24,7 @@ public sealed class RenderizadorVoxel
         (80,150,70), (200,60,50), (255,170,60), (200,120,90),
         (123,119,113), (255,90,20),
         (40,40,46), (12,10,20),
+        (240,244,248),
     };
 
     // Colores de las manchas de mena (RGB)

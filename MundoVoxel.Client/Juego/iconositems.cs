@@ -92,6 +92,7 @@ public static class IconosItems
             case Bloques.Cesped: Cesped(l); return;
             case Bloques.Hoja: BloqueTexturado(l, 70, 120, 60, 45, 90, 40); return;
             case Bloques.Cristal: Cristal(l); return;
+            case Bloques.Nieve: Nieve(l); return;
             case Bloques.Grava: BloqueTexturado(l, 118, 112, 108, 88, 82, 80); return;
             case Bloques.Arenisca: Arenisca(l); return;
             case Bloques.Tablones: Tablones(l); return;
@@ -309,6 +310,14 @@ public static class IconosItems
             l.Rect(1, 6 + i * 6, 30, 1.8f, 198, 180, 128);
         }
         l.Rect(1, 29, 30, 2, 180, 162, 115);
+    }
+
+    static void Nieve(ILienzoIcono l)
+    {
+        l.Rect(1, 1, 30, 30, 240, 244, 248);
+        l.Elipse(11, 10, 4, 3, 255, 255, 255);
+        l.Elipse(21, 20, 3.5f, 3, 255, 255, 255);
+        l.Rect(1, 29, 30, 2, 200, 210, 220);
     }
 
     static void Tronco(ILienzoIcono l)

@@ -96,18 +96,25 @@ public class Mundo
                 float n = Ruido.FBM(x * 0.045f, z * 0.045f, semilla);
                 float n2 = Ruido.FBM(x * 0.12f + 77f, z * 0.12f + 77f, semilla + 5) * 0.5f;
                 int h = Math.Clamp((int)(nivelMar - 4 + n * 12 + n2 * 6), 2, alto - 6);
+                // Bioma por columna (ruido de baja frecuencia): < 0.32 desierto,
+                // > 0.68 tundra con nieve, resto llanura/bosque normal.
+                float bioma = Ruido.FBM(x * 0.012f + 500f, z * 0.012f + 500f, semilla + 11);
+                bool desierto = bioma < 0.32f;
+                bool tundra = bioma > 0.68f;
                 for (int y = 0; y < alto; y++)
                 {
                     ushort b;
                     if (y == 0) b = Bloques.PiedraMadre; // capa inferior irrompible
                     else if (y < h - 3) b = Bloques.Piedra;
-                    else if (y < h) b = Bloques.Tierra;
-                    else if (y == h) b = h <= nivelMar + 1 ? Bloques.Arena : Bloques.Cesped;
+                    else if (y < h) b = desierto ? Bloques.Arena : Bloques.Tierra;
+                    else if (y == h) b = desierto ? Bloques.Arena
+                                      : tundra && h > nivelMar + 1 ? Bloques.Nieve
+                                      : h <= nivelMar + 1 ? Bloques.Arena : Bloques.Cesped;
                     else if (y < nivelMar) b = Bloques.Agua;
                     else b = Bloques.Aire;
                     m.Poner(x, y, z, b);
                 }
-                if (h > nivelMar + 2 && rnd.NextDouble() < 0.006)
+                if (h > nivelMar + 2 && !desierto && !tundra && rnd.NextDouble() < 0.006)
                     PonerArbol(m, x, h + 1, z, rnd);
             }
         }

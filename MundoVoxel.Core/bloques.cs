@@ -36,6 +36,7 @@ public static class Bloques
     public const ushort Lava = 30;
     public const ushort PiedraMadre = 31; // bedrock: capa inferior, no se puede romper
     public const ushort Vacio = 32;        // fuera del mapa (zona de muerte al caer)
+    public const ushort Nieve = 33;        // bioma de tundra: capa blanca sobre la superficie
 
     public sealed record InfoBloque(string ClaveLang, bool Solido, bool Transparente, bool Liquido);
 
@@ -75,6 +76,7 @@ public static class Bloques
         new("bloque.lava",     false, true,  true ), // 30
         new("bloque.piedra_madre", true, false, false), // 31
         new("bloque.vacio",    false, true,  false), // 32
+        new("bloque.nieve",    true,  false, false), // 33
     };
 
     public static bool EsSolido(ushort b) => b < Info.Length && Info[b].Solido;
