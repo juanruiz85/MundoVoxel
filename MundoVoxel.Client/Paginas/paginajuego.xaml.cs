@@ -796,12 +796,14 @@ public partial class PaginaJuego : ContentPage
                 int ix = x, iy = y;
                 var bc = NuevoSlot();
                 bc.Clicked += (s, e) => OnSlotCofre(iy, ix);
+                VincularClicDerecho(bc, () => OnSlotCofreDerecho(iy, ix));
                 Grid.SetRow(bc, y); Grid.SetColumn(bc, x);
                 GridCofre.Children.Add(bc);
                 _botonesCofre[y, x] = bc;
 
                 var bi = NuevoSlot();
                 bi.Clicked += (s, e) => OnSlotInvCofre(iy, ix);
+                VincularClicDerecho(bi, () => OnSlotInvCofreDerecho(iy, ix));
                 Grid.SetRow(bi, y); Grid.SetColumn(bi, x);
                 GridInvCofre.Children.Add(bi);
                 _botonesInvCofre[y, x] = bi;
@@ -1033,27 +1035,37 @@ public partial class PaginaJuego : ContentPage
         _pausado = false;
     }
 
-    /// <summary>Click en un slot del cofre: si el cursor tiene algo lo deposita (1),
-    /// si no, saca 1 del cofre al inventario.</summary>
+    /// <summary>Clic izquierdo en un slot del cofre: saca TODO el stack al inventario.</summary>
     void OnSlotCofre(int y, int x)
     {
-        if (_cursorMaterial != 0)
-        {
-            _red.Enviar(new PonerEnCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Material = _cursorMaterial, Cantidad = 1 });
-            // El cursor baja 1 localmente (el servidor confirma con Inventario)
-            _cursorCantidad--;
-            if (_cursorCantidad <= 0) { _cursorMaterial = 0; _cursorCantidad = 0; }
-            RefrescarCofreInventario();
-        }
-        else
-        {
-            _red.Enviar(new SacarDeCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Slot = y * 9 + x });
-        }
+        int i = y * 9 + x;
+        if (i >= _cofre.Count) return;
+        _red.Enviar(new SacarDeCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Slot = i, Cantidad = _cofre[i].Cantidad });
     }
 
-    /// <summary>Click en un slot del inventario (dentro del panel cofre): coge/suelta
-    /// como en el inventario normal.</summary>
-    void OnSlotInvCofre(int y, int x) { IntercambiarCon(ref _slots[y * 9 + x]); RefrescarCofreInventario(); }
+    /// <summary>Clic derecho en un slot del cofre: saca 1 al inventario.</summary>
+    void OnSlotCofreDerecho(int y, int x)
+    {
+        int i = y * 9 + x;
+        if (i >= _cofre.Count) return;
+        _red.Enviar(new SacarDeCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Slot = i, Cantidad = 1 });
+    }
+
+    /// <summary>Clic izquierdo en un slot del inventario (panel cofre): mete TODO el stack al cofre.</summary>
+    void OnSlotInvCofre(int y, int x)
+    {
+        var s = _slots[y * 9 + x];
+        if (s.Material == 0 || s.Cantidad <= 0) return;
+        _red.Enviar(new PonerEnCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Material = s.Material, Cantidad = s.Cantidad });
+    }
+
+    /// <summary>Clic derecho en un slot del inventario (panel cofre): mete 1 al cofre.</summary>
+    void OnSlotInvCofreDerecho(int y, int x)
+    {
+        var s = _slots[y * 9 + x];
+        if (s.Material == 0 || s.Cantidad <= 0) return;
+        _red.Enviar(new PonerEnCofre { X = _cofreX, Y = _cofreY, Z = _cofreZ, Material = s.Material, Cantidad = 1 });
+    }
 
     void RefrescarCofre()
     {

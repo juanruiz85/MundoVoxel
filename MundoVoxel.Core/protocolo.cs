@@ -135,7 +135,7 @@ public sealed class Respawn : Mensaje { public float Px { get; set; } public flo
 public sealed class AbrirCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } }
 public sealed class CofreAbierto : Mensaje { public List<SlotEstado> Slots { get; set; } = new(); }
 public sealed class PonerEnCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public ushort Material { get; set; } public int Cantidad { get; set; } }
-public sealed class SacarDeCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public int Slot { get; set; } }
+public sealed class SacarDeCofre : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public int Slot { get; set; } public int Cantidad { get; set; } = 1; }
 
 public static class Protocolo
 {

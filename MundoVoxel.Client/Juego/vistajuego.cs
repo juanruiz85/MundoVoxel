@@ -411,9 +411,41 @@ public sealed class VistaJuego : IDrawable
         }
 
         DibujarAntorchas(c, w, h);
+        DibujarNieve(c, w, h);
         DibujarDrops(c, w, h);
 
         DibujarHud(c, w, h);
+    }
+
+    /// <summary>Copos de nieve cayendo alrededor de la camara cuando el jugador
+    /// esta en la tundra. El bioma se recalcula con el mismo ruido de la
+    /// generacion (FBM de baja frecuencia > 0.68).</summary>
+    void DibujarNieve(ICanvas c, int w, int h)
+    {
+        if (Mundo == null) return;
+        float bioma = Ruido.FBM(Cam.Pos.X * 0.012f + 500f, Cam.Pos.Z * 0.012f + 500f, Mundo.Semilla + 11);
+        if (bioma <= 0.68f) return;
+        long t = Environment.TickCount64;
+        float f = (h / 2f) / MathF.Tan(75f * MathF.PI / 180f / 2f);
+        for (int i = 0; i < 60; i++)
+        {
+            uint s = (uint)(i * 2654435761u);
+            float ox = ((s >> 8) & 0xFF) / 255f * 14f - 7f;
+            float oz = ((s >> 16) & 0xFF) / 255f * 14f - 7f;
+            float velocidad = 0.9f + ((s >> 24) & 0xFF) / 255f * 0.7f;
+            float deriva = MathF.Sin(t / 900f + i) * 0.6f;
+            float yOff = (float)((t / 1000.0 * velocidad + (s & 0xFF) / 255f) % 6f);
+            var p = new Vector3(Cam.Pos.X + ox + deriva, Cam.Pos.Y + 4f - yOff, Cam.Pos.Z + oz);
+            var d = p - Cam.Pos;
+            float xc = Vector3.Dot(d, Cam.Derecha);
+            float yc = Vector3.Dot(d, Vector3.Cross(Cam.Derecha, Cam.Adelante));
+            float zc = Vector3.Dot(d, Cam.Adelante);
+            if (zc < 0.12f) continue;
+            float sx = w / 2f + xc * f / zc;
+            float sy = h / 2f - yc * f / zc;
+            c.FillColor = new Color(1, 1, 1, 0.85f);
+            c.FillEllipse(sx - 1.5f, sy - 1.5f, 3, 3);
+        }
     }
 
     /// <summary>Drops en el mundo: cada item caido se dibuja como un icono flotante

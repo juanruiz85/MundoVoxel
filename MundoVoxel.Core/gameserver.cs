@@ -406,6 +406,18 @@ public sealed class GameServer : IAsyncDisposable
                                 bw.Write(s.Cantidad);
                             }
                         }
+                        // Contenido de los cofres por posicion
+                        bw.Write(ms.Cofres.Count);
+                        foreach (var kv in ms.Cofres)
+                        {
+                            bw.Write(kv.Key.x); bw.Write(kv.Key.y); bw.Write(kv.Key.z);
+                            bw.Write(kv.Value.Count);
+                            foreach (var s in kv.Value)
+                            {
+                                bw.Write(s.Material);
+                                bw.Write(s.Cantidad);
+                            }
+                        }
                     }
                     File.WriteAllBytes(Path.Combine(CarpetaMundos, ms.Id + ".mundo"), mem.ToArray());
                 }
@@ -451,6 +463,21 @@ public sealed class GameServer : IAsyncDisposable
                             for (int k = 0; k < ni; k++)
                                 inv.Add(new SlotInventario(br.ReadUInt16(), br.ReadInt32()));
                             ms.Inventarios[nombre] = inv;
+                        }
+                        // Contenido de los cofres (formato extendido): solo si el
+                        // archivo trae la seccion (compatibilidad con archivos viejos)
+                        if (br.BaseStream.Position + 4 <= br.BaseStream.Length)
+                        {
+                            int nc = br.ReadInt32();
+                            for (int i = 0; i < nc; i++)
+                            {
+                                int cx = br.ReadInt32(), cy = br.ReadInt32(), cz = br.ReadInt32();
+                                int ni = br.ReadInt32();
+                                var contenido = new List<SlotInventario>();
+                                for (int k = 0; k < ni; k++)
+                                    contenido.Add(new SlotInventario(br.ReadUInt16(), br.ReadInt32()));
+                                ms.Cofres[(cx, cy, cz)] = contenido;
+                            }
                         }
                         _mundos[ms.Id] = ms;
                         Log($"Mundo cargado: {ms.Nombre}");
@@ -1171,7 +1198,8 @@ public sealed class GameServer : IAsyncDisposable
         }
     }
 
-    /// <summary>Saca 1 del slot indicado del cofre y lo mete en el inventario del jugador.</summary>
+    /// <summary>Saca items del slot indicado del cofre y los mete en el inventario del jugador.
+    /// Cantidad controla cuantos se sacan (1 con clic derecho, todo el stack con clic izquierdo).</summary>
     void SacarDeCofre(ConexionJugador c, SacarDeCofre sc)
     {
         lock (_cerrojo)
@@ -1183,9 +1211,10 @@ public sealed class GameServer : IAsyncDisposable
             if (sc.Slot < 0 || sc.Slot >= lista.Count) return;
             var s = lista[sc.Slot];
             if (s.Cantidad <= 0) return;
-            AgregarInventario(c, s.Material, 1);
-            if (s.Cantidad <= 1) lista.RemoveAt(sc.Slot);
-            else lista[sc.Slot] = s with { Cantidad = s.Cantidad - 1 };
+            int n = Math.Clamp(sc.Cantidad <= 0 ? 1 : sc.Cantidad, 1, s.Cantidad);
+            AgregarInventario(c, s.Material, n);
+            if (s.Cantidad <= n) lista.RemoveAt(sc.Slot);
+            else lista[sc.Slot] = s with { Cantidad = s.Cantidad - n };
             Enviar(c, new CofreAbierto { Slots = CofreEstado(mundo, sc.X, sc.Y, sc.Z) });
             Enviar(c, InventarioActual(c));
         }
