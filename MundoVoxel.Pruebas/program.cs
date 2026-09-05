@@ -399,10 +399,14 @@ var cambioTrigo = await c1.LeerBloqueEn(bx + 1, by + 3, bz, 5000);
 Comprobar(cambioTrigo?.Bloque == Bloques.Trigo0, "plantar semillas en tierra labrada");
 // Esperar a que madure. Ana se pone en modo espectador: no recibe dano de los
 // hostiles nocturnos (mientras tanto el servidor sigue haciendo crecer el trigo).
+// Tope por reloj real: en corridas documentadas (0.10.5) el trigo tardo mas que
+// el presupuesto original de ~210 s (300 lecturas x 700 ms) y el test fallo. Se
+// espera hasta 5 min; el caso feliz sale antes, al ver Trigo3.
 await c1.Enviar(new ModoEspectador { Activo = true });
 await Task.Delay(200);
 bool trigoMaduro = false;
-for (int i = 0; i < 300 && !trigoMaduro; i++)
+var plazoTrigo = DateTime.UtcNow.AddSeconds(300);
+while (!trigoMaduro && DateTime.UtcNow < plazoTrigo)
 {
     var cb = await c1.LeerBloqueEn(bx + 1, by + 3, bz, 700);
     if (cb?.Bloque == Bloques.Trigo3) trigoMaduro = true;
@@ -415,8 +419,14 @@ await c1.LeerBloqueEn(bx + 1, by + 3, bz);
 Comprobar(invCosecha?.Slots.Any(s => s.Material == (ushort)ItemId.Trigo) == true, "cosechar trigo maduro da trigo");
 
 // Soltar item con Q: el inventario baja 1 y el drop se recoge solo.
-// Se usa el Inventario fresco de la cosecha y el slot con mas cantidad.
-var invPreSoltar = invCosecha;
+// El servidor SOLO envia Inventario tras un evento (crafteo, recogida...):
+// leerlo "a secas" devuelve null si no hay ninguno en vuelo. Se fuerza uno
+// con un crafteo barato (madera -> tablones) para partir de un estado FRESCO
+// justo antes de soltar: el de la cosecha podria estar desfasado (o no
+// existir si el trigo fallo) y el indice del slot ya no corresponderia.
+// Se usa el slot con mas cantidad.
+await c1.Enviar(new Craftear { Receta = 0 });
+var invPreSoltar = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 int slotSoltar = -1; int cantInicial = 0; ushort matSoltado = 0;
 if (invPreSoltar != null)
 {
@@ -429,6 +439,7 @@ if (invPreSoltar != null)
     }
 }
 bool soltoOk = false;
+string detalleSoltar = "";
 if (slotSoltar >= 0)
 {
     int objetivo1 = cantInicial >= 2 ? cantInicial - 1 : 0;
@@ -449,18 +460,23 @@ if (slotSoltar >= 0)
         cantS2 = invS2?.Slots.FirstOrDefault(s => s.Material == matSoltado)?.Cantidad ?? 0;
     }
     soltoOk = cantS1 == objetivo1 && cantS2 == objetivo2;
+    detalleSoltar = $" (slot={slotSoltar} mat={matSoltado} inicial={cantInicial} trasSoltar={cantS1}/{objetivo1} trasRecoger={cantS2}/{objetivo2})";
 }
-else Console.WriteLine("[DEBUG] soltar: sin slot disponible");
-Comprobar(soltoOk, "soltar item (Q) suelta 1 y el drop se recoge");
+else detalleSoltar = " (sin slot disponible)";
+Comprobar(soltoOk, "soltar item (Q) suelta 1 y el drop se recoge" + detalleSoltar);
 
 // TNT: sacar del cofre inicial (el anti-cheat no permite colocar lo que no tienes),
-// colocar, encender con el mechero y esperar la explosion
+// colocar, encender con el mechero y esperar la explosion.
+// El slot de la TNT se busca en el CofreAbierto en vez de suponer el 6: si
+// antes se extrajo alguna herramienta del cofre los slots se desplazan y el
+// 6 deja de ser TNT (fallo documentado en 0.10.5).
 await c1.Enviar(new AbrirCofre { X = cfx, Y = cfy, Z = cfz });
-await c1.LeerHasta<CofreAbierto>(timeoutMs: 8000);
+var cofreTnt = await c1.LeerHasta<CofreAbierto>(timeoutMs: 8000);
+int slotTnt = cofreTnt?.Slots.FindIndex(s => s.Material == Bloques.Tnt) ?? -1;
 bool tntSacada = false;
-for (int intento = 0; intento < 4 && !tntSacada; intento++)
+for (int intento = 0; intento < 4 && !tntSacada && slotTnt >= 0; intento++)
 {
-    await c1.Enviar(new SacarDeCofre { X = cfx, Y = cfy, Z = cfz, Slot = 6, Cantidad = 1 });
+    await c1.Enviar(new SacarDeCofre { X = cfx, Y = cfy, Z = cfz, Slot = slotTnt, Cantidad = 1 });
     var invTnt = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
     tntSacada = invTnt?.Slots.Any(s => s.Material == Bloques.Tnt) == true;
 }
