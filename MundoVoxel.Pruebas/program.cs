@@ -95,8 +95,8 @@ Comprobar(mobs != null && mobs.Lista.Select(m => m.Tipo).Distinct().Count() >= 3
 Console.WriteLine("Bloques: romper y colocar con difusion.");
 var aparicionPriv = unidoPriv!;
 int bx = (int)aparicionPriv.Ax, by = (int)aparicionPriv.Ay - 1, bz = (int)aparicionPriv.Az;
-await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-var cambio = await c1.LeerBloqueEn(bx, by, bz);
+var roturaInicial = await RomperHasta(c1, bx, by, bz);
+var cambio = roturaInicial.Cambio;
 Comprobar(cambio != null && cambio.Bloque == Bloques.Aire, "romper bloque difunde BloqueCambio");
 
 // Colocar TIERRA (el kit la trae): difunde y CONSUME 1 del inventario (survival)
@@ -114,19 +114,15 @@ var cambioLadrillo = await c1.LeerBloqueEn(bx, by, bz, 700);
 Comprobar(cambioLadrillo == null, "colocar bloque sin tenerlo se ignora");
 
 // Romper la tierra colocada: vuelve al inventario
-await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-var invDevuelta = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
-await c1.LeerBloqueEn(bx, by, bz, 8000);
-Comprobar(invDevuelta?.Slots.Any(s => s.Material == Bloques.Tierra && s.Cantidad >= 9) == true, "romper bloque lo mete al inventario");
+var roturaTierra = await RomperHasta(c1, bx, by, bz);
+Comprobar(roturaTierra.Inv?.Slots.Any(s => s.Material == Bloques.Tierra && s.Cantidad >= 9) == true, "romper bloque lo mete al inventario");
 
 // Conseguir 3 madera (colocar y romper troncos)
 for (int i = 0; i < 3; i++)
 {
     await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Madera });
     await c1.LeerBloqueEn(bx, by, bz);
-    await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-    await c1.LeerHasta<Inventario>();
-    await c1.LeerBloqueEn(bx, by, bz, 8000);
+    _ = await RomperHasta(c1, bx, by, bz);
 }
 
 // 3 x madera -> 12 tablones (receta 0)
@@ -151,10 +147,8 @@ int yCava = by - 1;
 int piedras = 0;
 for (int i = 0; i < 14 && piedras < 9; i++)
 {
-    await c1.Enviar(new RomperBloque { X = bx, Y = yCava, Z = bz });
-    var invCava = await c1.LeerHasta<Inventario>(timeoutMs: 900);
-    await c1.LeerBloqueEn(bx, yCava, bz);
-    piedras = invCava?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? piedras;
+    var roturaCava = await RomperHasta(c1, bx, yCava, bz);
+    piedras = roturaCava.Inv?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? piedras;
     yCava--;
 }
 Comprobar(piedras >= 8, $"picar piedra natural con pico en el inventario (conseguidas {piedras})");
@@ -180,11 +174,46 @@ for (int intento = 0; intento < 3; intento++)
 }
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Piedra });
 await c1.LeerBloqueEn(bx, by, bz, 8000);
-await c1.Enviar(new RomperBloque { X = bx, Y = by, Z = bz });
-var invSinPico = await c1.LeerHasta<Inventario>(timeoutMs: 500);
-await c1.LeerBloqueEn(bx, by, bz, 2000);
-int piedraSinPico = invSinPico?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
+var roturaSinPico = await RomperHasta(c1, bx, by, bz);
+int piedraSinPico = roturaSinPico.Inv?.Slots.FirstOrDefault(s => s.Material == Bloques.Piedra)?.Cantidad ?? 0;
 Comprobar(piedraSinPico == 0, $"sin pico en el inventario, la piedra rompida no se guarda ({piedraSinPico})");
+
+// ---------- herramientas: golpes por bloque (pico/hacha/pala con funcion real) ----------
+Comprobar(Objetos.GolpesPara(Bloques.Piedra, 0) == 5, "piedra a mano requiere 5 golpes");
+Comprobar(Objetos.GolpesPara(Bloques.Piedra, (ushort)ItemId.PicoMadera) == 2, "pico de madera rompe piedra en 2 golpes");
+Comprobar(Objetos.GolpesPara(Bloques.Piedra, (ushort)ItemId.PicoHierro) == 1, "pico de hierro rompe piedra al primer golpe");
+Comprobar(Objetos.GolpesPara(Bloques.Madera, 0) == 3, "madera a mano requiere 3 golpes");
+Comprobar(Objetos.GolpesPara(Bloques.Madera, (ushort)ItemId.HachaPiedra) == 1, "hacha rompe madera al primer golpe");
+Comprobar(Objetos.GolpesPara(Bloques.Tierra, 0) == 2, "tierra a mano requiere 2 golpes");
+Comprobar(Objetos.GolpesPara(Bloques.Tierra, (ushort)ItemId.PalaMadera) == 1, "pala rompe tierra al primer golpe");
+Comprobar(Objetos.GolpesPara(Bloques.Hoja, 0) == 1, "las plantas siguen rompiendose al primer golpe");
+
+// Tablones extra: el hacha y la pala de madera se craftean con tablones
+await c1.Enviar(new Craftear { Receta = 0 });
+_ = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+
+// Hacha de madera: craftearla de verdad y verificar que la madera cae al primer golpe
+int idxHacha = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Hacha de madera");
+await c1.Enviar(new Craftear { Receta = idxHacha });
+var invHacha = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+Comprobar(invHacha?.Slots.Any(s => s.Material == (ushort)ItemId.HachaMadera) == true, "craftear hacha de madera");
+await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Madera });
+await c1.LeerBloqueEn(bx, by, bz, 8000);
+var roturaHacha = await RomperHasta(c1, bx, by, bz, maxGolpes: 1);
+Comprobar(roturaHacha.Cambio != null, "con hacha en el inventario la madera cae al primer golpe");
+
+// Pala de madera: palos extra, craftearla y verificar que la tierra cae al primer golpe
+await c1.Enviar(new Craftear { Receta = 1 });
+_ = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+int idxPala = Array.FindIndex(Objetos.RecetasCrafteo, r => r.Nombre == "Pala de madera");
+await c1.Enviar(new Craftear { Receta = idxPala });
+var invPala = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+Comprobar(invPala?.Slots.Any(s => s.Material == (ushort)ItemId.PalaMadera) == true, "craftear pala de madera");
+await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Tierra });
+await c1.LeerBloqueEn(bx, by, bz, 8000);
+var roturaPala = await RomperHasta(c1, bx, by, bz, maxGolpes: 1);
+Comprobar(roturaPala.Cambio != null, "con pala en el inventario la tierra cae al primer golpe");
+if (roturaPala.Cambio == null) _ = await RomperHasta(c1, bx, by, bz); // limpieza: no dejar bloque puesto
 
 // Cocinar sin horno cerca -> error
 await c1.Enviar(new Cocinar { Receta = 0 });
@@ -270,18 +299,14 @@ if (cxC >= 0)
 {
     await c1.Enviar(new Posicion { Px = cxC, Py = cyC, Pz = czC, Ry = 0, Pitch = 0 });
     await Task.Delay(150);
-    await c1.Enviar(new RomperBloque { X = cxC, Y = cyC, Z = czC });
-    var invCarbon = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
-    await c1.LeerHasta<BloqueCambio>(timeoutMs: 2000);
+    var invCarbon = (await RomperHasta(c1, cxC, cyC, czC)).Inv;
     Comprobar(invCarbon?.Slots.Any(s => s.Material == (ushort)ItemId.CarbonItem) == true, "picar carbon da carbon (combustible)");
 }
 if (cxO >= 0)
 {
     await c1.Enviar(new Posicion { Px = cxO, Py = cyO, Pz = czO, Ry = 0, Pitch = 0 });
     await Task.Delay(150);
-    await c1.Enviar(new RomperBloque { X = cxO, Y = cyO, Z = czO });
-    var invOroBruto = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
-    await c1.LeerHasta<BloqueCambio>(timeoutMs: 2000);
+    var invOroBruto = (await RomperHasta(c1, cxO, cyO, czO)).Inv;
     Comprobar(invOroBruto?.Slots.Any(s => s.Material == (ushort)ItemId.OroBruto) == true, "picar oro da oro en bruto");
 }
 // Volver al spawn (junto al horno) para la fundicion
@@ -617,6 +642,29 @@ Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLA
 return errores == 0 ? 0 : 1;
 
 // ------------------------------------------------------------------
+
+// Rompe un bloque enviando golpes hasta que cae (los bloques duros requieren
+// varios, ver Objetos.GolpesPara). Devuelve el BloqueCambio de la rotura, el
+// ultimo Inventario recibido durante el proceso y los golpes necesarios.
+static async Task<(BloqueCambio? Cambio, Inventario? Inv, int Golpes)> RomperHasta(ClientePrueba c, int x, int y, int z, int maxGolpes = 8)
+{
+    BloqueCambio? cambio = null; Inventario? inv = null;
+    int golpes = 0;
+    for (int i = 0; i < maxGolpes && cambio == null; i++)
+    {
+        await c.Enviar(new RomperBloque { X = x, Y = y, Z = z });
+        golpes = i + 1;
+        var fin = DateTime.UtcNow.AddMilliseconds(1600);
+        while (cambio == null && DateTime.UtcNow < fin)
+        {
+            var m = await c.LeerCualquiera(160);
+            if (m == null) break;
+            if (m is BloqueCambio bc && bc.X == x && bc.Y == y && bc.Z == z) cambio = bc;
+            else if (m is Inventario invm) inv = invm;
+        }
+    }
+    return (cambio, inv, golpes);
+}
 
 static async Task<ClientePrueba> Conectar(int puerto)
 {

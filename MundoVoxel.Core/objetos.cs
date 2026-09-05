@@ -330,6 +330,45 @@ public static class Objetos
     /// <summary>Indica si el ítem es una espada (aumenta el daño a mobs).</summary>
     public static bool EsEspada(ushort item) => DanioEspada(item) > 0;
 
+    /// <summary>Indica si el item es una pala (mas rapida en tierra/arena/nieve/grava).</summary>
+    public static bool EsPala(ushort item) => item is
+        (ushort)ItemId.PalaMadera or (ushort)ItemId.PalaPiedra or (ushort)ItemId.PalaCobre
+        or (ushort)ItemId.PalaHierro or (ushort)ItemId.PalaOro or (ushort)ItemId.PalaDiamante;
+
+    /// <summary>Golpes necesarios para romper un bloque con la herramienta dada
+    /// (1 = se rompe al primer golpe). La herramienta correcta reduce los golpes:
+    /// pico en piedra/menas, hacha en madera y muebles, pala en tierra/arena.
+    /// Los drops no cambian; el servidor aplica la tabla para que las
+    /// herramientas tengan funcion real sin confiar en el cliente.</summary>
+    public static int GolpesPara(ushort bloque, ushort herramienta)
+    {
+        if (bloque is Bloques.Piedra or Bloques.Carbon or Bloques.Hierro or Bloques.Cobre
+            or Bloques.Oro or Bloques.Diamante or Bloques.Ladrillo or Bloques.Horno or Bloques.Arenisca)
+        {
+            if (!EsPico(herramienta)) return 5;
+            return herramienta is (ushort)ItemId.PicoHierro or (ushort)ItemId.PicoDiamante ? 1 : 2;
+        }
+        if (bloque is Bloques.Madera or Bloques.Tablones)
+            return EsHacha(herramienta) ? 1 : 3;
+        if (bloque is Bloques.Cofre or Bloques.Mesa)
+            return EsHacha(herramienta) ? 1 : 2;
+        if (bloque is Bloques.Tierra or Bloques.Cesped or Bloques.TierraLabrada
+            or Bloques.Arena or Bloques.Nieve or Bloques.Grava)
+            return EsPala(herramienta) ? 1 : 2;
+        return 1;
+    }
+
+    /// <summary>Menor cantidad de golpes para un bloque entre todas las
+    /// herramientas del inventario: basta con TENER la herramienta correcta,
+    /// el mismo criterio que los drops de minerales desde 0.10.5.</summary>
+    public static int MejoresGolpes(IEnumerable<SlotInventario> inventario, ushort bloque)
+    {
+        int mejor = int.MaxValue;
+        foreach (var s in inventario)
+            mejor = Math.Min(mejor, GolpesPara(bloque, s.Material));
+        return mejor;
+    }
+
     /// <summary>Tipo de herramienta de un ítem (o Ninguna).</summary>
     public static TipoHerramienta TipoDe(ushort item)
     {

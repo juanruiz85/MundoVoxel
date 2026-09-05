@@ -161,6 +161,10 @@ public sealed class GameServer : IAsyncDisposable
         public int SiguienteMobId;
         public readonly List<Drop> Drops = new();
         public int SiguienteDropId;
+        // Progreso de rotura por posicion: los bloques duros requieren varios
+        // golpes (ver Objetos.GolpesPara); se reinicia si cambia el bloque o
+        // pasan mas de 2 s sin golpear.
+        public readonly Dictionary<(int X, int Y, int Z), (ushort Bloque, int Golpes, DateTime Ultimo)> GolpesRomper = new();
         public float Hora = 8f;       // ciclo dia/noche: 0-24h (empieza de manana)
         public float SegundosPorDia;   // duracion real de un dia (0 = usar ajuste global)
         public int PoblacionMobs = -1; // cantidad objetivo de mobs (config del mundo)
@@ -739,6 +743,31 @@ public sealed class GameServer : IAsyncDisposable
             if (Vector3.Distance(c.Pos, new Vector3(rb.X + 0.5f, rb.Y + 0.5f, rb.Z + 0.5f)) > 7f) return;
             var actual = m.Obtener(rb.X, rb.Y, rb.Z);
             if (!Bloques.EsRompible(actual)) return;
+
+            // Mineria por golpes: los bloques duros necesitan varios golpes y la
+            // herramienta correcta los reduce (pico en piedra, hacha en madera,
+            // pala en tierra/arena; basta con TENERLA, igual que los drops). El
+            // progreso se reinicia si cambia el bloque o cesan los golpes 2 s.
+            int necesarios = Objetos.GolpesPara(actual, ItemEnMano(c));
+            if (necesarios > 1)
+                necesarios = Math.Min(necesarios, Objetos.MejoresGolpes(c.Inventario, actual));
+            if (necesarios > 1)
+            {
+                var clave = (rb.X, rb.Y, rb.Z);
+                var ahoraGolpe = DateTime.UtcNow;
+                if (!mundo.GolpesRomper.TryGetValue(clave, out var prog) || prog.Bloque != actual
+                    || (ahoraGolpe - prog.Ultimo).TotalSeconds > 2)
+                    prog = (actual, 0, ahoraGolpe);
+                prog.Golpes++;
+                if (prog.Golpes < necesarios)
+                {
+                    mundo.GolpesRomper[clave] = prog;
+                    return; // golpe acumulado: el bloque aun no cae
+                }
+                mundo.GolpesRomper.Remove(clave);
+            }
+            else mundo.GolpesRomper.Remove((rb.X, rb.Y, rb.Z));
+
             m.Poner(rb.X, rb.Y, rb.Z, Bloques.Aire);
 
             // Al romper un cofre, su contenido cae al suelo como drops
@@ -804,7 +833,7 @@ public sealed class GameServer : IAsyncDisposable
         if (c.Mano != 0 && Contar(c, c.Mano) > 0) return c.Mano;
         // Si no selecciono nada (o ya no tiene el item), usar la mejor herramienta disponible
         foreach (var s in c.Inventario)
-            if (Objetos.EsPico(s.Material) || Objetos.EsAzada(s.Material) || Objetos.EsHacha(s.Material) || Objetos.EsEspada(s.Material))
+            if (Objetos.EsPico(s.Material) || Objetos.EsAzada(s.Material) || Objetos.EsHacha(s.Material) || Objetos.EsEspada(s.Material) || Objetos.EsPala(s.Material))
                 return s.Material;
         return 0;
     }
