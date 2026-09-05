@@ -633,6 +633,13 @@ var lista2 = await c1.LeerHasta<ListaMundos>();
 Comprobar(!lista2!.Mundos.Any(m => m.Id == idMundo), "el dueno borra su mundo");
 Comprobar(lista2.Mundos.Any(m => m.Id == idPrivado), "el mundo de Bruno sigue en memoria");
 
+// ---------- tope de descompresion (bomba gzip) ----------
+var bomba = Mundo.Comprimir(new byte[70 * 1024 * 1024]);
+bool topeLanzo = false;
+try { _ = Mundo.Descomprimir(bomba); }
+catch (InvalidDataException) { topeLanzo = true; }
+Comprobar(topeLanzo, "la descompresion de mundos tiene tope de seguridad (bomba gzip rechazada)");
+
 // ---------- cierre ----------
 c1.Cerrar(); c2.Cerrar();
 await servidor.DetenerAsync();

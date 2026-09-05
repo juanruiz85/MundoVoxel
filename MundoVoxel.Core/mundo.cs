@@ -297,12 +297,25 @@ public class Mundo
         return ms.ToArray();
     }
 
+    /// <summary>Tope de descompresion: un archivo .mundo o mensaje Unido
+    /// manipulado (bomba gzip) no puede pedir memoria ilimitada. Los mundos
+    /// validos rondan unos pocos MB, 64 MB deja margen de sobra.</summary>
+    public const long TamanoDescompresionMax = 64L * 1024 * 1024;
+
     public static byte[] Descomprimir(byte[] datos)
     {
         using var ms = new MemoryStream(datos);
         using var gz = new GZipStream(ms, CompressionMode.Decompress);
         using var salida = new MemoryStream();
-        gz.CopyTo(salida);
+        var buffer = new byte[8192];
+        while (true)
+        {
+            int leidos = gz.Read(buffer, 0, buffer.Length);
+            if (leidos == 0) break;
+            if (salida.Length + leidos > TamanoDescompresionMax)
+                throw new InvalidDataException("Mundo descomprimido demasiado grande (posible bomba gzip).");
+            salida.Write(buffer, 0, leidos);
+        }
         return salida.ToArray();
     }
 }
