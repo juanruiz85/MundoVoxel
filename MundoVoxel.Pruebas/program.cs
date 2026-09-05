@@ -640,6 +640,30 @@ try { _ = Mundo.Descomprimir(bomba); }
 catch (InvalidDataException) { topeLanzo = true; }
 Comprobar(topeLanzo, "la descompresion de mundos tiene tope de seguridad (bomba gzip rechazada)");
 
+// ---------- favoritos de servidores del cliente ----------
+// Persistencia JSON de la lista de servidores favoritos (MundoVoxel.Core):
+// usa una ruta temporal para no tocar los favoritos reales del usuario.
+Console.WriteLine("Favoritos de servidores: persistencia JSON en ruta temporal.");
+var rutaFav = Path.Combine(Path.GetTempPath(), "mundovoxel-pruebas-" + Guid.NewGuid().ToString("N"), "servidores.json");
+Comprobar(ServidoresFavoritos.Cargar(rutaFav).Count == 0, "favoritos vacios cuando el archivo no existe");
+ServidoresFavoritos.AgregarRuta(rutaFav, new ServidorFavorito { Alias = "Casa", Ip = "192.168.1.10", Puerto = 25575 });
+ServidoresFavoritos.AgregarRuta(rutaFav, new ServidorFavorito { Alias = "Internet", Ip = "juego.example.com", Puerto = 25575 });
+ServidoresFavoritos.AgregarRuta(rutaFav, new ServidorFavorito { Alias = "Casa renombrado", Ip = "192.168.1.10", Puerto = 25575 });
+var favoritos = ServidoresFavoritos.Cargar(rutaFav);
+Comprobar(favoritos.Count == 2, "agregar dos veces la misma direccion no duplica (solo renombra)");
+Comprobar(favoritos[0].Alias == "Casa renombrado" && favoritos[0].Ip == "192.168.1.10", "el alias del favorito existente se actualiza");
+Comprobar(favoritos[1].Ip == "juego.example.com" && favoritos[1].Puerto == 25575, "el favorito nuevo conserva ip y puerto");
+ServidoresFavoritos.QuitarRuta(rutaFav, "192.168.1.10", 25575);
+Comprobar(ServidoresFavoritos.Cargar(rutaFav).Count == 1, "quitar un favorito lo elimina del archivo");
+for (int i = 0; i < ServidoresFavoritos.Maximo + 5; i++)
+    ServidoresFavoritos.AgregarRuta(rutaFav, new ServidorFavorito { Alias = "S" + i, Ip = "10.0.0." + i, Puerto = 25575 });
+Comprobar(ServidoresFavoritos.Cargar(rutaFav).Count == ServidoresFavoritos.Maximo, $"la lista de favoritos respeta el tope de {ServidoresFavoritos.Maximo}");
+await File.WriteAllTextAsync(rutaFav, "{ esto no es json ]");
+Comprobar(ServidoresFavoritos.Cargar(rutaFav).Count == 0, "un archivo de favoritos danado se trata como lista vacia (sin romper)");
+ServidoresFavoritos.QuitarRuta(rutaFav, "10.0.0.0", 25575); // sin efecto: archivo danado, no debe lanzar
+Comprobar(true, "quitar sobre un archivo danado no lanza excepcion");
+try { Directory.Delete(Path.GetDirectoryName(rutaFav)!, true); } catch { }
+
 // ---------- cierre ----------
 c1.Cerrar(); c2.Cerrar();
 await servidor.DetenerAsync();

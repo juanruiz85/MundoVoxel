@@ -20,6 +20,13 @@ menu.ip_vacia=Escribe la IP del servidor.
 menu.controles_titulo=Controles
 menu.controles_desc=WASD moverse · Espacio saltar · F volar · T chat · Esc pausa · Clic colocar · Doble clic / R romper · 1-9 bloques · Arrastrar mirar
 
+# ---- Servidores favoritos del menú ----
+menu.favoritos_titulo=Servidores favoritos
+menu.favoritos_guardar=★ Guardar servidor como favorito
+menu.favoritos_alias=Alias para guardar «{0}»:
+menu.favoritos_borrar=¿Quitar el favorito «{0}»?
+menu.favoritos_vacio_ip=Escribe primero la IP del servidor.
+
 # ---- Lista de mundos ----
 mundos.titulo=Mundos en {0}
 mundos.vacio=No hay mundos todavía. ¡Crea el primero!
