@@ -198,59 +198,74 @@ Ideas a corto plazo:
 ---
 
 <!-- IA-USO-INICIO -->
-## 🤖 Uso de IA en el desarrollo
+## ðŸ¤– Uso de IA en el desarrollo
 
-> Sección actualizada automáticamente en cada commit con docs/actualizar-stats-ia.ps1.
-> Los datos salen de los archivos de sesión del gateway (AutoClaw/OpenClaw): tokens,
-> modelos y costos reportados por el proveedor, más los prompts escritos por el
-> desarrollador (marcados como solicitudes de usuario).
+> SecciÃ³n actualizada automÃ¡ticamente en cada commit con docs/actualizar-stats-ia.ps1.
+> Los datos salen de los archivos de sesiÃ³n del gateway (AutoClaw/OpenClaw): tokens,
+> modelos y costos reportados por el proveedor, mÃ¡s los prompts escritos por el
+> desarrollador (marcados como solicitudes de usuario). El consumo del **ZCode CLI**
+> (capa de codigo delegada) se anade aparte: el gateway no lo ve.
 
 ### Resumen
 
-| Métrica | Valor |
+| MÃ©trica | Valor |
 |---|---|
-| Período de desarrollo | 2026-08-13 → 2026-09-05 |
+| PerÃ­odo de desarrollo | 2026-08-13 â†’ 2026-09-05 |
 | Sesiones de IA | 18 |
-| Prompts del desarrollador | 304 |
-| Respuestas generadas por IA | 5,747 |
-| Tokens de entrada (prompts + contexto) | 21,464,034 |
-| Tokens de salida (generación) | 7,117,011 |
-| **Tokens totales** | **28,581,045** |
-| Tokens de caché leídos | 1,151,561,984 |
+| Prompts del desarrollador | 310 |
+| Respuestas generadas por IA | 5,881 |
+| Tokens de entrada (prompts + contexto) | 22,854,335 |
+| Tokens de salida (generaciÃ³n) | 7,243,142 |
+| **Tokens totales** | **30,097,477** |
+| Tokens de cachÃ© leÃ­dos | 1,172,826,816 |
 | Costo real registrado | $0.00 (modelo ZAI sin cargo reportado) |
-| Costo estimado a tarifas de mercado | ~215.02 USD |
+| Costo estimado a tarifas de mercado | ~220.94 USD |
 | Agentes de IA con uso | auto-coder, main |
 
 ### Promedios
 
-- Tokens por prompt: ~70,605 de entrada / ~23,411 de salida.
+- Tokens por prompt: ~73,724 de entrada / ~23,365 de salida.
 - Costo estimado por prompt: ~0.71 USD (a tarifas de mercado).
 
 ### Modelos utilizados
 
 | Modelo | Respuestas | % del total |
 |---|---|---|
-| zai_auto (ruteo automático) | 5463 | 95.1% |
-| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 3.7% |
-|  | 46 | 0.8% |
+| zai_auto (ruteo automÃ¡tico) | 5597 | 95.2% |
+| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 3.6% |
+| zai/tdpsk_deepseek-v4-pro-202606 | 46 | 0.8% |
 | gateway-injected (mensaje interno) | 12 | 0.2% |
-|  | 12 | 0.2% |
-|  | 2 | 0% |
-|  | 2 | 0% |
+| zai/zaicoding_glm-5.2 | 12 | 0.2% |
+| zai/tdpsk_deepseek-v4-flash-202605 | 2 | 0% |
+| zai/zaicoding_glm-5.3 | 2 | 0% |
+
+### Uso via ZCode CLI (capa de codigo delegada)
+
+El agente delega tareas de codigo al **ZCode CLI**, que hace sus propias llamadas
+al modelo. Ese consumo no pasa por el gateway: se registra en
+`~/.zcode/cli/rollout/model-io-*.jsonl` y se reporta aqui aparte.
+
+| Modelo | Llamadas | Tokens entrada | Tokens salida | Cache leida |
+|---|---|---|---|---|
+| auto | 70 | 4,497,014 | 75,534 | 4,218,688 |
+| deepseek-v4-pro-202606 (DeepSeek V4 Pro) | 17 | 440,741 | 2,920 | 380,928 |
+
+- Total: 87 llamadas - 4,937,755 tokens de entrada - 78,454 de salida - 4,599,616 de cache leida.
 
 ### Plataforma
 
 - **OpenClaw / AutoClaw** (gateway local), API compatible openai-completions.
-- Los modelos se sirven vía **ZAI** (ruteador zai_auto elige el modelo según la tarea; también se usaron DeepSeek V4 Flash y GLM-5 Turbo).
-- Herramientas auxiliares de IA: AutoGLM (reconocimiento visual de capturas) y scripts UIA locales.
+- Los modelos se sirven vÃ­a **ZAI** (ruteador zai_auto elige el modelo segÃºn la tarea; tambiÃ©n se usaron DeepSeek V4 Flash y GLM-5 Turbo).
+- Herramientas auxiliares de IA: AutoGLM (reconocimiento visual de capturas), scripts UIA locales
+  y **ZCode CLI** (implementacion de codigo, con DeepSeek V4 Pro; ver desglose arriba).
 
-### Nota metodológica
+### Nota metodolÃ³gica
 
 - "Tokens de entrada" incluye el contexto completo reenviado en cada turno (por eso es
-  muy superior a los tokens de salida). "Caché leída" son tokens reutilizados del contexto
+  muy superior a los tokens de salida). "CachÃ© leÃ­da" son tokens reutilizados del contexto
   previo (tarifa reducida en proveedores comerciales).
 - El **costo real registrado es $0.00** porque el proveedor ZAI no reporta cargos para
   estos modelos; la columna "estimado a tarifas de mercado" usa $2/M entrada,
-  $8/M salida y $0.10/M caché (referencia típica de modelos de razonamiento) solo como
-  orientación.
+  $8/M salida y $0.10/M cachÃ© (referencia tÃ­pica de modelos de razonamiento) solo como
+  orientaciÃ³n.
 <!-- IA-USO-FIN -->

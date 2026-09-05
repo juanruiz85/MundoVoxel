@@ -1,4 +1,4 @@
-﻿# actualizar-stats-ia.ps1
+# actualizar-stats-ia.ps1
 # Genera la seccion "Uso de IA en el desarrollo" del readme.md a partir de los
 # archivos de sesion del gateway (AutoClaw/OpenClaw). Ejecutar desde la raiz del
 # repositorio antes de cada commit:
@@ -56,6 +56,40 @@ $ultima = (Get-ChildItem "$SessionsRoot\*\sessions\*.jsonl" -ErrorAction Silentl
     } | Where-Object { $_ } | Sort-Object | Select-Object -Last 1)
 $periodo = "$(([datetime]$primera).ToString('yyyy-MM-dd')) → $(([datetime]$ultima).ToString('yyyy-MM-dd'))"
 
+
+# --- Uso via ZCode CLI (capa de codigo delegada) -----------------------------
+# ZCode hace sus propias llamadas al modelo y las registra en
+# ~/.zcode/cli/rollout/model-io-*.jsonl (modelo + tokens por llamada). El
+# gateway no ve este consumo: se suma aparte para reportarlo honestamente.
+$zcodeLlamadas = 0; $zcodeIn = [long]0; $zcodeOut = [long]0; $zcodeCache = [long]0
+$zcodeModelos = @{}; $zcodeInM = @{}; $zcodeOutM = @{}; $zcodeCacheM = @{}
+$zcodeDir = Join-Path $HOME ".zcode\cli\rollout"
+if (Test-Path $zcodeDir) {
+    Get-ChildItem $zcodeDir -Filter "model-io-*.jsonl" -ErrorAction SilentlyContinue | ForEach-Object {
+        Get-Content $_.FullName -ErrorAction SilentlyContinue | ForEach-Object {
+            try { $j = $_ | ConvertFrom-Json } catch { return }
+            $modelId = $null
+            if ($j.model -and $j.model.modelId) { $modelId = $j.model.modelId }
+            if (-not $modelId) { return }
+            $zcodeLlamadas++
+            if (-not $zcodeModelos.ContainsKey($modelId)) { $zcodeModelos[$modelId] = 0 }
+            $zcodeModelos[$modelId]++
+            $u = $null
+            if ($j.response -and $j.response.usage) { $u = $j.response.usage }
+            if (-not $u -and $j.usage) { $u = $j.usage }
+            if ($u) {
+                $i2 = 0; $o2 = 0; $c2 = 0
+                if ($u.inputTokens)      { $i2 = [long]$u.inputTokens }
+                if ($u.outputTokens)     { $o2 = [long]$u.outputTokens }
+                if ($u.cacheReadTokens)  { $c2 = [long]$u.cacheReadTokens }
+                $zcodeIn += $i2; $zcodeOut += $o2; $zcodeCache += $c2
+                $zcodeInM[$modelId] = [long]$zcodeInM[$modelId] + $i2
+                $zcodeOutM[$modelId] = [long]$zcodeOutM[$modelId] + $o2
+                $zcodeCacheM[$modelId] = [long]$zcodeCacheM[$modelId] + $c2
+            }
+        }
+    }
+}
 # --- Estimacion a tarifas de mercado (modelos equivalentes de razonamiento) -
 $precioIn = 2.00; $precioOut = 8.00; $precioCache = 0.10   # USD por millon
 $estIn   = $totIn   / 1e6 * $precioIn
@@ -76,11 +110,38 @@ $modelos.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
         "dpskpro_deepseek-v4-flash"   { "dpskpro_deepseek-v4-flash (DeepSeek V4 Flash)" }
         "zai_glm-5-turbo"             { "zai_glm-5-turbo (GLM-5 Turbo)" }
         "gateway-injected"            { "gateway-injected (mensaje interno)" }
-        default                       { $_.Key }
+        default                       { if ($_ -eq $null -or $_.Trim('/') -eq '') { "(sin identificar en la sesion)" } else { $_ } }
     }
     $filasModelos += "| $nombre | $($_.Value) | $pct% |`n"
 }
 
+$filasZcode = ""
+$zcodeModelos.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
+    $k = $_.Key
+    $nombreZ = switch -Regex ($k) {
+        "deepseek-v4-pro" { "$k (DeepSeek V4 Pro)" }
+        default           { $k }
+    }
+    $inM = [long]$zcodeInM[$k]; $outM = [long]$zcodeOutM[$k]; $cM = [long]$zcodeCacheM[$k]
+    $filasZcode += "| $nombreZ | $($_.Value) | $(Fmt $inM) | $(Fmt $outM) | $(Fmt $cM) |`n"
+}
+$seccionZcode = ""
+if ($zcodeLlamadas -gt 0) {
+$seccionZcode = @"
+
+### Uso via ZCode CLI (capa de codigo delegada)
+
+El agente delega tareas de codigo al **ZCode CLI**, que hace sus propias llamadas
+al modelo. Ese consumo no pasa por el gateway: se registra en
+``~/.zcode/cli/rollout/model-io-*.jsonl`` y se reporta aqui aparte.
+
+| Modelo | Llamadas | Tokens entrada | Tokens salida | Cache leida |
+|---|---|---|---|---|
+$($filasZcode.TrimEnd())
+
+- Total: $($zcodeLlamadas) llamadas - $(Fmt $zcodeIn) tokens de entrada - $(Fmt $zcodeOut) de salida - $(Fmt $zcodeCache) de cache leida.
+"@
+}
 $agentesTxt = ($agentesConUso.Keys | Sort-Object) -join ", "
 $costoReal = if ($totCost -gt 0) { "$" + $totCost.ToString("0.00", $n) } else { '$0.00 (modelo ZAI sin cargo reportado)' }
 
@@ -90,7 +151,8 @@ $seccion = @"
 > Sección actualizada automáticamente en cada commit con `docs/actualizar-stats-ia.ps1`.
 > Los datos salen de los archivos de sesión del gateway (AutoClaw/OpenClaw): tokens,
 > modelos y costos reportados por el proveedor, más los prompts escritos por el
-> desarrollador (marcados como solicitudes de usuario).
+> desarrollador (marcados como solicitudes de usuario). El consumo del **ZCode CLI**
+> (capa de codigo delegada) se anade aparte: el gateway no lo ve.
 
 ### Resumen
 
@@ -118,12 +180,14 @@ $seccion = @"
 | Modelo | Respuestas | % del total |
 |---|---|---|
 $($filasModelos.TrimEnd())
+$seccionZcode
 
 ### Plataforma
 
 - **OpenClaw / AutoClaw** (gateway local), API compatible `openai-completions`.
 - Los modelos se sirven vía **ZAI** (ruteador `zai_auto` elige el modelo según la tarea; también se usaron DeepSeek V4 Flash y GLM-5 Turbo).
-- Herramientas auxiliares de IA: AutoGLM (reconocimiento visual de capturas) y scripts UIA locales.
+- Herramientas auxiliares de IA: AutoGLM (reconocimiento visual de capturas), scripts UIA locales
+  y **ZCode CLI** (implementacion de codigo, con DeepSeek V4 Pro; ver desglose arriba).
 
 ### Nota metodológica
 
@@ -155,3 +219,4 @@ if ($contenido.Contains($marcaI) -and $contenido.Contains($marcaF)) {
 Write-Host "OK: readme.md actualizado."
 Write-Host "  Sesiones=$sesiones Prompts=$prompts Respuestas=$asst TokensIn=$(Fmt $totIn) TokensOut=$(Fmt $totOut) Cache=$(Fmt $totCache)"
 Write-Host "  Costo real=$costoReal | Estimado mercado=$(($estTotal).ToString('0.00', $n)) USD | Agentes: $agentesTxt"
+if ($zcodeLlamadas -gt 0) { Write-Host "  ZCode CLI: $zcodeLlamadas llamadas | TokensIn=$(Fmt $zcodeIn) TokensOut=$(Fmt $zcodeOut) Cache=$(Fmt $zcodeCache)" }
