@@ -53,7 +53,7 @@ Verás algo como: `Servidor «MundoVoxel» escuchando en el puerto 25575`.
 ```bash
 dotnet run --project MundoVoxel.Pruebas
 ```
-Debe terminar con `PRUEBAS SUPERADAS` (68 comprobaciones).
+Debe terminar con `PRUEBAS SUPERADAS` (71 comprobaciones).
 
 ### 3) Compilar el servidor para producción
 ```bash
@@ -191,8 +191,8 @@ Ideas a corto plazo:
 - ✅ Persistencia de mundos en disco (se guardan en `%LOCALAPPDATA%\MundoVoxel\mundos` y se restauran al arrancar).
 - ✅ Sistema de inventario y supervivencia (inventario, crafteo, cofres, salud, hambre, oxígeno, muerte y respawn).
 - ✅ Más tipos de bloques, iluminación por día/noche y biomas (desierto y tundra).
+- ✅ Anti-cheat básico de movimiento (opt-in) y moderación de chat.
 - Lista de servidores favoritos y reconexión automática.
-- Anti-cheat básico y moderación de chat.
 - Portar el cliente a Linux cuando MAUI tenga soporte oficial.
 
 ---

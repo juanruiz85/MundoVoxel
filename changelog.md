@@ -2,6 +2,28 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.6] - 2026-09-04
+
+### Corregido (tests de la suite)
+- **Los 5 tests intermitentes de 0.10.5 quedan robustos** (eran fallos de los tests, no del juego):
+  - **Trigo (2)**: la espera de maduración pasa a tope por reloj real (5 min) en vez de 300 lecturas × 700 ms (~210 s), que en corridas cargadas se agotaba antes de ver `Trigo3`.
+  - **Soltar con Q (1)**: el servidor solo envía `Inventario` tras un evento, así que leer uno "fresco" a secas devolvía null y el test se quedaba sin slot; ahora se fuerza un inventario actual con un crafteo barato (madera → tablones) antes de elegir el slot, y el mensaje de fallo detalla slot/material/cantidades.
+  - **TNT del cofre (2)**: el slot ya no se supone el 6; se busca la TNT en el `CofreAbierto` recién abierto (si se extrae una herramienta, los slots se desplazan).
+
+### Añadido
+- **Interpolación de jugadores remotos**: la posición de los demás jugadores ya no salta con cada mensaje `Posiciones` (10 Hz); el cliente interpola hacia la última posición recibida con suavizado exponencial (~150 ms de convergencia) y aplica de golpe los saltos grandes (>8 bloques, teletransporte/respawn).
+- **Anti-cheat de movimiento (opt-in)**: `AntiCheatSaltoMax` (bloques máximos entre mensajes de posición, caza teletransportes) y `AntiCheatVelocidadMax` (bloques/segundo, caza speedhack) en `ajustes.config.json`; 0 = desactivado (por defecto, como hasta ahora). Con los límites activos, el salto imposible se ignora y el servidor conserva la posición anterior (las acciones se validan por distancia contra la posición aceptada).
+- **Moderación básica de chat**: se quitan caracteres de control (saltos de línea que falsearían el historial), se mantiene el tope de 200 caracteres y se añade anti-flood (más de 10 mensajes en 3 s se ignoran).
+- **3 tests nuevos**: teletransporte ignorado con anti-cheat activo, movimiento normal aceptado, y limpieza de caracteres de control en el chat.
+
+### Actualizado
+- `readme.md` y `docs/arquitectura.md`: las ideas "a corto plazo" ya hechas (persistencia en disco, inventario/supervivencia, día/noche/biomas) se marcan como tales y quedan solo las pendientes; se corrigen las menciones a "mundos solo en memoria" y el conteo de comprobaciones (71).
+- `docs/guia-de-pruebas.md`: nota del entorno recortado (sin `ProgramFiles(x86)`/`ProgramData` el restore de NuGet falla con `Value cannot be null (Parameter 'path1')`) y tiempo estimado de la suite actualizado.
+
+### Probado
+- Suite automática: **PRUEBAS SUPERADAS** — 2 corridas verdes consecutivas tras los ajustes de los tests (67/67) y una tercera con los tests nuevos de anti-cheat y moderación (70/70; 71 puntos de comprobación contando uno condicional).
+- Builds: Core/Pruebas **0 errores**; cliente Windows `net10.0-windows10.0.19041.0` **0 errores** (8 avisos preexistentes).
+
 ## [0.10.5] - 2026-08-31
 
 ### Corregido (survival: consumo de items, minerales y transparencias)

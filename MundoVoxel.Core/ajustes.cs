@@ -40,6 +40,15 @@ public static class Ajustes
         public int CantidadMobs { get; set; } = 12;          // poblacion objetivo de mobs
         public int ProfundidadLagoMin { get; set; } = 4;     // profundidad de lagos (agua/lava)
         public int ProfundidadLagoMax { get; set; } = 20;
+        // Anti-cheat de movimiento (servidor): 0 = desactivado (por defecto, la
+        // posicion se confia al cliente como hasta ahora). Un servidor dedicado
+        // puede activarlo en ajustes.config.json:
+        //  - AntiCheatSaltoMax: bloques maximos entre dos mensajes de posicion
+        //    (caza teletransportes; con caidas rapidas + lag conviene >= 12).
+        //  - AntiCheatVelocidadMax: bloques/segundo sostenidos (caza speedhack;
+        //    las caidas libres superan los 30 b/s, conviene un valor generoso).
+        public float AntiCheatSaltoMax { get; set; } = 0f;
+        public float AntiCheatVelocidadMax { get; set; } = 0f;
     }
 
     static Config _cfg = new();

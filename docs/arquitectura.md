@@ -90,11 +90,11 @@ Ya hechas (antes pendientes):
 - Persistencia de mundos en disco (guardado al crear/cerrar/borrar, con inventarios por jugador).
 - Modo supervivencia (salud, hambre, oxígeno, daño ambiental, muerte y respawn) y natación.
 - Día/noche, iluminación por bloques (antorcha con luz real) y biomas (desierto, tundra).
+- Interpolación de jugadores remotos en el cliente (suavizado hacia la posición recibida).
+- Anti-cheat básico de movimiento (opt-in por configuración) y moderación de chat (caracteres de control y anti-flood).
 
 Pendiente:
 1. **Etapa 3 — Pulido del cliente**: verificar compilación MAUI en esta máquina (workload), corregir cualquier error de build, probar en Windows.
 2. Chunk streaming + mundos más grandes (128³ o infinitos por regiones).
-3. Interpolación de jugadores remotos (hoy la posición se muestra tal cual llega).
-4. Anti-cheat básico (validar velocidad/teletransportes) y moderación de chat.
-5. Portar el cliente a Linux cuando MAUI lo soporte oficialmente.
-6. Publicar APK y paquetes (MSIX/instalador Windows) con CI.
+3. Portar el cliente a Linux cuando MAUI lo soporte oficialmente.
+4. Publicar APK y paquetes (MSIX/instalador Windows) con CI.

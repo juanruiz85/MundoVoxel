@@ -25,6 +25,7 @@ await c1.Enviar(new Hola { Nombre = "Ana", Version = "1.0" });
 
 var bienvenido = await c1.LeerHasta<Bienvenido>();
 Comprobar(bienvenido != null, "recibe Bienvenido");
+int idAna = bienvenido!.IdJugador;
 var lista0 = await c1.LeerHasta<ListaMundos>();
 Comprobar(lista0?.Mundos.Count == 0, "lista de mundos vacia al inicio");
 
@@ -553,10 +554,45 @@ var rp = await c1.LeerHasta<Respawn>(timeoutMs: 8000);
 Comprobar(rp != null && saludFinal == 20, "reaparecer vuelve al spawn con vida llena");
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 
+// ---------- anti-cheat de movimiento (opt-in por configuracion) ----------
+Console.WriteLine("Anti-cheat: el salto imposible se ignora y el movimiento normal pasa.");
+Ajustes.Actual.AntiCheatSaltoMax = 25f;
+Ajustes.Actual.AntiCheatVelocidadMax = 40f;
+await Task.Delay(150);
+// Teletransporte imposible (+50 bloques de golpe): el servidor conserva la
+// posicion anterior y el estado difundido en Posiciones no salta.
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax + 50, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+bool sinSalto = true;
+for (int i = 0; i < 6 && sinSalto; i++)
+{
+    var pm = await c1.LeerHasta<Posiciones>(timeoutMs: 8000);
+    var yo = pm?.Jugadores.FirstOrDefault(j => j.Id == idAna);
+    if (yo != null && MathF.Abs(yo.Px - aparicionPriv.Ax) > 1f) sinSalto = false;
+}
+Comprobar(sinSalto, "anti-cheat: el teletransporte se ignora (la posicion no salta)");
+// Movimiento normal (+1 bloque): se acepta y se difunde
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax + 1, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+bool movAceptado = false;
+for (int i = 0; i < 10 && !movAceptado; i++)
+{
+    var pm = await c1.LeerHasta<Posiciones>(timeoutMs: 8000);
+    var yo = pm?.Jugadores.FirstOrDefault(j => j.Id == idAna);
+    if (yo != null && MathF.Abs(yo.Px - (aparicionPriv.Ax + 1f)) < 0.01f) movAceptado = true;
+}
+Comprobar(movAceptado, "anti-cheat: el movimiento normal se acepta");
+Ajustes.Actual.AntiCheatSaltoMax = 0f;
+Ajustes.Actual.AntiCheatVelocidadMax = 0f;
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+
 // ---------- chat ----------
 await c1.Enviar(new Chat { Texto = "Â¡Hola a todos!" });
 var chat = await c2.LeerHasta<Chat>();
 Comprobar(chat?.Nombre == "Ana" && chat.Texto == "Â¡Hola a todos!", "chat difundido");
+
+// Moderacion basica: los caracteres de control (saltos de linea, bell) se quitan
+await c1.Enviar(new Chat { Texto = "linea1\nlinea2\u0007" });
+var chatLimpio = await c2.LeerHasta<Chat>();
+Comprobar(chatLimpio?.Texto == "linea1linea2", "el chat se limpia de caracteres de control");
 
 // ---------- persistencia en memoria ----------
 Console.WriteLine("Persistencia: el mundo vacio sigue existiendo y luego se borra.");

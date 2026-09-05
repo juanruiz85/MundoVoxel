@@ -134,6 +134,9 @@ public sealed class GameServer : IAsyncDisposable
         public string CausaMuerte = "";
         public bool Espectador;        // modo espectador: vuela y atraviesa bloques, no rompe/coloca
         public readonly List<SlotInventario> Inventario = new();
+        public DateTime UltimaPosicion; // para el anti-cheat de velocidad/teletransportes
+        public DateTime UltimoChat;     // para la moderacion anti-flood del chat
+        public int ChatsEnRafaga;
 
         public void Cerrar()
         {
@@ -257,7 +260,33 @@ public sealed class GameServer : IAsyncDisposable
 
             case Posicion p:
                 if (c.EnMundo)
-                    lock (_cerrojo) { c.Pos = new Vector3(p.Px, p.Py, p.Pz); c.Ry = p.Ry; c.Pitch = p.Pitch; }
+                {
+                    lock (_cerrojo)
+                    {
+                        var nuevo = new Vector3(p.Px, p.Py, p.Pz);
+                        // Anti-cheat de velocidad/teletransportes (opt-in por
+                        // configuracion, ver Ajustes): si el salto es imposible
+                        // se conserva la posicion anterior. Las acciones se
+                        // validan por distancia contra la posicion aceptada,
+                        // asi que el tramposo no gana nada con el salto.
+                        var ac = Ajustes.Actual;
+                        if ((ac.AntiCheatSaltoMax > 0f || ac.AntiCheatVelocidadMax > 0f) && c.UltimaPosicion != default)
+                        {
+                            float dist = Vector3.Distance(c.Pos, nuevo);
+                            bool salto = ac.AntiCheatSaltoMax > 0f && dist > ac.AntiCheatSaltoMax;
+                            float dt = (float)(DateTime.UtcNow - c.UltimaPosicion).TotalSeconds;
+                            bool velocidad = !salto && ac.AntiCheatVelocidadMax > 0f && dt > 0f &&
+                                             dist / dt > ac.AntiCheatVelocidadMax;
+                            if (salto || velocidad)
+                            {
+                                Log($"{c.Nombre}: movimiento sospechoso ignorado ({dist:F1} bloques en {dt:F2} s).");
+                                return;
+                            }
+                        }
+                        c.Pos = nuevo; c.Ry = p.Ry; c.Pitch = p.Pitch;
+                        c.UltimaPosicion = DateTime.UtcNow;
+                    }
+                }
                 break;
 
             case RomperBloque rb:
@@ -304,8 +333,20 @@ public sealed class GameServer : IAsyncDisposable
                 if (c.EnMundo)
                 {
                     var texto = (ch.Texto ?? "").Trim();
+                    // Moderacion basica: quitar caracteres de control (saltos de
+                    // linea falsearian el historial del chat) y limitar la longitud
+                    texto = new string(texto.Where(t => !char.IsControl(t)).ToArray()).Trim();
                     if (texto.Length == 0) return;
                     if (texto.Length > 200) texto = texto[..200];
+                    // Anti-flood: mas de 10 mensajes en 3 s se ignoran
+                    var ahora = DateTime.UtcNow;
+                    if ((ahora - c.UltimoChat).TotalSeconds > 3f) c.ChatsEnRafaga = 0;
+                    c.UltimoChat = ahora;
+                    if (++c.ChatsEnRafaga > 10)
+                    {
+                        Log($"{c.Nombre}: chat limitado por rafaga.");
+                        return;
+                    }
                     Broadcast(c.MundoId!, new Chat { Nombre = c.Nombre, Texto = texto });
                 }
                 break;
