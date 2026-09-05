@@ -80,18 +80,21 @@
 4. Romper/colocar se envía al servidor y se aplica **cuando llega** el `BloqueCambio` (el servidor es la autoridad).
 
 ## Límites actuales (diseño deliberado)
-- Los mundos viven **solo en memoria**: reiniciar el servidor los pierde. El creador decide si borrarlos o conservarlos.
-- El mundo completo se transmite al entrar (64×40×64 ≈ 327 KB sin comprimir, ~60-100 KB comprimido): suficiente para LAN; para internet de alta latencia convendría *chunk streaming*.
+- Los mundos se guardan en disco (`%LOCALAPPDATA%\MundoVoxel\mundos`, bloques comprimidos con gzip) al crearlos y al cerrar el servidor, y se restauran al arrancar; borrar un mundo también elimina su archivo.
+- El mundo completo se transmite al entrar (192×64×192 por defecto, comprimido con gzip): suficiente para LAN; para internet de alta latencia convendría *chunk streaming*.
 - El renderizado es por software (canvas 2D con painter's algorithm): prioriza portabilidad; para mundos enormes convendría OpenGL/OpenGL ES (p. ej. Silk.NET).
 
 ## Próximos pasos
 
+Ya hechas (antes pendientes):
+- Persistencia de mundos en disco (guardado al crear/cerrar/borrar, con inventarios por jugador).
+- Modo supervivencia (salud, hambre, oxígeno, daño ambiental, muerte y respawn) y natación.
+- Día/noche, iluminación por bloques (antorcha con luz real) y biomas (desierto, tundra).
+
+Pendiente:
 1. **Etapa 3 — Pulido del cliente**: verificar compilación MAUI en esta máquina (workload), corregir cualquier error de build, probar en Windows.
-2. Persistencia opcional de mundos en disco (JSON/binary por mundo, con guardado al borrar/salir).
-3. Modo supervivencia (salud, hambre, daño de caída) y antigravedad para el agua.
-4. Día/noche, iluminación por bloques y biomas (desierto, nieve).
-5. Chunk streaming + mundos más grandes (128³ o infinitos por regiones).
-6. Interpolación de jugadores remotos (hoy la posición se muestra tal cual llega).
-7. Anti-cheat básico (validar velocidad/teletransportes) y moderación de chat.
-8. Portar el cliente a Linux cuando MAUI lo soporte oficialmente.
-9. Publicar APK y paquetes (MSIX/instalador Windows) con CI.
+2. Chunk streaming + mundos más grandes (128³ o infinitos por regiones).
+3. Interpolación de jugadores remotos (hoy la posición se muestra tal cual llega).
+4. Anti-cheat básico (validar velocidad/teletransportes) y moderación de chat.
+5. Portar el cliente a Linux cuando MAUI lo soporte oficialmente.
+6. Publicar APK y paquetes (MSIX/instalador Windows) con CI.

@@ -19,7 +19,7 @@ Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, 
 ### Multijugador
 - Cada jugador puede **crear un mundo nuevo** o **unirse a otro** escribiendo la IP del servidor.
 - Mundos **públicos** (cualquiera entra) o **privados** (requieren **clave de 4 dígitos**).
-- Los **mundos viven en memoria** del servidor: si un mundo se queda vacío, no se borra; su creador puede **borrarlo** o **dejarlo para volver después**.
+- Los **mundos se guardan en disco** (`%LOCALAPPDATA%\MundoVoxel\mundos`) y se **restauran al arrancar** el servidor: si un mundo se queda vacío, no se borra; su creador puede **borrarlo** (también se elimina su archivo) o **dejarlo para volver después**.
 - El servidor es una sola aplicación que aloja hasta 40 mundos × 12 jugadores por defecto (configurable).
 
 ---
@@ -53,7 +53,7 @@ Verás algo como: `Servidor «MundoVoxel» escuchando en el puerto 25575`.
 ```bash
 dotnet run --project MundoVoxel.Pruebas
 ```
-Debe terminar con `PRUEBAS SUPERADAS` (59 comprobaciones).
+Debe terminar con `PRUEBAS SUPERADAS` (68 comprobaciones).
 
 ### 3) Compilar el servidor para producción
 ```bash
@@ -112,7 +112,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now mundovoxel-server
 sudo ufw allow 25575/tcp   # abrir el puerto en el cortafuegos
 ```
-Los mundos viven **en memoria**: al reiniciar el servicio se pierden (diseño deliberado).
+Los mundos se guardan en disco (`%LOCALAPPDATA%\MundoVoxel\mundos`) al crearlos y al cerrar el servidor, y se restauran al arrancar.
 
 ### Windows (servicio)
 ```bat
@@ -188,9 +188,9 @@ Si una clave no existe, se muestra la propia clave (fallback), así nunca se rom
 Ver `CHANGELOG.md` y la sección *Próximos pasos* al final de `docs/ARQUITECTURA.md`.
 
 Ideas a corto plazo:
-- Persistencia opcional de mundos en disco (hoy son solo en memoria, por diseño).
-- Sistema de inventario y supervivencia (salud, hambre, caídas).
-- Más tipos de bloques, iluminación por día/noche y biomas.
+- ✅ Persistencia de mundos en disco (se guardan en `%LOCALAPPDATA%\MundoVoxel\mundos` y se restauran al arrancar).
+- ✅ Sistema de inventario y supervivencia (inventario, crafteo, cofres, salud, hambre, oxígeno, muerte y respawn).
+- ✅ Más tipos de bloques, iluminación por día/noche y biomas (desierto y tundra).
 - Lista de servidores favoritos y reconexión automática.
 - Anti-cheat básico y moderación de chat.
 - Portar el cliente a Linux cuando MAUI tenga soporte oficial.

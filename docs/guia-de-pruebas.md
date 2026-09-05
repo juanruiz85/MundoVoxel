@@ -42,6 +42,19 @@ PRUEBAS SUPERADAS
 > ejecutar (la carga del servidor con 2 mundos grandes puede atrasar respuestas;
 > los espectadores son intocables para que Ana sobreviva a las esperas largas).
 
+> **Entorno recortado**: si el shell no define `ProgramFiles(x86)` ni
+> `ProgramData` (algunos entornos de automatización), el SDK de .NET falla al
+> restaurar paquetes con `error : Value cannot be null. (Parameter 'path1')`
+> en `NuGet.targets` (NuGet las necesita para la configuración global). Fija
+> las variables antes de compilar o ejecutar:
+>
+> ```powershell
+> $env:ProgramFiles      = 'C:\Program Files'
+> $env:ProgramFiles(x86) = 'C:\Program Files (x86)'
+> $env:ProgramData       = 'C:\ProgramData'
+> $env:CommonProgramFiles = 'C:\Program Files\Common Files'
+> ```
+
 ---
 
 ## 3. Probar el cliente en Windows
