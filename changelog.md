@@ -2,6 +2,25 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.7] - 2026-09-05
+
+### Agregado (mineria por golpes: hacha y pala con funcion real)
+- **Los bloques duros requieren varios golpes**, validado por el servidor sin cambios de protocolo ni del cliente (el cliente ya golpea cada 250 ms al mantener pulsado): piedra/menas/ladrillo/horno/arenisca 5 golpes a mano, **2 con pico de madera/piedra/cobre/oro y 1 con pico de hierro o diamante**; madera y tablones 3 golpes a mano, **1 con cualquier hacha**; cofre y mesa 2 a mano (1 con hacha); tierra/cesped/tierra labrada/arena/nieve/grava 2 a mano, **1 con cualquier pala**. Plantas, hojas, TNT y el resto siguen rompiendose al primer golpe.
+- Basta con TENER la herramienta correcta en el inventario (mismo criterio que los drops desde 0.10.5). El progreso de golpes se reinicia si cambia el bloque o pasan 2 s sin golpear.
+- Con esto las cinco herramientas tienen funcion real: **pico** (minar piedra y menas, y romperlas mas rapido), **espada** (el golpe de mano hace 5 y las espadas suman +2 madera, +4 piedra, +5 cobre, +6 hierro, +8 diamante), **azada** (labrar tierra para sembrar), **hacha** (madera y muebles al primer golpe) y **pala** (tierra/arena/nieve/grava al primer golpe).
+
+### Seguridad (auditoria completa en docs/auditoria-seguridad.md)
+- **Anti-autoclick**: los golpes a mobs dentro de 250 ms se ignoran (antes un cliente modificado podia drenar la salud de un mob con cientos de mensajes por segundo).
+- **Fuerza bruta de clave**: maximo 5 claves erradas por minuto por conexion en mundos privados (error MUCHOS_INTENTOS); el contador se reinicia al acertar o tras 60 s.
+
+### Corregido (suite)
+- Los puntos de rotura usan un nuevo helper RomperHasta (golpes hasta que cae el bloque): la suite ya no depende de que todo se rompa al primer golpe.
+- Los 5 fallos de la primera corrida de esta sesion fueron intermitentes (flaky), no una regresion: verificado con corridas A/B (HEAD verde y HEAD con los cambios tambien verde).
+
+### Verificado
+- Suite: PRUEBAS SUPERADAS (82 comprobaciones; 12 nuevas: tabla de golpes, crafteo y efecto real de hacha y pala).
+- Builds con 0 errores: Core, Pruebas, cliente Windows, cliente Android (net10.0-android); servidor linux-x64 publish exit 0.
+
 ## [0.10.6] - 2026-09-04
 
 ### Corregido (tests de la suite)

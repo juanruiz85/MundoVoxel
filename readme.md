@@ -53,7 +53,7 @@ Verás algo como: `Servidor «MundoVoxel» escuchando en el puerto 25575`.
 ```bash
 dotnet run --project MundoVoxel.Pruebas
 ```
-Debe terminar con `PRUEBAS SUPERADAS` (71 comprobaciones).
+Debe terminar con `PRUEBAS SUPERADAS` (82 comprobaciones).
 
 ### 3) Compilar el servidor para producción
 ```bash
@@ -157,7 +157,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 | Volar (modo creativo) | `F` (subir `Espacio`, bajar `Shift`) | Botón Volar |
 | Mirar | Arrastrar con el ratón | Arrastrar (mitad derecha) |
 | Colocar bloque | Clic | Botón Colocar / toque |
-| Romper bloque | Doble clic o `R` | Botón Romper / doble toque |
+| Romper bloque | Doble clic o `R` (mantener pulsado en bloques duros) | Botón Romper / doble toque |
 | Seleccionar bloque | `1`–`9` o rueda | — |
 | Chat | `T` | Botón Chat |
 | Pausa / menú | `Esc` | Botón Menú |
