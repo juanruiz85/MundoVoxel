@@ -137,6 +137,9 @@ public sealed class GameServer : IAsyncDisposable
         public DateTime UltimaPosicion; // para el anti-cheat de velocidad/teletransportes
         public DateTime UltimoChat;     // para la moderacion anti-flood del chat
         public int ChatsEnRafaga;
+        public DateTime UltimoGolpeMob; // anti-autoclick: cooldown entre golpes a mobs
+        public int IntentosPin;         // endurecimiento: tope de claves erradas por minuto
+        public DateTime VentanaPin;
 
         public void Cerrar()
         {
@@ -609,11 +612,22 @@ public sealed class GameServer : IAsyncDisposable
                 Enviar(c, new ErrorServidor { Codigo = "LLENO", Mensaje = "El mundo estÃ¡ lleno." });
                 return;
             }
+            // Endurecimiento: maximo 5 claves erradas por minuto por conexion
+            // (frena el fuerza bruta de la clave de 4 digitos en mundos privados).
+            var ahoraPin = DateTime.UtcNow;
+            if ((ahoraPin - c.VentanaPin).TotalSeconds > 60) { c.VentanaPin = ahoraPin; c.IntentosPin = 0; }
+            if (c.IntentosPin >= 5)
+            {
+                Enviar(c, new ErrorServidor { Codigo = "MUCHOS_INTENTOS", Mensaje = "Demasiados intentos de clave. Espera un minuto." });
+                return;
+            }
             if (!mundo.Abierto && (u.Pin ?? "") != mundo.Pin)
             {
+                c.IntentosPin++;
                 Enviar(c, new ErrorServidor { Codigo = "PIN_INCORRECTO", Mensaje = "Clave incorrecta." });
                 return;
             }
+            c.IntentosPin = 0;
             if (c.EnMundo) SalirDelMundo(c, notificar: true);
             UnirseInterno(c, mundo);
             NotificarListas();
@@ -1660,6 +1674,11 @@ public sealed class GameServer : IAsyncDisposable
             var mob = mundo.Mobs.FirstOrDefault(m => m.Id == gm.Id);
             if (mob == null) return;
             if (Vector3.Distance(c.Pos, new Vector3(mob.Px, mob.Py, mob.Pz)) > 5f) return;
+            // Anti-autoclick: los golpes dentro del cooldown se ignoran (un
+            // cliente modificado no puede drenar la salud de un mob de golpe).
+            var ahoraGolpe = DateTime.UtcNow;
+            if ((ahoraGolpe - c.UltimoGolpeMob).TotalMilliseconds < 250) return;
+            c.UltimoGolpeMob = ahoraGolpe;
             mob.Salud -= 5 + MejorDanioEspada(c);
             if (mob.Salud <= 0)
             {

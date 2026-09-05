@@ -1,4 +1,4 @@
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using MundoVoxel.Core;
 
 // Prueba automatica del servidor y el protocolo multijugador:
@@ -223,7 +223,7 @@ if (objetivo != null)
     await c1.Enviar(new Posicion { Px = objetivo.Px, Py = objetivo.Py, Pz = objetivo.Pz, Ry = 0, Pitch = 0 });
     await Task.Delay(150);
 
-    for (int i = 0; i < 5; i++) await c1.Enviar(new GolpearMob { Id = objetivo.Id });
+    for (int i = 0; i < 5; i++) { await c1.Enviar(new GolpearMob { Id = objetivo.Id }); await Task.Delay(300); } // cooldown anti-autoclick del servidor
     await Task.Delay(900); // esperar drop + auto-recogida
 
     var invDrop = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
@@ -306,15 +306,13 @@ if (hostil != null)
     Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
     // Matar al zombi de verdad: 20 de salud, cada golpe hace 5+espada; se
     // golpea en bucle hasta que desaparezca del mensaje Mobs.
-    for (int g = 0; g < 8; g++)
-        await c1.Enviar(new GolpearMob { Id = hostil.Id });
+    for (int g = 0; g < 8; g++) { await c1.Enviar(new GolpearMob { Id = hostil.Id }); await Task.Delay(300); }
     await Task.Delay(300);
     bool zombiMuerto = true;
     var msVerif = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
     if (msVerif != null && msVerif.Lista.Any(m => m.Id == hostil.Id)) zombiMuerto = false;
     if (!zombiMuerto)
-        for (int g = 0; g < 8; g++)
-            await c1.Enviar(new GolpearMob { Id = hostil.Id });
+        for (int g = 0; g < 8; g++) { await c1.Enviar(new GolpearMob { Id = hostil.Id }); await Task.Delay(300); }
     await Task.Delay(300);
 }
 else Comprobar(false, "un mob hostil ataca al jugador cercano (la vida baja)");
@@ -340,8 +338,7 @@ for (int g = 0; g < 8; g++)
         .ToList();
     if (hostiles.Count == 0) break;
     foreach (var h in hostiles)
-        for (int k = 0; k < 6; k++)
-            await c1.Enviar(new GolpearMob { Id = h.Id });
+        for (int k = 0; k < 6; k++) { await c1.Enviar(new GolpearMob { Id = h.Id }); await Task.Delay(300); }
 }
 await Task.Delay(400);
 for (int d = 0; d < 4; d++)
