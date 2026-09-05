@@ -349,8 +349,21 @@ public partial class PaginaJuego : ContentPage
                 foreach (var p in ps.Jugadores)
                 {
                     if (p.Id == _red.MiId) continue;
-                    _vista.Remotos[p.Id] = new VistaJuego.JugadorRemoto(
-                        p.Id, NombreDe(p.Id), new Vector3(p.Px, p.Py, p.Pz), p.Ry, p.Pitch, ColorRemoto(p.Id));
+                    var objetivo = new Vector3(p.Px, p.Py, p.Pz);
+                    if (_vista.Remotos.TryGetValue(p.Id, out var existente))
+                    {
+                        // Suavizado: solo se actualiza el objetivo; el tick
+                        // interpola la posicion mostrada hacia el (los saltos
+                        // grandes los aplica el propio JugadorRemoto de golpe).
+                        existente.Objetivo = objetivo;
+                        existente.Ry = p.Ry;
+                        existente.Pitch = p.Pitch;
+                    }
+                    else
+                    {
+                        _vista.Remotos[p.Id] = new VistaJuego.JugadorRemoto(
+                            p.Id, NombreDe(p.Id), objetivo, p.Ry, p.Pitch, ColorRemoto(p.Id));
+                    }
                 }
                 break;
 

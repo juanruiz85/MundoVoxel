@@ -37,8 +37,34 @@ public sealed class VistaJuego : IDrawable
     public bool Volando { get; set; }
     public bool Espectador { get; set; } // modo espectador: vuela y atraviesa bloques
 
-    // Jugadores remotos
-    public sealed record JugadorRemoto(int Id, string Nombre, Vector3 Pos, float Ry, float Pitch, Color Color);
+    // Jugadores remotos (suavizados: la posicion mostrada interpola hacia la
+    // ultima recibida del servidor en vez de saltar con cada mensaje de 10 Hz)
+    public sealed class JugadorRemoto
+    {
+        public int Id;
+        public string Nombre;
+        public Vector3 Pos;       // posicion mostrada (se interpola cada frame)
+        public Vector3 Objetivo;  // ultima posicion recibida del servidor
+        public float Ry, Pitch;
+        public Color Color;
+
+        public JugadorRemoto(int id, string nombre, Vector3 pos, float ry, float pitch, Color color)
+        {
+            Id = id; Nombre = nombre; Pos = pos; Objetivo = pos; Ry = ry; Pitch = pitch; Color = color;
+        }
+
+        /// <summary>Avanza la posicion mostrada hacia el objetivo (suavizado
+        /// exponencial que converge en ~150 ms). Los saltos grandes
+        /// (teletransporte, respawn) se aplican de golpe para no ver un
+        /// deslizamiento de decenas de bloques.</summary>
+        public void Actualizar(float dt)
+        {
+            float dist = Vector3.Distance(Pos, Objetivo);
+            if (dist > 8f) { Pos = Objetivo; return; }
+            float f = 1f - MathF.Exp(-dt * 12f);
+            Pos = Vector3.Lerp(Pos, Objetivo, f);
+        }
+    }
     public readonly Dictionary<int, JugadorRemoto> Remotos = new();
 
     // Mobs remotos (estado autoritativo del servidor)
@@ -318,6 +344,9 @@ public sealed class VistaJuego : IDrawable
     /// <summary>Actualiza física y golpe; se llama desde la página (hilo UI).</summary>
     public void Tick(float dt, Func<int, bool> estaPulsada, bool esMovil)
     {
+        // Interpolar la posicion mostrada de los jugadores remotos
+        foreach (var j in Remotos.Values) j.Actualizar(dt);
+
         bool w = estaPulsada(Teclas.W), s = estaPulsada(Teclas.S), a = estaPulsada(Teclas.A), d = estaPulsada(Teclas.D);
         var dir = Vector2.Zero;
         if (w) dir.Y += 1;
