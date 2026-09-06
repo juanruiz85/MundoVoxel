@@ -1,5 +1,7 @@
 ﻿# 🌍 MundoVoxel
 
+[![CI](https://github.com/juanruiz85/MundoVoxel/actions/workflows/ci.yml/badge.svg)](https://github.com/juanruiz85/MundoVoxel/actions/workflows/ci.yml)
+
 Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, completamente en **español**, con **multijugador** por TCP. Compatible con **Windows** y **Android** (cliente MAUI) y con un servidor que corre como **servicio en Windows y Linux**.
 
 > ⚠️ Nota de plataforma: .NET MAUI no tiene objetivo oficial para escritorio Linux. El **cliente** oficial es Windows y Android; el **servidor multijugador** sí corre en Windows y Linux (como servicio o proceso normal). Toda la lógica del juego vive en la biblioteca compartida `MundoVoxel.Core`, por lo que el mismo código de juego podría portarse a Linux cuando MAUI tenga soporte oficial (o mediante backends comunitarios).
