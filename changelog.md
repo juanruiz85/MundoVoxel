@@ -2,6 +2,19 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.10.8] - 2026-09-05
+
+### Agregado (servidores favoritos y reconexion automatica)
+- **Servidores favoritos**: en el menu se guarda el servidor actual (alias + IP + puerto), se listan los persistidos y se conecta con un clic. La lista vive en `%LOCALAPPDATA%\MundoVoxel\servidores.json` (JSON, tope de 20, sin duplicados por IP:puerto; un archivo danado se trata como lista vacia en vez de romper el menu). Logica en `MundoVoxel.Core/servidoresfavoritos.cs` con rutas inyectables para poder probarla.
+- **Reconexion automatica en plena partida**: si se pierde la conexion, el cliente reintenta al mismo servidor con retroceso exponencial (2 s, 4 s, 8 s... hasta 5 intentos) mostrando un panel con el intento en curso y un boton de cancelar. Al reconectar reenvia `Hola`, espera `ListaMundos`, vuelve a unirse al mismo mundo por el camino normal (recordando su Id y la clave si era privado) y reconstruye el mundo local con el `Unido` nuevo. Si el mundo ya no existe avisa; si se agotan los intentos vuelve al menu con el motivo. Todo en el cliente (`Servicios/servicioreconexion.cs`), sin cambios de protocolo ni del servidor.
+
+### Probado
+- Suite automatica: PRUEBAS SUPERADAS (91 comprobaciones; +8 de favoritos: persistencia, dedup por direccion, alias actualizado, tope de 20 y archivo danado).
+- Builds con 0 errores: cliente Windows, cliente Android; Core y Pruebas.
+
+### Documentacion
+- Las estadisticas de IA del readme ahora incluyen el consumo del **ZCode CLI** (87 llamadas; DeepSeek V4 Pro y ruteo auto), que el gateway no ve, tomado de `~/.zcode/cli/rollout/model-io-*.jsonl`.
+
 ## [0.10.7] - 2026-09-05
 
 ### Agregado (mineria por golpes: hacha y pala con funcion real)

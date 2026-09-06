@@ -53,7 +53,7 @@ Verás algo como: `Servidor «MundoVoxel» escuchando en el puerto 25575`.
 ```bash
 dotnet run --project MundoVoxel.Pruebas
 ```
-Debe terminar con `PRUEBAS SUPERADAS` (82 comprobaciones).
+Debe terminar con `PRUEBAS SUPERADAS` (91 comprobaciones).
 
 ### 3) Compilar el servidor para producción
 ```bash
@@ -139,6 +139,8 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 
 1. Un jugador (o un servidor dedicado) levanta `MundoVoxel.Server`.
 2. En el cliente: escribe tu **nombre**, la **IP** del servidor (o `127.0.0.1` para jugar solo) y pulsa **Conectar**.
+   - Puedes **guardar el servidor como favorito** (alias + IP + puerto) en el mismo menu y conectarte con un clic; la lista queda en `%LOCALAPPDATA%\MundoVoxel\servidores.json`.
+   - Si se te cae la conexion en plena partida, el cliente **reconecta automaticamente** (hasta 5 intentos con espera creciente) y vuelve a entrar al mismo mundo; puedes cancelar desde el panel de reconexion.
 3. En la lista de mundos: **Crear mundo** (público o privado con clave de 4 dígitos) o **Unirse** a uno existente.
    - Si el mundo es privado, te pedirá la clave.
 4. Dentro del mundo: construye, rompe y chatea con los demás.
