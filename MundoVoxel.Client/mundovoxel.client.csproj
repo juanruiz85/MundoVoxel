@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
@@ -42,7 +42,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MundoVoxel.Core\MundoVoxel.Core.csproj" />
+    <ProjectReference Include="..\MundoVoxel.Core\mundovoxel.core.csproj" />
   </ItemGroup>
 
 </Project>
