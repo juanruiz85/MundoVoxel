@@ -607,17 +607,23 @@ Ajustes.Actual.AntiCheatVelocidadMax = 0f;
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 
 // ---------- chat ----------
-// Drenar la cola de Bruno: lleva toda la partida sin leer (posiciones, mobs,
-// drops) y en una maquina lenta (CI de 2 nucleos) el primer chat puede ir
-// detras de ese atraso acumulado y saltarse el timeout del test.
-while (await c2.LeerCualquiera(60) != null) { }
+// Lector dedicado para Bruno: su conexion lleva toda la partida sin leer y en
+// CI el backlog puede dejar el primer chat fuera del timeout del test. Un
+// lector que consume el flujo continuamente (sin cancelaciones a mitad de
+// frame, que desincronizarian el stream) deja los mensajes en una cola.
+var colaBruno = new System.Collections.Concurrent.ConcurrentQueue<Mensaje>();
+_ = Task.Run(async () =>
+{
+    try { while (true) { var m = await c2.LeerSinTimeout(); if (m == null) break; colaBruno.Enqueue(m); } }
+    catch { /* la conexion se cierra al final de la suite */ }
+});
 await c1.Enviar(new Chat { Texto = "Â¡Hola a todos!" });
-var chat = await c2.LeerHasta<Chat>();
+var chat = await EsperarChat(colaBruno);
 Comprobar(chat?.Nombre == "Ana" && chat.Texto == "Â¡Hola a todos!", "chat difundido");
 
 // Moderacion basica: los caracteres de control (saltos de linea, bell) se quitan
 await c1.Enviar(new Chat { Texto = "linea1\nlinea2\u0007" });
-var chatLimpio = await c2.LeerHasta<Chat>();
+var chatLimpio = await EsperarChat(colaBruno);
 Comprobar(chatLimpio?.Texto == "linea1linea2", "el chat se limpia de caracteres de control");
 
 // ---------- persistencia en memoria ----------
@@ -701,6 +707,22 @@ static async Task<(BloqueCambio? Cambio, Inventario? Inv, int Golpes)> RomperHas
     return (cambio, inv, golpes);
 }
 
+/// <summary>Espera un Chat en la cola del lector dedicado (p. ej. Bruno),
+/// descartando cualquier otro mensaje que llegue antes.</summary>
+static async Task<Chat?> EsperarChat(System.Collections.Concurrent.ConcurrentQueue<Mensaje> cola, int timeoutMs = 20000)
+{
+    var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+    while (DateTime.UtcNow < fin)
+    {
+        while (cola.TryDequeue(out var m))
+        {
+            if (m is Chat ch) return ch;
+        }
+        await Task.Delay(50);
+    }
+    return null;
+}
+
 static async Task<ClientePrueba> Conectar(int puerto)
 {
     var tcp = new TcpClient();
@@ -748,6 +770,13 @@ sealed class ClientePrueba
                 if (m is BloqueCambio bc && bc.X == x && bc.Y == y && bc.Z == z) return bc;
             }
         }
+        catch { return null; }
+    }
+    /// <summary>Lee el siguiente frame sin timeout: para lectores dedicados en
+    /// segundo plano (un cancel a mitad de frame desincronizaria el stream).</summary>
+    public async Task<Mensaje?> LeerSinTimeout()
+    {
+        try { return await Frames.LeerAsync(_flujo, CancellationToken.None); }
         catch { return null; }
     }
     public void Cerrar() { try { _tcp.Close(); } catch { } }
