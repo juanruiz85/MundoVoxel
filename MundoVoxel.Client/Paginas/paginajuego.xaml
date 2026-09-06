@@ -72,6 +72,17 @@
             </ScrollView>
         </Border>
 
+        <!-- Reconexion automatica en curso -->
+        <Border x:Name="PanelReconexion" BackgroundColor="#cc10161f" IsVisible="False" StrokeThickness="0">
+            <VerticalStackLayout Padding="26" Spacing="10" WidthRequest="340" MaximumWidthRequest="600"
+                                 HorizontalOptions="Center" VerticalOptions="Center">
+                <Label x:Name="LblReconexionTitulo" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center" />
+                <Label x:Name="LblReconexionEstado" FontSize="14" HorizontalOptions="Center"
+                       TextColor="{StaticResource TextoSuave}" />
+                <Button x:Name="BtnCancelarReconexion" Style="{StaticResource BtnPeligro}" Clicked="OnCancelarReconexion" />
+            </VerticalStackLayout>
+        </Border>
+
         <!-- Pantalla de muerte: causa + boton reaparecer -->
         <Border x:Name="PanelMuerte" BackgroundColor="#b0101016" IsVisible="False" StrokeThickness="0">
             <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="14" Padding="30" WidthRequest="360">

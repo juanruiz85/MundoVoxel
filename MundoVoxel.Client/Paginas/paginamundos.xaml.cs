@@ -18,15 +18,20 @@ public partial class PaginaMundos : ContentPage
     readonly ServicioRed _red;
     readonly ServicioIdioma _idioma;
     readonly ServicioTeclado _teclado;
+    readonly ServicioReconexion _reconexion;
     readonly ObservableCollection<InfoMundoView> _items = new();
     IDispatcherTimer? _timer;
+    /// <summary>Clave del último mundo creado o al que se pidió unirse (los
+    /// mundos privados la necesitan para reconectar automáticamente).</summary>
+    string? _pinPendiente;
 
-    public PaginaMundos(ServicioRed red, ServicioIdioma idioma, ServicioTeclado teclado)
+    public PaginaMundos(ServicioRed red, ServicioIdioma idioma, ServicioTeclado teclado, ServicioReconexion reconexion)
     {
         InitializeComponent();
         _red = red;
         _idioma = idioma;
         _teclado = teclado;
+        _reconexion = reconexion;
         Lista.ItemsSource = _items;
 
         BtnCrear.Text = idioma.O("mundos.nuevo");
@@ -138,11 +143,12 @@ public partial class PaginaMundos : ContentPage
                     MundoComprimido = u.MundoComprimido,
                     Ax = u.Ax, Ay = u.Ay, Az = u.Az,
                     Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
+                    PinUsado = _pinPendiente,
                 };
                 // Al entrar al mundo el foco no debe quedar en ningA-on botA3n (la barra
                 // espaciadora es para saltar, no para activar el menA-o).
                 _timer?.Stop();
-                _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, datos));
+                _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, _reconexion, datos));
                 return true;
 
             case ErrorServidor er:
@@ -175,6 +181,7 @@ public partial class PaginaMundos : ContentPage
         var info = item.Info;
         if (info.Abierto)
         {
+            _pinPendiente = null;
             _red.Enviar(new Unirse { Id = info.Id });
             return;
         }
@@ -187,6 +194,7 @@ public partial class PaginaMundos : ContentPage
             MostrarError(_idioma.O("mundos.clave_invalida"));
             return;
         }
+        _pinPendiente = pin;
         _red.Enviar(new Unirse { Id = info.Id, Pin = pin });
     }
 
@@ -237,6 +245,7 @@ public partial class PaginaMundos : ContentPage
             }
         }
         PanelCrear.IsVisible = false;
+        _pinPendiente = pin; // el mundo creado era privado: recuerda su clave para reconectar
         EnviarCrearMundo(nombre, publico, pin);
     }
 

@@ -23,6 +23,7 @@ public static class MauiProgram
             builder.Services.AddSingleton<ServicioIdioma>();
             builder.Services.AddSingleton<ServicioRed>();
             builder.Services.AddSingleton<ServicioTeclado>();
+            builder.Services.AddSingleton<ServicioReconexion>();
             builder.Services.AddSingleton<PaginaMenu>();
             builder.Services.AddSingleton<PaginaMundos>();
 

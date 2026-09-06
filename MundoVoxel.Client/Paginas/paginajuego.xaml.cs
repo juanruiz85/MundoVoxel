@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
@@ -29,6 +29,7 @@ public partial class PaginaJuego : ContentPage
     static readonly int[] Distancias = { 1, 2, 3 };
     static bool _tecladoVinculado;
     bool _saliendo;
+    readonly ServicioReconexion _reconexion;
     bool _renderizando;
     List<SlotEstado> _inventario = new();
     // Inventario tipo Minecraft (slots)
@@ -54,7 +55,7 @@ public partial class PaginaJuego : ContentPage
         Colors.Purple, Colors.Pink, Colors.Teal, Colors.Gold, Colors.Silver, Colors.DeepSkyBlue,
     };
 
-    public PaginaJuego(ServicioRed red, ServicioIdioma idioma, ServicioTeclado teclado, DatosMundo datos)
+    public PaginaJuego(ServicioRed red, ServicioIdioma idioma, ServicioTeclado teclado, ServicioReconexion reconexion, DatosMundo datos)
     {
         try
         {
@@ -62,6 +63,7 @@ public partial class PaginaJuego : ContentPage
             _red = red;
             _idioma = idioma;
             _teclado = teclado;
+            _reconexion = reconexion;
             _datos = datos;
 
         Vista.Drawable = _vista;
@@ -108,6 +110,13 @@ public partial class PaginaJuego : ContentPage
 
         _red.AlDesconectar += OnDesconectadoRed;
         _teclado.AlPulsar += OnTecla;
+        _reconexion.AlIniciar += OnReconexionIniciar;
+        _reconexion.AlIntento += OnReconexionIntento;
+        _reconexion.AlReconectado += OnReconectado;
+        _reconexion.AlFallo += OnReconexionFallo;
+        _reconexion.AlCancelar += OnReconexionCancelada;
+        LblReconexionTitulo.Text = _idioma.O("juego.reconectando_titulo");
+        BtnCancelarReconexion.Text = _idioma.O("juego.reconectando_cancelar");
         }
         catch (Exception ex)
         {
@@ -1218,6 +1227,7 @@ public partial class PaginaJuego : ContentPage
         if (_saliendo) return;
         _saliendo = true;
         _timer?.Stop();
+        _reconexion.Cancelar();
         if (Navigation?.NavigationStack.Count > 1)
             await Navigation.PopAsync();
         else
@@ -1226,13 +1236,64 @@ public partial class PaginaJuego : ContentPage
 
     void OnDesconectadoRed()
     {
-        MainThread.BeginInvokeOnMainThread(async () =>
+        MainThread.BeginInvokeOnMainThread(() =>
         {
             if (_saliendo) return;
-            AgregarChat("✖ " + _idioma.O("error.desconectado"));
-            await Task.Delay(600);
-            await SalirAlMenu();
+            AgregarChat("- " + _idioma.O("error.desconectado"));
+            // Reconexión automática: reintenta al mismo servidor y vuelve a
+            // entrar al mismo mundo; si se agota, vuelve al menú con mensaje.
+            _reconexion.Iniciar(_datos.Id, _datos.PinUsado);
         });
+    }
+
+    // ------------------------------------------------ reconexión automática
+
+    void OnReconexionIniciar(int intento, int tope)
+    {
+        Pausa.IsVisible = false; // la reconexión manda sobre el menú de pausa
+        LblReconexionEstado.Text = _idioma.O("juego.reconectando_estado", intento, tope);
+        PanelReconexion.IsVisible = true;
+        _timer?.Stop(); // el servicio de reconexión consume la cola mientras
+    }
+
+    void OnReconexionIntento(int intento, int tope)
+        => LblReconexionEstado.Text = _idioma.O("juego.reconectando_estado", intento, tope);
+
+    void OnCancelarReconexion(object? sender, EventArgs e) => _reconexion.Cancelar();
+
+    void OnReconexionFallo(string mensaje)
+    {
+        PanelReconexion.IsVisible = false;
+        EstadoSesion.MensajeMenu = mensaje;
+        _ = SalirAlMenu();
+    }
+
+    void OnReconexionCancelada(string mensaje) => OnReconexionFallo(mensaje);
+
+    void OnReconectado(Unido u)
+    {
+        try
+        {
+            // El servidor manda el mundo completo tras re-entrar: reconstruir
+            // el estado local y reanudar el bucle (los mensajes siguientes ya
+            // llegan por el tick normal).
+            var mundo = Mundo.Deserializar(Mundo.Descomprimir(u.MundoComprimido));
+            _vista.Mundo = mundo;
+            _vista.Renderizador.ConstruirMallas(mundo);
+            _vista.Jugador.Pos = new Vector3(u.Ax, u.Ay, u.Az);
+            _vista.Jugador.Yaw = 0;
+            _vista.Jugador.Pitch = 0;
+            ActualizarLblBloque();
+            PanelReconexion.IsVisible = false;
+            _timer?.Start();
+            AgregarChat(_idioma.O("juego.reconectado_ok", u.Nombre));
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("Reconexion: mundo invalido: " + ex.Message);
+            EstadoSesion.MensajeMenu = _idioma.O("error.desconectado");
+            _ = SalirAlMenu();
+        }
     }
 
     protected override bool OnBackButtonPressed()

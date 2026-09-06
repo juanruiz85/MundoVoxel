@@ -73,6 +73,12 @@ error.desconectado=Te desconectaste del servidor.
 
 # ---- Juego ----
 juego.bienvenido=¡Bienvenido a {0}!
+juego.reconectando_titulo=Conexión perdida
+juego.reconectando_estado=Reconectando… intento {0} de {1}
+juego.reconectando_cancelar=Cancelar
+juego.reconectando_cancelada=Reconexión cancelada.
+juego.reconectado_ok=Reconectado a {0}.
+juego.reconectando_agotado=No se pudo reconectar tras {0} intentos.
 juego.volando=Volar: {0}
 juego.si=Sí
 juego.no=No
