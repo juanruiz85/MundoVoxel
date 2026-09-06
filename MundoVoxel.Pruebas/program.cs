@@ -607,6 +607,10 @@ Ajustes.Actual.AntiCheatVelocidadMax = 0f;
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 
 // ---------- chat ----------
+// Drenar la cola de Bruno: lleva toda la partida sin leer (posiciones, mobs,
+// drops) y en una maquina lenta (CI de 2 nucleos) el primer chat puede ir
+// detras de ese atraso acumulado y saltarse el timeout del test.
+while (await c2.LeerCualquiera(60) != null) { }
 await c1.Enviar(new Chat { Texto = "Â¡Hola a todos!" });
 var chat = await c2.LeerHasta<Chat>();
 Comprobar(chat?.Nombre == "Ana" && chat.Texto == "Â¡Hola a todos!", "chat difundido");
