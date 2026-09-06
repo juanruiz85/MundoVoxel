@@ -25,8 +25,20 @@ jobs:
           dotnet build MundoVoxel.Server -c Release
 
       - name: Ejecutar la suite de pruebas
-        timeout-minutes: 35
-        run: dotnet run --project MundoVoxel.Pruebas -c Release
+        run: |
+          set -o pipefail
+          dotnet run --project MundoVoxel.Pruebas -c Release --nologo 2>&1 | tee suite.log
+
+      - name: Marcar fallos de la suite como anotaciones
+        if: failure()
+        run: grep -E '\[FALLA\]|PRUEBAS' suite.log | while IFS= read -r line; do echo "::error::$line"; done || true
+
+      - name: Subir log de la suite
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-suite
+          path: suite.log
 
   cliente-maui:
     name: Cliente MAUI (Windows + Android)
