@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  servidor-linux:
+    name: Servidor Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publicar servidor linux-x64
+        run: dotnet publish MundoVoxel.Server -c Release -r linux-x64 --self-contained -o pub/linux
+      - name: Empaquetar
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          tar -czf "MundoVoxel-Server-linux-x64-$VER.tar.gz" -C pub/linux .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-linux
+          path: MundoVoxel-Server-linux-x64-*.tar.gz
+
+  servidor-windows:
+    name: Servidor Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publicar servidor win-x64
+        run: dotnet publish MundoVoxel.Server -c Release -r win-x64 --self-contained -o pub/win
+      - name: Empaquetar
+        run: |
+          $ver = $env:GITHUB_REF_NAME -replace '^v',''
+          Compress-Archive -Path pub/win/* -DestinationPath "MundoVoxel-Server-win-x64-$ver.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-win
+          path: MundoVoxel-Server-win-x64-*.zip
+
+  cliente-windows:
+    name: Cliente Windows
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Instalar workload MAUI
+        run: dotnet workload install maui
+      - name: Publicar cliente Windows
+        run: dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -p:RuntimeIdentifier=win-x64 --self-contained -o pub/cliente
+      - name: Empaquetar
+        run: |
+          $ver = $env:GITHUB_REF_NAME -replace '^v',''
+          Compress-Archive -Path pub/cliente/* -DestinationPath "MundoVoxel-Cliente-Windows-$ver.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cliente-windows
+          path: MundoVoxel-Cliente-Windows-*.zip
+
+  apk-android:
+    name: APK Android
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Instalar workload MAUI
+        run: dotnet workload install maui
+      - name: Publicar APK
+        run: dotnet publish MundoVoxel.Client -f net10.0-android -c Release -o pub/apk
+      - name: Empaquetar
+        run: |
+          $ver = $env:GITHUB_REF_NAME -replace '^v',''
+          $apk = Get-ChildItem -Path pub/apk -Recurse -Filter *.apk | Where-Object { $_.Name -like '*Signed*' } | Select-Object -First 1
+          if (-not $apk) { $apk = Get-ChildItem -Path pub/apk -Recurse -Filter *.apk | Select-Object -First 1 }
+          if (-not $apk) { throw 'No se genero ningun APK' }
+          Copy-Item $apk.FullName "MundoVoxel-$ver.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-android
+          path: MundoVoxel-*.apk
+
+  release:
+    name: Publicar release
+    needs: [servidor-linux, servidor-windows, cliente-windows, apk-android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extraer la seccion del changelog
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          awk -v pat="## [$VER]" 'index($0, pat) == 1 { f = 1; print; next } f && index($0, "## ") == 1 { exit } f { print }' changelog.md > notas.md
+          if [ ! -s notas.md ]; then echo "MundoVoxel $GITHUB_REF_NAME" > notas.md; fi
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Reunir los binarios
+        run: |
+          mkdir -p release
+          find artifacts -type f -exec mv {} release/ \;
+          ls -la release
+      - name: Crear el release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MundoVoxel ${{ github.ref_name }}
+          body_path: notas.md
+          files: release/*
+          fail_on_unmatched_files: true
