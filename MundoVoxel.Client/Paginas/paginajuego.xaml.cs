@@ -81,6 +81,9 @@ public partial class PaginaJuego : ContentPage
         BtnVolar.Text = T.Volar;
         BtnChat.Text = T.Chat;
         BtnMenu.Text = T.Menu;
+        BtnSoltar.Text = idioma.O("juego.soltar");
+        BtnUsar.Text = idioma.O("juego.usar");
+        BtnEspectador.Text = idioma.O("juego.espectador");
         BtnReanudar.Text = T.Reanudar;
         LblPausaTitulo.Text = idioma.O("pausa.titulo");
         BtnBorrarMundo.Text = idioma.O("pausa.borrar_mundo");
@@ -513,6 +516,12 @@ public partial class PaginaJuego : ContentPage
 
     /// <summary>Usa el item en mano sobre el bloque apuntado (azada, semillas, planton, mechero...).
     /// Si no hay bloque apuntado pero lo que hay en mano es comida, se come (restaura hambre).</summary>
+    void OnBtnSoltar(object? sender, EventArgs e) => _red.Enviar(new SoltarItem { Slot = _vista.Slot });
+
+    void OnBtnUsar(object? sender, EventArgs e) => UsarItemApuntado();
+
+    void OnBtnEspectador(object? sender, EventArgs e) => AlternarEspectador();
+
     void UsarItemApuntado()
     {
         var g = _vista.GolpeActual;

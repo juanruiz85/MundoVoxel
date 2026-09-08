@@ -1,6 +1,17 @@
-# Changelog
+﻿# Changelog
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
+
+## [0.10.9] - 2026-09-07
+
+### Agregado (paridad Android <-> Windows)
+- **Tocar un slot de la hotbar lo selecciona en movil** (paridad con las teclas 1-9 y la rueda del raton de escritorio): el toque sobre la franja de la hotbar cambia el slot seleccionado y avisa al servidor (`SeleccionarSlot`).
+- **Botones nuevos en el panel tactil**: **Usar** (azada, semillas, planton, mechero y comer con comida en mano), **Soltar** (suelta 1 del slot seleccionado, igual que Q) y **Espectador** (alterna el modo espectador, igual que G). Con esto las funciones del juego son las mismas en ambos clientes.
+- Claves de idioma nuevas: `juego.soltar`, `juego.usar`, `juego.espectador`.
+
+### Verificado
+- Builds con 0 errores: cliente Windows y cliente Android (`net10.0-android`).
+- El protocolo y el servidor no cambian: ambos clientes se conectan al mismo servidor Windows o Linux (la logica vive en `MundoVoxel.Core`, sin `#if` de plataforma; el CI compila el servidor y la suite en Linux y el cliente en Windows/Android en cada push).
 
 ## [0.10.8] - 2026-09-05
 

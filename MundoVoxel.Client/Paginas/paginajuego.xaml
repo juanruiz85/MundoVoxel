@@ -38,13 +38,16 @@
         </Grid>
 
         <!-- Controles táctiles (Android) -->
-        <VerticalStackLayout x:Name="PanelMovil" HorizontalOptions="End" VerticalOptions="Center" Spacing="8"
+        <VerticalStackLayout x:Name="PanelMovil" HorizontalOptions="End" VerticalOptions="Center" Spacing="6"
                              Margin="0,0,12,0" WidthRequest="96" IsVisible="False">
-            <Button x:Name="BtnRomper" Pressed="OnBtnRomperPulsado" Released="OnBtnRomperSoltado" HeightRequest="44" FontSize="13" Padding="4,0" />
-            <Button x:Name="BtnColocar" Clicked="OnBtnColocar" HeightRequest="44" FontSize="13" Padding="4,0" />
-            <Button x:Name="BtnSaltar" Pressed="OnSaltarPulsado" Released="OnSaltarSoltado" HeightRequest="52" FontSize="18" Padding="0" />
-            <Button x:Name="BtnVolar" Clicked="OnBtnVolar" HeightRequest="44" FontSize="13" Padding="4,0" />
-            <Button x:Name="BtnChat" Clicked="OnBtnChat" HeightRequest="44" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnRomper" Pressed="OnBtnRomperPulsado" Released="OnBtnRomperSoltado" HeightRequest="40" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnColocar" Clicked="OnBtnColocar" HeightRequest="40" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnUsar" Clicked="OnBtnUsar" HeightRequest="40" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnSoltar" Clicked="OnBtnSoltar" HeightRequest="40" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnSaltar" Pressed="OnSaltarPulsado" Released="OnSaltarSoltado" HeightRequest="48" FontSize="18" Padding="0" />
+            <Button x:Name="BtnVolar" Clicked="OnBtnVolar" HeightRequest="40" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnEspectador" Clicked="OnBtnEspectador" HeightRequest="40" FontSize="13" Padding="4,0" />
+            <Button x:Name="BtnChat" Clicked="OnBtnChat" HeightRequest="40" FontSize="13" Padding="4,0" />
         </VerticalStackLayout>
 
         <!-- Pausa -->

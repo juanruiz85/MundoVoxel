@@ -310,6 +310,25 @@ public sealed class VistaJuego : IDrawable
         _ultimoPunto = p;
     }
 
+    /// <summary>Hit-test de la hotbar dibujada en el HUD (misma geometria que
+    /// DibujarHud: slots de 40 px con 4 de separacion, centrados abajo). Si el
+    /// toque cae en un slot lo selecciona y devuelve true (paridad movil: en
+    /// escritorio se hace con las teclas 1-9 y la rueda del raton).</summary>
+    public bool TocarHotbar(PointF p)
+    {
+        if (_anchoCanvas <= 0 || _altoCanvas <= 0) return false;
+        int n = Hotbar.Length;
+        const float slot = 40, gap = 4;
+        float total = n * slot + (n - 1) * gap;
+        float x0 = (_anchoCanvas - total) / 2f, y0 = _altoCanvas - slot - 14;
+        if (p.Y < y0 - 8 || p.Y > y0 + slot + 8) return false;
+        if (p.X < x0 - 8 || p.X > x0 + total + 8) return false;
+        int idx = (int)((p.X - x0) / (slot + gap));
+        if (idx < 0 || idx >= n) return false;
+        Slot = idx;
+        return true;
+    }
+
     public void TerminarInteraccion(PointF p)
     {
         bool fueJoystick = _joystickActivo;
@@ -420,10 +439,13 @@ public sealed class VistaJuego : IDrawable
         return tmin >= 0f;
     }
 
+    int _anchoCanvas, _altoCanvas; // ultimo tamano dibujado (para el toque de la hotbar)
+
     public void Draw(ICanvas c, RectF dirty)
     {
         int w = (int)dirty.Width, h = (int)dirty.Height;
         if (w <= 0 || h <= 0) return;
+        _anchoCanvas = w; _altoCanvas = h;
 
         foreach (var j in Remotos.Values)
         {
