@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.301'
 
       - name: Compilar Core y Server
         run: |
@@ -51,7 +51,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.301'
 
       - name: Instalar workload MAUI
         run: dotnet workload install maui

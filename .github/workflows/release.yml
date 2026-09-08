@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.301'
       - name: Publicar servidor linux-x64
         run: dotnet publish MundoVoxel.Server -c Release -r linux-x64 --self-contained -o pub/linux
       - name: Empaquetar
@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.301'
       - name: Publicar servidor win-x64
         run: dotnet publish MundoVoxel.Server -c Release -r win-x64 --self-contained -o pub/win
       - name: Empaquetar
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.301'
       - name: Instalar workload MAUI
         run: dotnet workload install maui
       - name: Publicar cliente Windows
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.301'
       - name: Instalar workload MAUI
         run: dotnet workload install maui
       - name: Publicar APK
