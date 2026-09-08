@@ -9,6 +9,9 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - Elimina el pico unico de memoria al entrar y **habilita mundos mas grandes** y el streaming incremental de regiones mas adelante (los trozos ya viajan por la cola por conexion, sin bloquear el servidor por clientes lentos).
 - Cambio de protocolo: mensaje nuevo `MundoChunk`; cliente y servidor se actualizan juntos (un servidor 0.11.0 no es compatible con clientes 0.10.x y viceversa).
 
+### Documentacion
+- Corregida la codificacion de la seccion de uso de IA del readme (el script `docs/actualizar-stats-ia.ps1` se guardaba sin BOM y PowerShell leia los acentos y el emoji como ANSI, produciendo texto corrupto); textos con acentos correctos.
+
 ### Verificado
 - Suite automatica: PRUEBAS SUPERADAS (92 comprobaciones; +1 "el mundo llega troceado y se reensambla").
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
