@@ -1,4 +1,4 @@
-# actualizar-stats-ia.ps1
+﻿# actualizar-stats-ia.ps1
 # Genera la seccion "Uso de IA en el desarrollo" del readme.md a partir de los
 # archivos de sesion del gateway (AutoClaw/OpenClaw). Ejecutar desde la raiz del
 # repositorio antes de cada commit:
@@ -57,7 +57,7 @@ $ultima = (Get-ChildItem "$SessionsRoot\*\sessions\*.jsonl" -ErrorAction Silentl
 $periodo = "$(([datetime]$primera).ToString('yyyy-MM-dd')) → $(([datetime]$ultima).ToString('yyyy-MM-dd'))"
 
 
-# --- Uso via ZCode CLI (capa de codigo delegada) -----------------------------
+# --- Uso vía ZCode CLI (capa de código delegada) -----------------------------
 # ZCode hace sus propias llamadas al modelo y las registra en
 # ~/.zcode/cli/rollout/model-io-*.jsonl (modelo + tokens por llamada). El
 # gateway no ve este consumo: se suma aparte para reportarlo honestamente.
@@ -110,7 +110,7 @@ $modelos.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object {
         "dpskpro_deepseek-v4-flash"   { "dpskpro_deepseek-v4-flash (DeepSeek V4 Flash)" }
         "zai_glm-5-turbo"             { "zai_glm-5-turbo (GLM-5 Turbo)" }
         "gateway-injected"            { "gateway-injected (mensaje interno)" }
-        default                       { if ($_ -eq $null -or $_.Trim('/') -eq '') { "(sin identificar en la sesion)" } else { $_ } }
+        default                       { if ($_ -eq $null -or $_.Trim('/') -eq '') { "(sin identificar en la sesión)" } else { $_ } }
     }
     $filasModelos += "| $nombre | $($_.Value) | $pct% |`n"
 }
@@ -129,13 +129,13 @@ $seccionZcode = ""
 if ($zcodeLlamadas -gt 0) {
 $seccionZcode = @"
 
-### Uso via ZCode CLI (capa de codigo delegada)
+### Uso vía ZCode CLI (capa de código delegada)
 
-El agente delega tareas de codigo al **ZCode CLI**, que hace sus propias llamadas
+El agente delega tareas de código al **ZCode CLI**, que hace sus propias llamadas
 al modelo. Ese consumo no pasa por el gateway: se registra en
-``~/.zcode/cli/rollout/model-io-*.jsonl`` y se reporta aqui aparte.
+``~/.zcode/cli/rollout/model-io-*.jsonl`` y se reporta aquí aparte.
 
-| Modelo | Llamadas | Tokens entrada | Tokens salida | Cache leida |
+| Modelo | Llamadas | Tokens entrada | Tokens salida | Caché leída |
 |---|---|---|---|---|
 $($filasZcode.TrimEnd())
 
@@ -152,7 +152,7 @@ $seccion = @"
 > Los datos salen de los archivos de sesión del gateway (AutoClaw/OpenClaw): tokens,
 > modelos y costos reportados por el proveedor, más los prompts escritos por el
 > desarrollador (marcados como solicitudes de usuario). El consumo del **ZCode CLI**
-> (capa de codigo delegada) se anade aparte: el gateway no lo ve.
+> (capa de código delegada) se añade aparte: el gateway no lo ve.
 
 ### Resumen
 
@@ -187,7 +187,7 @@ $seccionZcode
 - **OpenClaw / AutoClaw** (gateway local), API compatible `openai-completions`.
 - Los modelos se sirven vía **ZAI** (ruteador `zai_auto` elige el modelo según la tarea; también se usaron DeepSeek V4 Flash y GLM-5 Turbo).
 - Herramientas auxiliares de IA: AutoGLM (reconocimiento visual de capturas), scripts UIA locales
-  y **ZCode CLI** (implementacion de codigo, con DeepSeek V4 Pro; ver desglose arriba).
+  y **ZCode CLI** (implementación de código, con DeepSeek V4 Pro; ver desglose arriba).
 
 ### Nota metodológica
 

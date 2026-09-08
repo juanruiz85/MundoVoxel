@@ -213,54 +213,54 @@ Ideas a corto plazo:
 ---
 
 <!-- IA-USO-INICIO -->
-## ðŸ¤– Uso de IA en el desarrollo
+## 🤖 Uso de IA en el desarrollo
 
-> SecciÃ³n actualizada automÃ¡ticamente en cada commit con docs/actualizar-stats-ia.ps1.
-> Los datos salen de los archivos de sesiÃ³n del gateway (AutoClaw/OpenClaw): tokens,
-> modelos y costos reportados por el proveedor, mÃ¡s los prompts escritos por el
+> Sección actualizada automáticamente en cada commit con docs/actualizar-stats-ia.ps1.
+> Los datos salen de los archivos de sesión del gateway (AutoClaw/OpenClaw): tokens,
+> modelos y costos reportados por el proveedor, más los prompts escritos por el
 > desarrollador (marcados como solicitudes de usuario). El consumo del **ZCode CLI**
-> (capa de codigo delegada) se anade aparte: el gateway no lo ve.
+> (capa de código delegada) se añade aparte: el gateway no lo ve.
 
 ### Resumen
 
-| MÃ©trica | Valor |
+| Métrica | Valor |
 |---|---|
-| PerÃ­odo de desarrollo | 2026-08-13 â†’ 2026-09-05 |
-| Sesiones de IA | 18 |
-| Prompts del desarrollador | 310 |
-| Respuestas generadas por IA | 5,881 |
-| Tokens de entrada (prompts + contexto) | 22,854,335 |
-| Tokens de salida (generaciÃ³n) | 7,243,142 |
-| **Tokens totales** | **30,097,477** |
-| Tokens de cachÃ© leÃ­dos | 1,172,826,816 |
+| Período de desarrollo | 2026-08-13 → 2026-09-08 |
+| Sesiones de IA | 22 |
+| Prompts del desarrollador | 333 |
+| Respuestas generadas por IA | 6,262 |
+| Tokens de entrada (prompts + contexto) | 28,890,383 |
+| Tokens de salida (generación) | 7,387,863 |
+| **Tokens totales** | **36,278,246** |
+| Tokens de caché leídos | 1,255,891,712 |
 | Costo real registrado | $0.00 (modelo ZAI sin cargo reportado) |
-| Costo estimado a tarifas de mercado | ~220.94 USD |
+| Costo estimado a tarifas de mercado | ~242.47 USD |
 | Agentes de IA con uso | auto-coder, main |
 
 ### Promedios
 
-- Tokens por prompt: ~73,724 de entrada / ~23,365 de salida.
-- Costo estimado por prompt: ~0.71 USD (a tarifas de mercado).
+- Tokens por prompt: ~86,758 de entrada / ~22,186 de salida.
+- Costo estimado por prompt: ~0.73 USD (a tarifas de mercado).
 
 ### Modelos utilizados
 
 | Modelo | Respuestas | % del total |
 |---|---|---|
-| zai_auto (ruteo automÃ¡tico) | 5597 | 95.2% |
-| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 3.6% |
-| zai/tdpsk_deepseek-v4-pro-202606 | 46 | 0.8% |
-| gateway-injected (mensaje interno) | 12 | 0.2% |
+| zai_auto (ruteo automático) | 5976 | 95.4% |
+| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 3.4% |
+| zai/tdpsk_deepseek-v4-pro-202606 | 46 | 0.7% |
+| gateway-injected (mensaje interno) | 14 | 0.2% |
 | zai/zaicoding_glm-5.2 | 12 | 0.2% |
 | zai/tdpsk_deepseek-v4-flash-202605 | 2 | 0% |
 | zai/zaicoding_glm-5.3 | 2 | 0% |
 
-### Uso via ZCode CLI (capa de codigo delegada)
+### Uso vía ZCode CLI (capa de código delegada)
 
-El agente delega tareas de codigo al **ZCode CLI**, que hace sus propias llamadas
+El agente delega tareas de código al **ZCode CLI**, que hace sus propias llamadas
 al modelo. Ese consumo no pasa por el gateway: se registra en
-`~/.zcode/cli/rollout/model-io-*.jsonl` y se reporta aqui aparte.
+`~/.zcode/cli/rollout/model-io-*.jsonl` y se reporta aquí aparte.
 
-| Modelo | Llamadas | Tokens entrada | Tokens salida | Cache leida |
+| Modelo | Llamadas | Tokens entrada | Tokens salida | Caché leída |
 |---|---|---|---|---|
 | auto | 70 | 4,497,014 | 75,534 | 4,218,688 |
 | deepseek-v4-pro-202606 (DeepSeek V4 Pro) | 17 | 440,741 | 2,920 | 380,928 |
@@ -270,17 +270,17 @@ al modelo. Ese consumo no pasa por el gateway: se registra en
 ### Plataforma
 
 - **OpenClaw / AutoClaw** (gateway local), API compatible openai-completions.
-- Los modelos se sirven vÃ­a **ZAI** (ruteador zai_auto elige el modelo segÃºn la tarea; tambiÃ©n se usaron DeepSeek V4 Flash y GLM-5 Turbo).
+- Los modelos se sirven vía **ZAI** (ruteador zai_auto elige el modelo según la tarea; también se usaron DeepSeek V4 Flash y GLM-5 Turbo).
 - Herramientas auxiliares de IA: AutoGLM (reconocimiento visual de capturas), scripts UIA locales
-  y **ZCode CLI** (implementacion de codigo, con DeepSeek V4 Pro; ver desglose arriba).
+  y **ZCode CLI** (implementación de código, con DeepSeek V4 Pro; ver desglose arriba).
 
-### Nota metodolÃ³gica
+### Nota metodológica
 
 - "Tokens de entrada" incluye el contexto completo reenviado en cada turno (por eso es
-  muy superior a los tokens de salida). "CachÃ© leÃ­da" son tokens reutilizados del contexto
+  muy superior a los tokens de salida). "Caché leída" son tokens reutilizados del contexto
   previo (tarifa reducida en proveedores comerciales).
 - El **costo real registrado es $0.00** porque el proveedor ZAI no reporta cargos para
   estos modelos; la columna "estimado a tarifas de mercado" usa $2/M entrada,
-  $8/M salida y $0.10/M cachÃ© (referencia tÃ­pica de modelos de razonamiento) solo como
-  orientaciÃ³n.
+  $8/M salida y $0.10/M caché (referencia típica de modelos de razonamiento) solo como
+  orientación.
 <!-- IA-USO-FIN -->
