@@ -56,6 +56,24 @@ await c2.LeerHasta<ListaMundos>();
 await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "1234", Semilla = 12345, HoraInicial = 0 });
 await c2.LeerHasta<MundoCreado>();
 var unido2 = await c2.LeerHasta<Unido>();
+// Diagnostico CI: colector dedicado para Bruno desde su entrada al mundo; cuenta
+// los mensajes por tipo para ver si la entrega al cliente inactivo se cae.
+var colaBruno = new System.Collections.Concurrent.ConcurrentQueue<Mensaje>();
+var tiposBruno = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+_ = Task.Run(async () =>
+{
+    try
+    {
+        while (true)
+        {
+            var m = await c2.LeerSinTimeout();
+            if (m == null) break;
+            tiposBruno.AddOrUpdate(m.GetType().Name, 1, (_, v) => v + 1);
+            colaBruno.Enqueue(m);
+        }
+    }
+    catch { /* cierre de la conexion al final de la suite */ }
+});
 Comprobar(unido2 != null, "Bruno entra a su mundo privado");
 string idPrivado = unido2!.Id;
 
@@ -607,23 +625,16 @@ Ajustes.Actual.AntiCheatVelocidadMax = 0f;
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 
 // ---------- chat ----------
-// Lector dedicado para Bruno: su conexion lleva toda la partida sin leer y en
-// CI el backlog puede dejar el primer chat fuera del timeout del test. Un
-// lector que consume el flujo continuamente (sin cancelaciones a mitad de
-// frame, que desincronizarian el stream) deja los mensajes en una cola.
-var colaBruno = new System.Collections.Concurrent.ConcurrentQueue<Mensaje>();
-_ = Task.Run(async () =>
-{
-    try { while (true) { var m = await c2.LeerSinTimeout(); if (m == null) break; colaBruno.Enqueue(m); } }
-    catch { /* la conexion se cierra al final de la suite */ }
-});
+Console.WriteLine($"[diag] Bruno antes del chat: conectado={c2.Conectado}, en cola={colaBruno.Count}, tipos={string.Join(",", tiposBruno.Select(kv => kv.Key + "=" + kv.Value))}");
 await c1.Enviar(new Chat { Texto = "Â¡Hola a todos!" });
 var chat = await EsperarChat(colaBruno);
+if (chat == null) Console.WriteLine($"[diag] chat difundido NO llego; conectado={c2.Conectado}, tipos={string.Join(",", tiposBruno.Select(kv => kv.Key + "=" + kv.Value))}");
 Comprobar(chat?.Nombre == "Ana" && chat.Texto == "Â¡Hola a todos!", "chat difundido");
 
 // Moderacion basica: los caracteres de control (saltos de linea, bell) se quitan
 await c1.Enviar(new Chat { Texto = "linea1\nlinea2\u0007" });
 var chatLimpio = await EsperarChat(colaBruno);
+if (chatLimpio == null) Console.WriteLine($"[diag] chat limpio NO llego; conectado={c2.Conectado}, tipos={string.Join(",", tiposBruno.Select(kv => kv.Key + "=" + kv.Value))}");
 Comprobar(chatLimpio?.Texto == "linea1linea2", "el chat se limpia de caracteres de control");
 
 // ---------- persistencia en memoria ----------
@@ -779,6 +790,8 @@ sealed class ClientePrueba
         try { return await Frames.LeerAsync(_flujo, CancellationToken.None); }
         catch { return null; }
     }
+    public bool Conectado => _tcp?.Connected == true;
+
     public void Cerrar() { try { _tcp.Close(); } catch { } }
 }
 

@@ -224,7 +224,7 @@ public sealed class GameServer : IAsyncDisposable
                 await c.Flujo.WriteAsync(datos, ct);
             }
         }
-        catch { /* el cierre se gestiona en Desconectar */ }
+        catch (Exception ex) { Log($"[writer] error de escritura para {c.Nombre}: {ex.Message}"); }
     }
 
     void Desconectar(ConexionJugador c)

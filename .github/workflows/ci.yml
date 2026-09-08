@@ -32,7 +32,7 @@ jobs:
       - name: Marcar fallos de la suite como anotaciones
         if: failure()
         run: |
-          grep -E '\[FALLA\]|PRUEBAS|Error procesando|sospechoso|limitado|Exception' suite.log | head -30 | while IFS= read -r line; do echo "::error::$line"; done || true
+          grep -E '\[FALLA\]|PRUEBAS|Error procesando|sospechoso|limitado|Exception|\[diag\]|\[writer\]' suite.log | head -30 | while IFS= read -r line; do echo "::error::$line"; done || true
           tail -12 suite.log | while IFS= read -r line; do echo "::error::[cola] $line"; done || true
 
       - name: Subir log de la suite
