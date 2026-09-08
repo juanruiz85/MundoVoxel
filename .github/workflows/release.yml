@@ -126,7 +126,7 @@ jobs:
       - name: Reunir los binarios
         run: |
           mkdir -p release
-          find artifacts -type f -exec mv {} release/ \;
+          find artifacts -type f ! -name 'publish.log' -exec mv {} release/ \;
           ls -la release
       - name: Crear el release
         uses: softprops/action-gh-release@v2
