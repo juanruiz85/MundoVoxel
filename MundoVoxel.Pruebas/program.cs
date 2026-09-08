@@ -53,7 +53,7 @@ await c2.Enviar(new Hola { Nombre = "Bruno", Version = "1.0" });
 await c2.LeerHasta<Bienvenido>();
 await c2.LeerHasta<ListaMundos>();
 
-await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "1234", Semilla = 12345, HoraInicial = 0 });
+await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "123456", Semilla = 12345, HoraInicial = 0 });
 await c2.LeerHasta<MundoCreado>();
 var unido2 = (await LeerUnidoCompleto(c2)).Unido;
 // Diagnostico CI: colector dedicado para Bruno desde su entrada al mundo; cuenta
@@ -78,12 +78,12 @@ Comprobar(unido2 != null, "Bruno entra a su mundo privado");
 string idPrivado = unido2!.Id;
 
 // Ana intenta entrar al mundo privado con clave incorrecta
-await c1.Enviar(new Unirse { Id = idPrivado, Pin = "9999" });
+await c1.Enviar(new Unirse { Id = idPrivado, Pin = "999999" });
 var errPin = await c1.LeerHasta<ErrorServidor>();
 Comprobar(errPin?.Codigo == "PIN_INCORRECTO", "clave incorrecta rechazada");
 
 // con la clave correcta si entra
-await c1.Enviar(new Unirse { Id = idPrivado, Pin = "1234" });
+await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456" });
 var resPriv = await LeerUnidoCompleto(c1);
 var unidoPriv = resPriv.Unido;
 Comprobar(unidoPriv!.MundoComprimido.Length > 0 && resPriv.Trozos >= 1, $"el mundo llega troceado y se reensambla ({resPriv.Trozos} trozos, {unidoPriv.MundoComprimido.Length} bytes)");

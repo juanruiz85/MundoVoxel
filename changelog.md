@@ -2,6 +2,16 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.1] - 2026-09-08
+
+### Seguridad (claves de mundo de 6 digitos)
+- **Las claves de los mundos privados pasan de 4 a 6 digitos** (1.000.000 de combinaciones frente a 10.000): validacion nueva en servidor y cliente, mensajes y diálogos actualizados. Combinado con el tope de 5 intentos por minuto por conexion (0.10.7) el fuerza bruta remota deja de ser viable.
+- Retrocompatible: los mundos privados ya creados con clave de 4 digitos siguen funcionando con su clave original (solo la creacion nueva exige 6).
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (92 comprobaciones) con la clave incorrecta rechazada y la correcta aceptada.
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.11.0] - 2026-09-07
 
 ### Agregado (mundo troceado: chunk streaming fase 1)

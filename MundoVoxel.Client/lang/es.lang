@@ -1,4 +1,4 @@
-# Archivo de idioma de MundoVoxel (español)
+﻿# Archivo de idioma de MundoVoxel (español)
 # Formato: clave=texto  ·  '#' para comentarios  ·  {0}, {1}... para valores dinámicos
 # Si falta una clave se muestra la propia clave (fallback), la interfaz nunca se rompe.
 
@@ -38,8 +38,8 @@ mundos.crear_titulo=Nuevo mundo
 mundos.nombre_nuevo=Nombre del mundo
 mundos.publico=Público: cualquiera puede unirse
 mundos.privado=Privado: requiere clave
-mundos.clave=Clave (4 dígitos)
-mundos.clave_invalida=La clave debe tener exactamente 4 dígitos.
+mundos.clave=Clave (6 dígitos)
+mundos.clave_invalida=La clave debe tener exactamente 6 dígitos.
 mundos.cancelar=Cancelar
 mundos.nombre_vacio=El nombre del mundo no puede estar vacío.
 mundos.unirse=Unirse
@@ -50,7 +50,7 @@ mundos.estado_privado=Privado
 mundos.jugadores={0}/{1} jugadores
 mundos.dueno=Creado por {0}
 mundos.creando=Creando mundo…
-mundos.pedir_clave=Este mundo es privado. Escribe la clave de 4 dígitos:
+mundos.pedir_clave=Este mundo es privado. Escribe la clave de 6 dígitos:
 mundos.conectando=Conectando…
 
 # ---- Ajustes del mundo al crearlo ----
@@ -65,7 +65,7 @@ error.pin_incorrecto=Clave incorrecta.
 error.lleno=El mundo está lleno.
 error.no_existe=El mundo ya no existe.
 error.no_dueno=Solo el creador puede borrar el mundo.
-error.pin_invalido=La clave debe tener exactamente 4 dígitos.
+error.pin_invalido=La clave debe tener exactamente 6 dígitos.
 error.limite_mundos=El servidor llegó al límite de mundos.
 error.mundo_borrado=El mundo fue borrado por su creador.
 error.nombre_vacio=El nombre del mundo no puede estar vacío.

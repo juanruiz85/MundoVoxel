@@ -206,7 +206,7 @@ public partial class PaginaMundos : ContentPage
             maxLength: 4, keyboard: Keyboard.Numeric, cancel: "✕");
         if (pin == null) return;
         pin = pin.Trim();
-        if (pin.Length != 4 || !pin.All(char.IsAsciiDigit))
+        if (pin.Length != 6 || !pin.All(char.IsAsciiDigit))
         {
             MostrarError(_idioma.O("mundos.clave_invalida"));
             return;
@@ -254,7 +254,7 @@ public partial class PaginaMundos : ContentPage
         if (!publico)
         {
             pin = EntPin.Text?.Trim() ?? "";
-            if (pin.Length != 4 || !pin.All(char.IsAsciiDigit))
+            if (pin.Length != 6 || !pin.All(char.IsAsciiDigit))
             {
                 LblCrearError.Text = _idioma.O("mundos.clave_invalida");
                 LblCrearError.IsVisible = true;

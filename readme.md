@@ -31,7 +31,7 @@ Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, 
 
 ### Multijugador
 - Cada jugador puede **crear un mundo nuevo** o **unirse a otro** escribiendo la IP del servidor.
-- Mundos **públicos** (cualquiera entra) o **privados** (requieren **clave de 4 dígitos**).
+- Mundos **públicos** (cualquiera entra) o **privados** (requieren **clave de 6 dígitos**).
 - Los **mundos se guardan en disco** (`%LOCALAPPDATA%\MundoVoxel\mundos`) y se **restauran al arrancar** el servidor: si un mundo se queda vacío, no se borra; su creador puede **borrarlo** (también se elimina su archivo) o **dejarlo para volver después**.
 - El servidor es una sola aplicación que aloja hasta 40 mundos × 12 jugadores por defecto (configurable).
 
@@ -154,7 +154,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 2. En el cliente: escribe tu **nombre**, la **IP** del servidor (o `127.0.0.1` para jugar solo) y pulsa **Conectar**.
    - Puedes **guardar el servidor como favorito** (alias + IP + puerto) en el mismo menu y conectarte con un clic; la lista queda en `%LOCALAPPDATA%\MundoVoxel\servidores.json`.
    - Si se te cae la conexion en plena partida, el cliente **reconecta automaticamente** (hasta 5 intentos con espera creciente) y vuelve a entrar al mismo mundo; puedes cancelar desde el panel de reconexion.
-3. En la lista de mundos: **Crear mundo** (público o privado con clave de 4 dígitos) o **Unirse** a uno existente.
+3. En la lista de mundos: **Crear mundo** (público o privado con clave de 6 dígitos) o **Unirse** a uno existente.
    - Si el mundo es privado, te pedirá la clave.
 4. Dentro del mundo: construye, rompe y chatea con los demás.
 5. **Salir del mundo** te devuelve a la lista; tu mundo sigue en el servidor. Como **creador**, puedes **Borrar** el mundo desde la lista o desde el menú de pausa.

@@ -571,7 +571,7 @@ public sealed class GameServer : IAsyncDisposable
             if (!cm.Abierto)
             {
                 pin = (cm.Pin ?? "").Trim();
-                if (pin.Length != 4 || !pin.All(char.IsAsciiDigit))
+                if (pin.Length != 6 || !pin.All(char.IsAsciiDigit))
                 {
                     Enviar(c, new ErrorServidor { Codigo = "PIN_INVALIDO", Mensaje = "La clave debe tener exactamente 4 dÃ­gitos." });
                     return;

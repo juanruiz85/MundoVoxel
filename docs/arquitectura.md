@@ -38,7 +38,7 @@
 |---|---|---|
 | `Hola` / `Bienvenido` | C→S / S→C | Nombre del jugador; id asignado + nombre del servidor. |
 | `ListarMundos` / `ListaMundos` | C→S / S→C | Catálogo: id, nombre, creador, abierto, jugadores/máx, `IdDueno`. |
-| `CrearMundo` / `MundoCreado` | C→S / S→C | Nombre, `Abierto`, `Pin` (4 dígitos si es privado); id del mundo. |
+| `CrearMundo` / `MundoCreado` | C→S / S→C | Nombre, `Abierto`, `Pin` (6 dígitos si es privado); id del mundo. |
 | `Unirse` / `Unido` | C→S / S→C | Id del mundo + `Pin` opcional; devuelve el mundo completo comprimido (GZip) y el punto de aparición. |
 | `Error` | S→C | Códigos: `PIN_INCORRECTO`, `LLENO`, `NO_EXISTE`, `NO_DUENO`, `PIN_INVALIDO`, `LIMITE_MUNDOS`, `MUNDO_BORRADO`. |
 | `Salir` | C→S | Sale del mundo actual (el mundo queda en memoria). |
@@ -50,7 +50,7 @@
 ### Validaciones del servidor (autoridad)
 - Romper: dentro del mundo, distancia ≤ 7 bloques, no `Aire` ni `Lecho`.
 - Colocar: dentro del mundo, `y > 0`, tipo colocable, destino vacío, distancia ≤ 7 y **no dentro del espacio de otro jugador**.
-- Clave: solo mundos privados; debe coincidir exactamente con los 4 dígitos.
+- Clave: solo mundos privados; debe coincidir exactamente con los 6 dígitos.
 - Borrar: solo el `IdDueno` (la conexión que creó el mundo).
 
 ### Concurrencia
