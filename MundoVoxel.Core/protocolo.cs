@@ -38,6 +38,7 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(UsarBloque), "UsarBloque")]
 [JsonDerivedType(typeof(SeleccionarSlot), "SeleccionarSlot")]
 [JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
+[JsonDerivedType(typeof(MundoChunk), "MundoChunk")]
 [JsonDerivedType(typeof(FijarHora), "FijarHora")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
 [JsonDerivedType(typeof(OxigenoMsg), "Oxigeno")]
@@ -96,6 +97,11 @@ public sealed class Unido : Mensaje
     public float Ax { get; set; } public float Ay { get; set; } public float Az { get; set; }
 }
 public sealed class ErrorServidor : Mensaje { public string Codigo { get; set; } = ""; public string Mensaje { get; set; } = ""; }
+
+/// <summary>Trozo del mundo comprimido: el servidor envia el Unido sin datos y
+/// los trozos van detras, para evitar un pico unico de memoria al entrar y
+/// habilitar streaming incremental mas adelante.</summary>
+public sealed class MundoChunk : Mensaje { public int Indice { get; set; } public int Total { get; set; } public byte[] Datos { get; set; } = Array.Empty<byte>(); }
 public sealed class Salir : Mensaje { }
 public sealed class JugadorEntro : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
 public sealed class JugadorSalio : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; }

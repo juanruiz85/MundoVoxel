@@ -33,7 +33,7 @@ await c1.Enviar(new CrearMundo { Nombre = "Mundo de Ana", Abierto = true });
 var creado = await c1.LeerHasta<MundoCreado>();
 Comprobar(creado != null, "mundo creado");
 string idMundo = creado!.Id;
-var unido = await c1.LeerHasta<Unido>();
+var unido = (await LeerUnidoCompleto(c1)).Unido;
 Comprobar(unido != null && unido.MundoComprimido.Length > 0, "recibe el mundo comprimido");
 var mundo = Mundo.Deserializar(Mundo.Descomprimir(unido!.MundoComprimido));
 Comprobar(mundo.Ancho == Ajustes.Actual.AnchoMundo && mundo.Alto == Ajustes.Actual.AltoMundo && mundo.Profundo == Ajustes.Actual.ProfundoMundo, $"dimensiones del mundo ({mundo.Ancho}x{mundo.Alto}x{mundo.Profundo})");
@@ -55,7 +55,7 @@ await c2.LeerHasta<ListaMundos>();
 
 await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "1234", Semilla = 12345, HoraInicial = 0 });
 await c2.LeerHasta<MundoCreado>();
-var unido2 = await c2.LeerHasta<Unido>();
+var unido2 = (await LeerUnidoCompleto(c2)).Unido;
 // Diagnostico CI: colector dedicado para Bruno desde su entrada al mundo; cuenta
 // los mensajes por tipo para ver si la entrega al cliente inactivo se cae.
 var colaBruno = new System.Collections.Concurrent.ConcurrentQueue<Mensaje>();
@@ -84,7 +84,9 @@ Comprobar(errPin?.Codigo == "PIN_INCORRECTO", "clave incorrecta rechazada");
 
 // con la clave correcta si entra
 await c1.Enviar(new Unirse { Id = idPrivado, Pin = "1234" });
-var unidoPriv = await c1.LeerHasta<Unido>();
+var resPriv = await LeerUnidoCompleto(c1);
+var unidoPriv = resPriv.Unido;
+Comprobar(unidoPriv!.MundoComprimido.Length > 0 && resPriv.Trozos >= 1, $"el mundo llega troceado y se reensambla ({resPriv.Trozos} trozos, {unidoPriv.MundoComprimido.Length} bytes)");
 Comprobar(unidoPriv?.Id == idPrivado, "Ana entra con la clave correcta");
 
 // ---------- cofre inicial ----------
@@ -732,6 +734,28 @@ static async Task<Chat?> EsperarChat(System.Collections.Concurrent.ConcurrentQue
         await Task.Delay(50);
     }
     return null;
+}
+
+/// <summary>Lee un Unido completo: el servidor envia primero el Unido sin datos
+/// y detras los MundoChunk; reensambla el mundo y devuelve el mensaje con los
+/// datos ya unidos (trozos = cantidad de trozos recibidos).</summary>
+static async Task<(Unido? Unido, int Trozos)> LeerUnidoCompleto(ClientePrueba c, int timeoutMs = 30000)
+{
+    var unido = await c.LeerHasta<Unido>(timeoutMs);
+    var partes = new List<byte[]>();
+    int total = -1;
+    var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+    while (unido != null && DateTime.UtcNow < fin)
+    {
+        var m = await c.LeerHasta<MundoChunk>(timeoutMs);
+        if (m == null) break;
+        total = m.Total;
+        while (partes.Count < m.Indice) partes.Add(Array.Empty<byte>());
+        partes.Add(m.Datos);
+        if (total > 0 && partes.Count >= total) break;
+    }
+    if (unido != null && partes.Count > 0) unido.MundoComprimido = partes.SelectMany(p => p).ToArray();
+    return (unido, partes.Count);
 }
 
 static async Task<ClientePrueba> Conectar(int puerto)

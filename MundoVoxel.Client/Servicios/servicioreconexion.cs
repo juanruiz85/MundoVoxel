@@ -106,6 +106,11 @@ public sealed class ServicioReconexion
                 if (respuesta is ErrorServidor er) { Fallo(TextoError(er)); return; }
                 if (respuesta is Unido unido)
                 {
+                    var (datosTrozos, errorTrozos) = await EsperarTrozosMundo(token);
+                    if (token.IsCancellationRequested) { AlCancelarConexion(); return; }
+                    if (errorTrozos != null) { Fallo(errorTrozos); return; }
+                    if (datosTrozos == null) { _red.Desconectar(); continue; }
+                    unido.MundoComprimido = datosTrozos;
                     Fin();
                     LanzarEnPrincipal(() => AlReconectado?.Invoke(unido));
                     return;
@@ -130,6 +135,26 @@ public sealed class ServicioReconexion
     /// <summary>Consulta la cola hasta que llega un mensaje relevante o se agota
     /// el tiempo (la interfaz no consume mientras hay reconexión en curso;
     /// Bienvenido y otros mensajes sueltos se descartan aquí).</summary>
+    /// <summary>Reensambla el mundo troceado tras la reconexion: consume los
+    /// MundoChunk hasta completar el Total y devuelve los bytes unidos.</summary>
+    async Task<(byte[]? Datos, string? Error)> EsperarTrozosMundo(CancellationToken token)
+    {
+        var trozos = new List<byte[]>();
+        var fin = DateTime.UtcNow.AddMilliseconds(TimeoutUnidoMs);
+        while (DateTime.UtcNow < fin)
+        {
+            var m = await EsperarMensaje(TimeoutListaMs, token, x => x is MundoChunk or ErrorServidor);
+            if (token.IsCancellationRequested) return (null, null);
+            if (m is ErrorServidor er) return (null, TextoError(er));
+            if (m is not MundoChunk mc) return (null, null);
+            while (trozos.Count < mc.Indice) trozos.Add(Array.Empty<byte>());
+            trozos.Add(mc.Datos);
+            if (mc.Total > 0 && trozos.Count >= mc.Total)
+                return (trozos.SelectMany(t => t).ToArray(), null);
+        }
+        return (null, null);
+    }
+
     async Task<Mensaje?> EsperarMensaje(int timeoutMs, CancellationToken token, Func<Mensaje, bool> relevante)
     {
         var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);

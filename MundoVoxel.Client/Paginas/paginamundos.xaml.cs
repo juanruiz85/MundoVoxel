@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using MundoVoxel.Client.Juego;
 using MundoVoxel.Client.Servicios;
 using MundoVoxel.Core;
@@ -24,6 +24,9 @@ public partial class PaginaMundos : ContentPage
     /// <summary>Clave del último mundo creado o al que se pidió unirse (los
     /// mundos privados la necesitan para reconectar automáticamente).</summary>
     string? _pinPendiente;
+    /// <summary>Reensamblado del mundo troceado: Unido sin datos + MundoChunk.</summary>
+    Unido? _unidoPendiente;
+    List<byte[]>? _trozosMundo;
 
     public PaginaMundos(ServicioRed red, ServicioIdioma idioma, ServicioTeclado teclado, ServicioReconexion reconexion)
     {
@@ -134,19 +137,33 @@ public partial class PaginaMundos : ContentPage
                 break;
 
             case Unido u:
+                // El mundo llega troceado: guardar el Unido y esperar los MundoChunk.
+                _unidoPendiente = u;
+                _trozosMundo = new List<byte[]>();
+                return false;
+
+            case MundoChunk mc when _unidoPendiente != null && _trozosMundo != null:
+                while (_trozosMundo.Count < mc.Indice) _trozosMundo.Add(Array.Empty<byte>());
+                _trozosMundo.Add(mc.Datos);
+                if (_trozosMundo.Count < mc.Total) return false;
+
+                var up = _unidoPendiente;
+                up.MundoComprimido = _trozosMundo.SelectMany(t => t).ToArray();
+                _unidoPendiente = null;
+                _trozosMundo = null;
                 var datos = new DatosMundo
                 {
-                    Id = u.Id,
-                    Nombre = u.Nombre,
-                    Dueno = u.Dueno,
-                    IdDueno = u.IdDueno,
-                    MundoComprimido = u.MundoComprimido,
-                    Ax = u.Ax, Ay = u.Ay, Az = u.Az,
+                    Id = up.Id,
+                    Nombre = up.Nombre,
+                    Dueno = up.Dueno,
+                    IdDueno = up.IdDueno,
+                    MundoComprimido = up.MundoComprimido,
+                    Ax = up.Ax, Ay = up.Ay, Az = up.Az,
                     Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
                     PinUsado = _pinPendiente,
                 };
-                // Al entrar al mundo el foco no debe quedar en ningA-on botA3n (la barra
-                // espaciadora es para saltar, no para activar el menA-o).
+                // Al entrar al mundo el foco no debe quedar en ningun boton (la
+                // barra espaciadora es para saltar, no para activar el menu).
                 _timer?.Stop();
                 _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, _reconexion, datos));
                 return true;

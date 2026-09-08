@@ -649,15 +649,30 @@ public sealed class GameServer : IAsyncDisposable
         c.Muerto = false;
         c.CausaMuerte = "";
         mundo.Jugadores[c.Id] = c;
+        // El mundo viaja troceado: Unido llega sin datos y los trozos comprimidos
+        // van detras (MundoChunk), para evitar un pico unico de memoria al entrar
+        // y dejar listo el streaming incremental de mundos mas grandes.
+        var mundoDatos = Mundo.Comprimir(mundo.Mundo.Serializar());
         Enviar(c, new Unido
         {
             Id = mundo.Id,
             Nombre = mundo.Nombre,
             Dueno = mundo.NombreDueno,
             IdDueno = mundo.IdDueno,
-            MundoComprimido = Mundo.Comprimir(mundo.Mundo.Serializar()),
+            MundoComprimido = Array.Empty<byte>(),
             Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
         });
+        const int tamanoTrozo = 128 * 1024;
+        int totalTrozos = (mundoDatos.Length + tamanoTrozo - 1) / tamanoTrozo;
+        if (totalTrozos == 0) totalTrozos = 1;
+        for (int i = 0; i < totalTrozos; i++)
+        {
+            int desde = i * tamanoTrozo;
+            int n = Math.Min(tamanoTrozo, mundoDatos.Length - desde);
+            var datos = new byte[n];
+            Array.Copy(mundoDatos, desde, datos, 0, n);
+            Enviar(c, new MundoChunk { Indice = i, Total = totalTrozos, Datos = datos });
+        }
         // Si el jugador ya tuvo inventario en este mundo (persistido), restaurarlo;
         // si no, dar el kit de inicio la primera vez que entra.
         if (c.Inventario.Count == 0 && mundo.Inventarios.TryGetValue(c.Nombre, out var guardado) && guardado.Count > 0)

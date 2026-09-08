@@ -2,6 +2,17 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.0] - 2026-09-07
+
+### Agregado (mundo troceado: chunk streaming fase 1)
+- **El mundo ya se transmite en trozos**: al entrar o reconectar, el servidor envia `Unido` sin datos y a continuacion el mundo comprimido en **`MundoChunk` de 128 KB** (`Indice`/`Total`). El cliente reensambla los trozos y construye el mundo igual que antes.
+- Elimina el pico unico de memoria al entrar y **habilita mundos mas grandes** y el streaming incremental de regiones mas adelante (los trozos ya viajan por la cola por conexion, sin bloquear el servidor por clientes lentos).
+- Cambio de protocolo: mensaje nuevo `MundoChunk`; cliente y servidor se actualizan juntos (un servidor 0.11.0 no es compatible con clientes 0.10.x y viceversa).
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (92 comprobaciones; +1 "el mundo llega troceado y se reensambla").
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.10.9] - 2026-09-07
 
 ### Agregado (paridad Android <-> Windows)

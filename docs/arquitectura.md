@@ -1,4 +1,4 @@
-# Arquitectura de MundoVoxel
+﻿# Arquitectura de MundoVoxel
 
 ## Visión general
 
@@ -81,7 +81,7 @@
 
 ## Límites actuales (diseño deliberado)
 - Los mundos se guardan en disco (`%LOCALAPPDATA%\MundoVoxel\mundos`, bloques comprimidos con gzip) al crearlos y al cerrar el servidor, y se restauran al arrancar; borrar un mundo también elimina su archivo.
-- El mundo completo se transmite al entrar (192×64×192 por defecto, comprimido con gzip): suficiente para LAN; para internet de alta latencia convendría *chunk streaming*.
+- El mundo se transmite troceado al entrar (`Unido` sin datos + `MundoChunk` de 128 KB): sin pico de memoria y listo para streaming incremental.
 - El renderizado es por software (canvas 2D con painter's algorithm): prioriza portabilidad; para mundos enormes convendría OpenGL/OpenGL ES (p. ej. Silk.NET).
 
 ## Próximos pasos
