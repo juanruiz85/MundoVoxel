@@ -62,7 +62,7 @@ jobs:
         run: dotnet workload install maui
       - name: Publicar cliente Windows
         run: |
-          dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -p:RuntimeIdentifier=win-x64 --self-contained -p:WindowsPackageType=None -o pub/cliente 2>&1 | Tee-Object -FilePath publish.log
+          dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -o pub/cliente 2>&1 | Tee-Object -FilePath publish.log
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Errores de publicacion
         if: failure()
