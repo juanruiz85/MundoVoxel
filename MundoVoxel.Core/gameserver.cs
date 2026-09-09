@@ -724,7 +724,9 @@ public sealed class GameServer : IAsyncDisposable
         lock (_cerrojo)
         {
             if (!_mundos.TryGetValue(bm.Id, out var mundo)) return;
-            if (mundo.IdDueno != c.Id)
+            // La propiedad se comprueba por NOMBRE de jugador (no por Id de
+            // conexion): si el creador reconecta (nuevo Id) no pierde su mundo.
+            if (mundo.NombreDueno != c.Nombre)
             {
                 Enviar(c, new ErrorServidor { Codigo = "NO_DUENO", Mensaje = "Solo el creador del mundo puede borrarlo." });
                 return;

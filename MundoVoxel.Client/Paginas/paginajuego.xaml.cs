@@ -1176,7 +1176,7 @@ public partial class PaginaJuego : ContentPage
 #endif
         if (_pausado)
         {
-            BtnBorrarMundo.IsVisible = _red.MiId == _datos.IdDueno;
+            BtnBorrarMundo.IsVisible = _datos.Dueno == EstadoSesion.Nombre;
             BtnPausaVolar.Text = _idioma.O("juego.volando", _vista.Volando ? _idioma.O("juego.si") : _idioma.O("juego.no"));
         }
     }

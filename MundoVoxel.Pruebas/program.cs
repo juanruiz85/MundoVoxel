@@ -640,10 +640,32 @@ if (chatLimpio == null) Console.WriteLine($"[diag] chat limpio NO llego; conecta
 Comprobar(chatLimpio?.Texto == "linea1linea2", "el chat se limpia de caracteres de control");
 
 // ---------- persistencia en memoria ----------
+// ---------- reconexion: caida dura del socket y reentrada al mismo mundo ----------
+// Cubre a nivel de protocolo la reconexion automatica del cliente (0.10.8):
+// el socket muere sin Salir, el servidor conserva el mundo, el jugador vuelve
+// a conectarse con su nombre, se retransmite el mundo troceado y se restaura
+// su inventario persistido.
+Console.WriteLine("Reconexion: caida dura del socket y reentrada al mismo mundo.");
+c1.Cerrar();
+await Task.Delay(300);
+c1 = await Conectar(puerto);
+await c1.Enviar(new Hola { Nombre = "Ana", Version = "1.0" });
+await c1.LeerHasta<Bienvenido>();
+await c1.LeerHasta<ListaMundos>();
+await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456" });
+var resRe = await LeerUnidoCompleto(c1);
+var unidoRe = resRe.Unido;
+Comprobar(unidoRe != null && unidoRe.Id == idPrivado, $"reconexion: el mundo se retransmite troceado tras la caida ({resRe.Trozos} trozos)");
+var invRe = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
+Comprobar(invRe != null && invRe.Slots.Count > 0, "reconexion: el inventario persistido se restaura");
+await Task.Delay(150);
+while (await c1.LeerCualquiera(60) != null) { } // drenar notificaciones del rejoin
+
 Console.WriteLine("Persistencia: el mundo vacio sigue existiendo y luego se borra.");
 await c1.Enviar(new Salir());
 await c2.Enviar(new Salir());
 await Task.Delay(200);
+while (await c1.LeerCualquiera(60) != null) { } // drenar antes de pedir la lista
 await c1.Enviar(new ListarMundos());
 var lista1 = await c1.LeerHasta<ListaMundos>();
 Comprobar(lista1!.Mundos.Any(m => m.Id == idPrivado), "el mundo privado permanece en memoria sin jugadores");
@@ -651,6 +673,7 @@ Comprobar(lista1!.Mundos.Any(m => m.Id == idPrivado), "el mundo privado permanec
 // Borrar el mundo publico (Ana es la duena)
 await c1.Enviar(new BorrarMundo { Id = idMundo });
 await Task.Delay(200);
+while (await c1.LeerCualquiera(60) != null) { } // drenar la notificacion del borrado
 await c1.Enviar(new ListarMundos());
 var lista2 = await c1.LeerHasta<ListaMundos>();
 Comprobar(!lista2!.Mundos.Any(m => m.Id == idMundo), "el dueno borra su mundo");

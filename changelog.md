@@ -2,6 +2,18 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.2] - 2026-09-08
+
+### Corregido (propiedad de mundos tras reconectar)
+- **El creador que reconecta perde la propiedad de su mundo**: la propiedad se comprobaba por Id de conexion (nuevo en cada conexion), asi que tras una caida o reconexion el dueno ya no podia borrar su mundo (ni se le mostraba el boton). Ahora la propiedad se comprueba por **nombre de jugador** en el servidor y en el cliente. Nota: si dos jugadores usan el mismo nombre ambos podrian borrar ese mundo (los nombres no son unicos por diseno; la alternativa seria un sistema de identidad persistente).
+
+### Agregado (cobertura de reconexion en la suite)
+- **Test nuevo a nivel de protocolo**: caida dura del socket sin `Salir`, el servidor conserva el mundo, el jugador vuelve a conectarse con su nombre, el mundo se retransmite troceado y se restaura su inventario persistido. Fue este test el que destapo el bug de propiedad.
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (94 comprobaciones).
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.11.1] - 2026-09-08
 
 ### Seguridad (claves de mundo de 6 digitos)

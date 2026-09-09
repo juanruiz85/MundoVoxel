@@ -129,7 +129,7 @@ public partial class PaginaMundos : ContentPage
                     _items.Add(new InfoMundoView
                     {
                         Info = info,
-                        EsDueno = info.IdDueno == _red.MiId,
+                        EsDueno = info.Dueno == EstadoSesion.Nombre,
                         Detalle = $"{_idioma.O(info.Abierto ? "mundos.estado_publico" : "mundos.estado_privado")} · " +
                                   $"{_idioma.O("mundos.jugadores", info.Jugadores, info.MaxJugadores)} · " +
                                   $"{_idioma.O("mundos.dueno", info.Dueno)}",
