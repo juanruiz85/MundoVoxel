@@ -56,6 +56,7 @@ public sealed class GameServer : IAsyncDisposable
         _ = CicloPosicionesAsync(_cts.Token);
         _ = CicloMobsAsync(_cts.Token);
         _ = CicloMundoAsync(_cts.Token);
+        _ = CicloAutoguardadoAsync(_cts.Token);
     }
 
     /// <summary>
@@ -968,6 +969,27 @@ public sealed class GameServer : IAsyncDisposable
                     ReponerMobs(mundo);
                 }
             }
+        }
+    }
+    /// <summary>Autoguardado periodico: reescribe los .mundo en disco cada
+    /// AutoguardadoSegundos (0 = apagado) para no perder cambios si el proceso
+    /// muere. GuardarMundos ya es seguro bajo el cerrojo.</summary>
+    async Task CicloAutoguardadoAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            int seg = Ajustes.Actual.AutoguardadoSegundos;
+            if (seg <= 0) { await Task.Delay(5000, ct); continue; }
+            // Espera en pasos cortos reevaluando el ajuste: un cambio de
+            // AutoguardadoSegundos surte efecto en menos de un segundo.
+            for (int t = 0; t < seg * 4 && !ct.IsCancellationRequested; t++)
+            {
+                await Task.Delay(250, ct);
+                if (Ajustes.Actual.AutoguardadoSegundos != seg) break;
+            }
+            if (ct.IsCancellationRequested) break;
+            try { GuardarMundos(); }
+            catch (Exception ex) { Log($"[autoguardado] {ex.Message}"); }
         }
     }
 

@@ -640,6 +640,15 @@ if (chatLimpio == null) Console.WriteLine($"[diag] chat limpio NO llego; conecta
 Comprobar(chatLimpio?.Texto == "linea1linea2", "el chat se limpia de caracteres de control");
 
 // ---------- persistencia en memoria ----------
+// ---------- autoguardado periodico en disco ----------
+Console.WriteLine("Autoguardado: el servidor reescribe los .mundo periodicamente.");
+var rutaMundo = Path.Combine(GameServer.CarpetaMundos, idPrivado + ".mundo");
+var antesGuardado = File.Exists(rutaMundo) ? File.GetLastWriteTimeUtc(rutaMundo) : DateTime.MinValue;
+Ajustes.Actual.AutoguardadoSegundos = 1;
+await Task.Delay(2500);
+Comprobar(File.Exists(rutaMundo) && File.GetLastWriteTimeUtc(rutaMundo) > antesGuardado,
+    "autoguardado: el .mundo se reescribe en disco periodicamente");
+
 // ---------- reconexion: caida dura del socket y reentrada al mismo mundo ----------
 // Cubre a nivel de protocolo la reconexion automatica del cliente (0.10.8):
 // el socket muere sin Salir, el servidor conserva el mundo, el jugador vuelve

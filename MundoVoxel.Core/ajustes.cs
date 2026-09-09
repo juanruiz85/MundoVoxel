@@ -36,6 +36,9 @@ public static class Ajustes
         public int ProfundoMundo { get; set; } = 192;
         public float NivelAgua { get; set; } = 0.42f;        // fraccion del alto que ocupa el mar
         public int LagosLava { get; set; } = 14;             // intentos de lagos de lava
+        // Autoguardado: cada cuantos segundos se reescriben los .mundo en disco
+        // (0 = apagado; los mundos siempre se guardan ademas al salir/cerrar).
+        public int AutoguardadoSegundos { get; set; } = 300;
         public int LagosAgua { get; set; } = 20;             // intentos de lagos de agua
         public int CantidadMobs { get; set; } = 12;          // poblacion objetivo de mobs
         public int ProfundidadLagoMin { get; set; } = 4;     // profundidad de lagos (agua/lava)

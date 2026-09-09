@@ -2,6 +2,16 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.3] - 2026-09-08
+
+### Agregado (autoguardado periodico de mundos)
+- **Autoguardado en disco cada `AutoguardadoSegundos`** (300 s por defecto, `0` = apagado; ajustable en `ajustes.config.json`): un crash del servidor ya no pierde los cambios desde la ultima salida. El ciclo espera en pasos de 250 ms reevaluando el ajuste, asi que un cambio de configuracion surte efecto en menos de un segundo.
+- `GuardarMundos` sigue siendo el mismo camino seguro bajo el cerrojo (los mundos vacios no se reescriben sin motivo; el borrado de mundos ya elimina su archivo).
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (95 comprobaciones; +1 "autoguardado: el .mundo se reescribe en disco periodicamente").
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.11.2] - 2026-09-08
 
 ### Corregido (propiedad de mundos tras reconectar)
