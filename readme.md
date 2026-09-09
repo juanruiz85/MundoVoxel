@@ -173,7 +173,11 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 | Mirar | Arrastrar con el ratón | Arrastrar (mitad derecha) |
 | Colocar bloque | Clic | Botón Colocar / toque |
 | Romper bloque | Doble clic o `R` (mantener pulsado en bloques duros) | Botón Romper / doble toque |
-| Seleccionar bloque | `1`–`9` o rueda | — |
+| Seleccionar bloque | `1`–`9` o rueda | Tocar la hotbar |
+| Usar item (azada, semillas, comer, mechero) | `U` o clic derecho | Boton Usar |
+| Soltar item | `Q` | Boton Soltar |
+| Modo espectador | `G` | Boton Espectador |
+| Inventario | `E` | Menu de pausa -> Inventario |
 | Chat | `T` | Botón Chat |
 | Pausa / menú | `Esc` | Botón Menú |
 
