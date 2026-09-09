@@ -11,6 +11,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 ### Verificado
 - Suite automatica: PRUEBAS SUPERADAS (95 comprobaciones; +1 "autoguardado: el .mundo se reescribe en disco periodicamente").
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+- Documentacion: arquitectura (persistencia + autoguardado en limites actuales) y changelog al dia.
 
 ## [0.11.2] - 2026-09-08
 
