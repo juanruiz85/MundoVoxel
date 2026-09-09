@@ -204,6 +204,8 @@ Si una clave no existe, se muestra la propia clave (fallback), así nunca se rom
 
 ## 🗺️ Próximos pasos
 
+La lista completa y actualizada de tareas está en [docs/tareas-pendientes.md](docs/tareas-pendientes.md).
+
 Ver `CHANGELOG.md` y la sección *Próximos pasos* al final de `docs/ARQUITECTURA.md`.
 
 Ideas a corto plazo:
