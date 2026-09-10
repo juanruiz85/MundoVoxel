@@ -176,6 +176,8 @@ public sealed class GameServer : IAsyncDisposable
         public readonly List<(int x, int y, int z, float t)> Tnts = new();
         /// <summary>Contenido de los cofres por posicion (x,y,z).</summary>
         public readonly Dictionary<(int x, int y, int z), List<SlotInventario>> Cofres = new();
+        /// <summary>Ultima posicion de cada jugador al salir (para volver donde estaba).</summary>
+        public readonly Dictionary<string, (float X, float Y, float Z, float Ry)> Posiciones = new();
         public int Conteo => Jugadores.Count;
     }
 
@@ -467,6 +469,13 @@ public sealed class GameServer : IAsyncDisposable
                                 bw.Write(s.Cantidad);
                             }
                         }
+                        // Ultima posicion por jugador (seccion nueva con guard de compatibilidad al leer)
+                        bw.Write(ms.Posiciones.Count);
+                        foreach (var kv in ms.Posiciones)
+                        {
+                            bw.Write(kv.Key);
+                            bw.Write(kv.Value.X); bw.Write(kv.Value.Y); bw.Write(kv.Value.Z); bw.Write(kv.Value.Ry);
+                        }
                     }
                     File.WriteAllBytes(Path.Combine(CarpetaMundos, ms.Id + ".mundo"), mem.ToArray());
                 }
@@ -526,6 +535,17 @@ public sealed class GameServer : IAsyncDisposable
                                 for (int k = 0; k < ni; k++)
                                     contenido.Add(new SlotInventario(br.ReadUInt16(), br.ReadInt32()));
                                 ms.Cofres[(cx, cy, cz)] = contenido;
+                            }
+                        }
+                        // Seccion de posiciones (formato extendido): solo si el archivo la trae
+                        if (br.BaseStream.Position + 4 <= br.BaseStream.Length)
+                        {
+                            int np = br.ReadInt32();
+                            for (int k = 0; k < np; k++)
+                            {
+                                var nombre = br.ReadString();
+                                float px = br.ReadSingle(), py = br.ReadSingle(), pz = br.ReadSingle(), pr = br.ReadSingle();
+                                ms.Posiciones[nombre] = (px, py, pz, pr);
                             }
                         }
                         _mundos[ms.Id] = ms;
@@ -642,10 +662,19 @@ public sealed class GameServer : IAsyncDisposable
     void UnirseInterno(ConexionJugador c, MundoServidor mundo)
     {
         var aparicion = mundo.Mundo.ObtenerPuntoAparicion();
+        float ry = 0;
+        // Volver donde estaba (si hay posicion guardada y sigue dentro del mundo)
+        if (mundo.Posiciones.TryGetValue(c.Nombre, out var guardada)
+            && mundo.Mundo.Dentro((int)guardada.X, (int)guardada.Y, (int)guardada.Z))
+        {
+            aparicion = new System.Numerics.Vector3(guardada.X, guardada.Y, guardada.Z);
+            ry = guardada.Ry;
+            mundo.Posiciones.Remove(c.Nombre);
+        }
         c.MundoId = mundo.Id;
         c.EnMundo = true;
         c.Pos = aparicion;
-        c.Ry = 0; c.Pitch = 0;
+        c.Ry = ry; c.Pitch = 0;
         c.Oxigeno = Ajustes.Actual.OxigenoMaximo;
         c.Muerto = false;
         c.CausaMuerte = "";
@@ -712,6 +741,8 @@ public sealed class GameServer : IAsyncDisposable
             {
                 // Persistir el inventario del jugador para restaurarlo cuando vuelva
                 mundo.Inventarios[c.Nombre] = c.Inventario.ToList();
+                // Y su ultima posicion (si murio, mejor reaparecer en el spawn)
+                if (!c.Muerto) mundo.Posiciones[c.Nombre] = (c.Pos.X, c.Pos.Y, c.Pos.Z, c.Ry);
                 mundo.Jugadores.Remove(c.Id);
                 if (notificar) Broadcast(id, new JugadorSalio { Id = c.Id, Nombre = c.Nombre });
                 // El mundo se mantiene en memoria aunque quede vacÃ­o: se puede volver a entrar despuÃ©s.

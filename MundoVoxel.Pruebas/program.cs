@@ -655,6 +655,10 @@ Comprobar(File.Exists(rutaMundo) && File.GetLastWriteTimeUtc(rutaMundo) > antesG
 // a conectarse con su nombre, se retransmite el mundo troceado y se restaura
 // su inventario persistido.
 Console.WriteLine("Reconexion: caida dura del socket y reentrada al mismo mundo.");
+// Ana se mueve a un punto conocido antes de la caida: al volver debe estar ahi
+var pxEsperado = aparicionPriv.Ax + 3f;
+await c1.Enviar(new Posicion { Px = pxEsperado, Py = aparicionPriv.Ay + 2f, Pz = aparicionPriv.Az, Ry = 1f, Pitch = 0 });
+await Task.Delay(200);
 c1.Cerrar();
 await Task.Delay(300);
 c1 = await Conectar(puerto);
@@ -665,6 +669,8 @@ await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456" });
 var resRe = await LeerUnidoCompleto(c1);
 var unidoRe = resRe.Unido;
 Comprobar(unidoRe != null && unidoRe.Id == idPrivado, $"reconexion: el mundo se retransmite troceado tras la caida ({resRe.Trozos} trozos)");
+Comprobar(unidoRe != null && MathF.Abs(unidoRe.Ax - pxEsperado) < 0.5f,
+    $"reconexion: vuelve a la posicion guardada (esperada x={pxEsperado:F1}, recibida x={unidoRe?.Ax ?? -999:F1})");
 var invRe = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 Comprobar(invRe != null && invRe.Slots.Count > 0, "reconexion: el inventario persistido se restaura");
 await Task.Delay(150);

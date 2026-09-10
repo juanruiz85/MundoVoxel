@@ -2,6 +2,17 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.4] - 2026-09-09
+
+### Agregado (posicion del jugador persistida)
+- **Vuelves donde estabas**: al salir o caer la conexion se guarda la ultima posicion (y rumbo) de cada jugador por mundo; al reentrar el servidor la restaura (validando que siga dentro del mundo) en vez de aparecerte siempre en el spawn. Si moriste, reapareces en el spawn como siempre.
+- Persistida en el `.mundo` (seccion nueva con guard de compatibilidad: los archivos viejos cargan igual). La reconexion automatica del cliente aprovecha esto: vuelves exactamente donde estabas.
+- Sin cambios de protocolo: la posicion viaja en el `Unido` existente (Ax/Ay/Az).
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (96 comprobaciones; +1 "reconexion: vuelve a la posicion guardada" - esperada x=99.5, recibida x=99.5).
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.11.3] - 2026-09-08
 
 ### Agregado (autoguardado periodico de mundos)
