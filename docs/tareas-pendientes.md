@@ -1,7 +1,7 @@
 ﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
-Ultima actualizacion: 2026-09-08 (tras v0.11.3).
+Ultima actualizacion: 2026-09-09 (tras v0.11.4).
 
 ## Hecho recientemente (para contexto)
 
@@ -11,6 +11,7 @@ Ultima actualizacion: 2026-09-08 (tras v0.11.3).
 - [x] v0.11.1: claves de mundos privados de 6 digitos
 - [x] v0.11.2: propiedad de mundos por nombre de jugador (bug: el dueno que reconecta la perdía) + test de reconexion a nivel de protocolo
 - [x] v0.11.3: autoguardado periodico de mundos en disco (`AutoguardadoSegundos`)
+- [x] v0.11.4: posicion del jugador persistida (al reconectar vuelves donde estabas; sin cambios de protocolo)
 - [x] CI (GitHub Actions: suite en Linux + builds MAUI) y releases automaticos por tags (`release.yml`)
 - [x] Seguridad: anti-autoclick, tope de intentos de clave, mineria por golpes, tope de descompresion (ver docs/auditoria-seguridad.md)
 

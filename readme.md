@@ -153,7 +153,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 1. Un jugador (o un servidor dedicado) levanta `MundoVoxel.Server`.
 2. En el cliente: escribe tu **nombre**, la **IP** del servidor (o `127.0.0.1` para jugar solo) y pulsa **Conectar**.
    - Puedes **guardar el servidor como favorito** (alias + IP + puerto) en el mismo menu y conectarte con un clic; la lista queda en `%LOCALAPPDATA%\MundoVoxel\servidores.json`.
-   - Si se te cae la conexion en plena partida, el cliente **reconecta automaticamente** (hasta 5 intentos con espera creciente) y vuelve a entrar al mismo mundo; puedes cancelar desde el panel de reconexion.
+   - Si se te cae la conexión en plena partida, el cliente **reconecta automáticamente** (hasta 5 intentos con espera creciente) y vuelves a tu misma **posición con tu inventario**; puedes cancelar desde el panel de reconexión.
 3. En la lista de mundos: **Crear mundo** (público o privado con clave de 6 dígitos) o **Unirse** a uno existente.
    - Si el mundo es privado, te pedirá la clave.
 4. Dentro del mundo: construye, rompe y chatea con los demás.
@@ -231,34 +231,34 @@ Ideas a corto plazo:
 
 | Métrica | Valor |
 |---|---|
-| Período de desarrollo | 2026-08-13 → 2026-09-08 |
-| Sesiones de IA | 22 |
-| Prompts del desarrollador | 333 |
-| Respuestas generadas por IA | 6,262 |
-| Tokens de entrada (prompts + contexto) | 28,890,383 |
-| Tokens de salida (generación) | 7,387,863 |
-| **Tokens totales** | **36,278,246** |
-| Tokens de caché leídos | 1,255,891,712 |
+| Período de desarrollo | 2026-08-13 → 2026-09-11 |
+| Sesiones de IA | 30 |
+| Prompts del desarrollador | 376 |
+| Respuestas generadas por IA | 6,645 |
+| Tokens de entrada (prompts + contexto) | 33,371,805 |
+| Tokens de salida (generación) | 7,475,356 |
+| **Tokens totales** | **40,847,161** |
+| Tokens de caché leídos | 1,353,166,464 |
 | Costo real registrado | $0.00 (modelo ZAI sin cargo reportado) |
-| Costo estimado a tarifas de mercado | ~242.47 USD |
+| Costo estimado a tarifas de mercado | ~261.86 USD |
 | Agentes de IA con uso | auto-coder, main |
 
 ### Promedios
 
-- Tokens por prompt: ~86,758 de entrada / ~22,186 de salida.
-- Costo estimado por prompt: ~0.73 USD (a tarifas de mercado).
+- Tokens por prompt: ~88,755 de entrada / ~19,881 de salida.
+- Costo estimado por prompt: ~0.70 USD (a tarifas de mercado).
 
 ### Modelos utilizados
 
 | Modelo | Respuestas | % del total |
 |---|---|---|
-| zai_auto (ruteo automático) | 5976 | 95.4% |
-| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 3.4% |
-| zai/tdpsk_deepseek-v4-pro-202606 | 46 | 0.7% |
+| zai_auto (ruteo automático) | 6346 | 95.5% |
+| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 3.2% |
+| zai/tdpsk_deepseek-v4-pro-202606 | 47 | 0.7% |
 | gateway-injected (mensaje interno) | 14 | 0.2% |
+| zai/zaicoding_glm-5.3 | 14 | 0.2% |
 | zai/zaicoding_glm-5.2 | 12 | 0.2% |
 | zai/tdpsk_deepseek-v4-flash-202605 | 2 | 0% |
-| zai/zaicoding_glm-5.3 | 2 | 0% |
 
 ### Uso vía ZCode CLI (capa de código delegada)
 
