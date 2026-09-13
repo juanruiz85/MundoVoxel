@@ -360,9 +360,18 @@ for (int r = 0; r < 3 && hostil == null; r++)
 }
 if (hostil != null)
 {
-    await c1.Enviar(new Posicion { Px = hostil.Px, Py = hostil.Py, Pz = hostil.Pz, Ry = 0, Pitch = 0 });
-    await Task.Delay(300);
-    var saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 8000);
+    // Acercarse al zombi con su posicion MAS RECIENTE (en runners lentos camina
+    // entre el broadcast y el golpe) y reintentar hasta ver el danio.
+    JugadorSalud? saludMsg = null;
+    for (int intento = 0; intento < 4 && saludMsg == null; intento++)
+    {
+        var mhFresco = await c1.LeerHasta<Mobs>(timeoutMs: 10000);
+        var zombiFresco = mhFresco?.Lista.FirstOrDefault(m => m.Id == hostil.Id);
+        if (zombiFresco == null) break; // ya no existe: no hay nada que probar
+        await c1.Enviar(new Posicion { Px = zombiFresco.Px, Py = zombiFresco.Py, Pz = zombiFresco.Pz, Ry = 0, Pitch = 0 });
+        await Task.Delay(500);
+        saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 5000);
+    }
     Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
     // Matar al zombi de verdad: 20 de salud, cada golpe hace 5+espada; se
     // golpea en bucle hasta que desaparezca del mensaje Mobs.
