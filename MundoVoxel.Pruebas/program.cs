@@ -257,6 +257,10 @@ Comprobar(conteoMin[Bloques.Diamante] > 0, $"el mundo tiene diamante ({conteoMin
 
 // Matar un mob pasivo para obtener carne cruda (drop + auto-recogida)
 Console.WriteLine("  matando un mob pasivo para probar drops...");
+// De dia: sin hostiles acechando durante los golpes (a noche un creeper puede
+// explotar y matar a Ana, cascando el resto de la seccion).
+await c1.Enviar(new FijarHora { Hora = 9f });
+await Task.Delay(400);
 MobEstado? objetivo = null;
 for (int intento = 0; intento < 6 && objetivo == null; intento++)
 {
@@ -341,6 +345,9 @@ Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) ==
 // los hostiles se quemen al amanecer). Se usa un ZOMBI (Tipo 3) porque golpea en
 // bucle. Tras comprobar el ataque se mata al zombi y se cura a Ana con el modo
 // espectador (el test de muerte + respawn se hace al final de la suite).
+// Noche de nuevo: los hostiles solo aparecen y atacan de noche.
+await c1.Enviar(new FijarHora { Hora = 0f });
+await Task.Delay(600);
 var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
 var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo == 3); // zombi
 if (hostil != null)
