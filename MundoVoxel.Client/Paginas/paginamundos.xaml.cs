@@ -50,7 +50,7 @@ public partial class PaginaMundos : ContentPage
 
         // Ajustes del mundo: tamano (ancho/alto/profundo) y poblacion de mobs
         PkrTamano.ItemsSource = Tamanos;
-        PkrTamano.SelectedIndex = 2;
+        PkrTamano.SelectedIndex = 3; // 256x64x256 (el mas grande del picker)
         LblCfgTamano.Text = idioma.O("mundos.cfg_tamano");
         LblCfgAgua.Text = idioma.O("mundos.cfg_agua");
         LblCfgLava.Text = idioma.O("mundos.cfg_lava");

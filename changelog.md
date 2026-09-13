@@ -2,6 +2,17 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.5] - 2026-09-13
+
+### Agregado (mundos mas grandes por defecto)
+- **El mundo por defecto pasa de 192x64x192 a 256x64x256** (1.8x mas area): viable gracias a la transmision troceada de la 0.11.0 (3 trozos en vez de 2). El selector de tamanos del cliente arranca ahora en 256x64x256.
+- La suite sigue determinista: crea sus mundos con los valores por defecto y las aserciones son dinamicas (dimensiones y conteos de minerales > 0).
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (96 comprobaciones) con mundos 256x64x256 (carbon 1758, hierro 873, oro 367, diamante 137).
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+- Nota: 2 fallos intermitentes (drop de mob y fundicion) en una corrida previa no se reprodujeron en la re-corrida con el mismo codigo (flakiness de mobs nocturnos, no relacionado con el tamano).
+
 ## [0.11.4] - 2026-09-09
 
 ### Agregado (posicion del jugador persistida)

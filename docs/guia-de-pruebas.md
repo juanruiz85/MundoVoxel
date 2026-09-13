@@ -1,4 +1,4 @@
-# Guía de pruebas de MundoVoxel
+﻿# Guía de pruebas de MundoVoxel
 
 Cómo compilar, ejecutar y probar el juego desde la terminal, tanto en **Windows**
 como en **Android (emulador)**, y cómo jugar **multijugador** con ambos clientes

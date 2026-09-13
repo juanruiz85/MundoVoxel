@@ -1126,7 +1126,7 @@ public sealed class GameServer : IAsyncDisposable
     }
 
     /// <summary>
-    /// Hace crecer los cultivos (trigo y plantones). Con mundos grandes (192x64x192 =
+    /// Hace crecer los cultivos (trigo y plantones). Con mundos grandes (256x64x256 =
     /// 2.36M de celdas) NO se recorre todo el mundo en cada tick: se procesa una
     /// franja vertical de X por tick (round-robin) para que el servidor no se
     /// bloquee y los mensajes (craftear, romper...) sigan respondiendo rapido.

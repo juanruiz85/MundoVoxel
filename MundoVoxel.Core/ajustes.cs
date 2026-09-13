@@ -31,9 +31,9 @@ public static class Ajustes
         public float RadioSpawnMin { get; set; } = 24f;
         public float RadioSpawnMax { get; set; } = 128f;
         // Generacion de mundos por defecto (se pueden ajustar por mundo desde el cliente).
-        public int AnchoMundo { get; set; } = 192;
+        public int AnchoMundo { get; set; } = 256;
         public int AltoMundo { get; set; } = 64;
-        public int ProfundoMundo { get; set; } = 192;
+        public int ProfundoMundo { get; set; } = 256;
         public float NivelAgua { get; set; } = 0.42f;        // fraccion del alto que ocupa el mar
         public int LagosLava { get; set; } = 14;             // intentos de lagos de lava
         // Autoguardado: cada cuantos segundos se reescriben los .mundo en disco

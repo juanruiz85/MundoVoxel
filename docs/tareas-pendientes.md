@@ -20,7 +20,7 @@ Ultima actualizacion: 2026-09-09 (tras v0.11.4).
 ### Gameplay / red
 - [ ] **Streaming por proximidad**: enviar al entrar solo los trozos cercanos al jugador y el resto conforme se mueve (la transmision troceada ya esta hecha; falta que el cliente renderice mundos parciales y que el servidor decida que trozos mandar).
 - [ ] **Delta de bloques para reconexiones rapidas**: si el jugador reconoce en pocos segundos, reenviar solo los `BloqueCambio` del intervalo en vez del mundo completo.
-- [ ] **Mundos mas grandes por defecto** (256x64x256): ya viable con transmision troceada; revisar tiempo de generacion y memoria por mundo (40 mundos x ~8 MB).
+- [x] v0.11.5: mundos mas grandes por defecto (256x64x256) - viable con la transmision troceada; memoria por mundo ~8.4 MB.
 - [ ] Lista de servidores favoritos con ping/estado en vivo (jugadores conectados por servidor).
 - [ ] Chat privado entre jugadores (comandos `/msg`).
 
