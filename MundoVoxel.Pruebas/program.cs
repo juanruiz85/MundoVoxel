@@ -355,9 +355,15 @@ if (cxO >= 0)
 await c1.Enviar(new Posicion { Px = aparicionPriv.Ax + 4, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
 await Task.Delay(150);
 
+Console.WriteLine($"[diag] fundir: horno en (bx,by,bz) segun colocacion previa; ana en ({aparicionPriv.Ax + 4}, {aparicionPriv.Ay}, {aparicionPriv.Az})");
 await c1.Enviar(new Cocinar { Receta = 3 }); // fundir oro (receta 3 del horno)
 var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) == true, "fundir oro en bruto -> lingote de oro");
+if (invLingote == null)
+{
+    var errFund = await c1.LeerCualquiera(600);
+    Console.WriteLine($"[diag] fundir fallo: siguiente msg = {(errFund?.GetType().Name ?? "ninguno")} {(errFund is ErrorServidor e2 ? e2.Codigo + " " + e2.Mensaje : "")}");
+}
 
 // Un mob hostil ataca al jugador si esta cerca (se prueba de noche, antes de que
 // los hostiles se quemen al amanecer). Se usa un ZOMBI (Tipo 3) porque golpea en
