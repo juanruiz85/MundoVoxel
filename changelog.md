@@ -18,6 +18,11 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - **El mundo por defecto pasa de 192x64x192 a 256x64x256** (1.8x mas area): viable gracias a la transmision troceada de la 0.11.0 (3 trozos en vez de 2). El selector de tamanos del cliente arranca ahora en 256x64x256.
 - La suite sigue determinista: crea sus mundos con los valores por defecto y las aserciones son dinamicas (dimensiones y conteos de minerales > 0).
 
+### Corregido (suite de CI)
+- Dia durante el test del mob pasivo y noche solo para el test de hostiles (a noche un creeper interrumpia la cadena mob -> horno -> fundicion en runners lentos).
+- Espera acotada a que aparezca un zombi y acercamiento con su posicion mas reciente (en runners lentos camina entre el broadcast y el golpe).
+- El horno de la fundicion se coloca con reintentos en celdas candidatas (en CI la celda original podia estar ocupada por terreno o mobs movidos por la noche).
+
 ### Verificado
 - Suite automatica: PRUEBAS SUPERADAS (96 comprobaciones) con mundos 256x64x256 (carbon 1758, hierro 873, oro 367, diamante 137).
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.

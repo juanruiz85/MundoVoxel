@@ -314,11 +314,50 @@ if (objetivo != null)
     }
 }
 
+// Fundicion: picar carbon y oro NATURAL del mundo (el anti-cheat ya no permite
+// colocar minerales sin tenerlos). Se buscan vetas en el mundo deserializado y
+// Ana se teletransporta junto a ellas para picarlas con el pico.
+int cxC = -1, cyC = 0, czC = 0;
+for (int x = 1; x < mundoPriv.Ancho && cxC < 0; x++)
+    for (int y = 1; y < mundoPriv.Alto && cxC < 0; y++)
+        for (int z = 1; z < mundoPriv.Profundo && cxC < 0; z++)
+            if (mundoPriv.Obtener(x, y, z) == Bloques.Carbon) { cxC = x; cyC = y; czC = z; }
+Comprobar(cxC >= 0, "hay carbon natural en el mundo");
+int cxO = -1, cyO = 0, czO = 0;
+for (int x = 1; x < mundoPriv.Ancho && cxO < 0; x++)
+    for (int y = 1; y < mundoPriv.Alto && cxO < 0; y++)
+        for (int z = 1; z < mundoPriv.Profundo && cxO < 0; z++)
+            if (mundoPriv.Obtener(x, y, z) == Bloques.Oro) { cxO = x; cyO = y; czO = z; }
+Comprobar(cxO >= 0, "hay oro natural en el mundo");
+if (cxC >= 0)
+{
+    await c1.Enviar(new Posicion { Px = cxC, Py = cyC, Pz = czC, Ry = 0, Pitch = 0 });
+    await Task.Delay(150);
+    var invCarbon = (await RomperHasta(c1, cxC, cyC, czC)).Inv;
+    Comprobar(invCarbon?.Slots.Any(s => s.Material == (ushort)ItemId.CarbonItem) == true, "picar carbon da carbon (combustible)");
+}
+if (cxO >= 0)
+{
+    await c1.Enviar(new Posicion { Px = cxO, Py = cyO, Pz = czO, Ry = 0, Pitch = 0 });
+    await Task.Delay(150);
+    var invOroBruto = (await RomperHasta(c1, cxO, cyO, czO)).Inv;
+    Comprobar(invOroBruto?.Slots.Any(s => s.Material == (ushort)ItemId.OroBruto) == true, "picar oro da oro en bruto");
+}
+// Volver al spawn (junto al horno) para la fundicion
+await c1.Enviar(new Posicion { Px = aparicionPriv.Ax + 4, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
+await Task.Delay(150);
+
 // El horno para la fundicion se coloca SIEMPRE (no depende del drop de mobs)
-await c1.Enviar(new ColocarBloque { X = bx, Y = by - 2, Z = bz, Bloque = Bloques.Horno }); // dentro de la columna excavada (aire garantizado)
-var cambioHorno = await c1.LeerHasta<BloqueCambio>(timeoutMs: 4000);
-await c1.LeerHasta<Inventario>(timeoutMs: 2000);
-Console.WriteLine($"[diag] horno colocado: {cambioHorno != null}");
+BloqueCambio? cambioHorno = null;
+var candidatas = new (int X, int Y, int Z)[] { (bx, by - 2, bz), ((int)aparicionPriv.Ax + 4, (int)aparicionPriv.Ay + 2, (int)aparicionPriv.Az), ((int)aparicionPriv.Ax + 6, (int)aparicionPriv.Ay + 2, (int)aparicionPriv.Az), ((int)aparicionPriv.Ax, (int)aparicionPriv.Ay + 2, (int)aparicionPriv.Az) };
+foreach (var cnd in candidatas)
+{
+    await c1.Enviar(new ColocarBloque { X = cnd.X, Y = cnd.Y, Z = cnd.Z, Bloque = Bloques.Horno });
+    cambioHorno = await c1.LeerHasta<BloqueCambio>(timeoutMs: 1500);
+    if (cambioHorno != null && cambioHorno.X == cnd.X && cambioHorno.Y == cnd.Y && cambioHorno.Z == cnd.Z) break;
+    await c1.LeerHasta<Inventario>(timeoutMs: 400); // drenar respuesta si la hubo
+}
+Console.WriteLine($"[diag] horno colocado: {cambioHorno != null} en ({cambioHorno?.X}, {cambioHorno?.Y}, {cambioHorno?.Z})");
 await c1.Enviar(new Cocinar { Receta = 3 }); // fundir oro (receta 3 del horno)
 var finCoc = DateTime.UtcNow.AddSeconds(6);
 string? cocResultado = null;
