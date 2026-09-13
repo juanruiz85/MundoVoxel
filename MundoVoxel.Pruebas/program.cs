@@ -302,7 +302,7 @@ if (objetivo != null)
     {
         await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
         await Task.Delay(100);
-        await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Horno });
+        await c1.Enviar(new ColocarBloque { X = bx, Y = by - 2, Z = bz, Bloque = Bloques.Horno }); // dentro de la columna excavada (aire garantizado)
         await c1.LeerHasta<BloqueCambio>();
         int recetaCocina = invDrop!.Slots.Any(s => s.Material == (ushort)ItemId.CarneCrudaCerdo) ? 0
             : invDrop.Slots.Any(s => s.Material == (ushort)ItemId.CarneCrudaVaca) ? 1 : 2;
@@ -315,7 +315,7 @@ if (objetivo != null)
 }
 
 // El horno para la fundicion se coloca SIEMPRE (no depende del drop de mobs)
-await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Horno });
+await c1.Enviar(new ColocarBloque { X = bx, Y = by - 2, Z = bz, Bloque = Bloques.Horno }); // dentro de la columna excavada (aire garantizado)
 var cambioHorno = await c1.LeerHasta<BloqueCambio>(timeoutMs: 4000);
 await c1.LeerHasta<Inventario>(timeoutMs: 2000);
 Console.WriteLine($"[diag] horno colocado: {cambioHorno != null}");
