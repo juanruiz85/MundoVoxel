@@ -716,6 +716,17 @@ try { _ = Mundo.Descomprimir(bomba); }
 catch (InvalidDataException) { topeLanzo = true; }
 Comprobar(topeLanzo, "la descompresion de mundos tiene tope de seguridad (bomba gzip rechazada)");
 
+// Dimensiones absurdas en un .mundo manipulado: rechazadas antes de asignar memoria
+var malo = new MemoryStream();
+using (var bw = new BinaryWriter(malo))
+{
+    bw.Write(500000); bw.Write(500000); bw.Write(500000); bw.Write(1);
+}
+bool dimsLanzo = false;
+try { _ = Mundo.Deserializar(malo.ToArray()); }
+catch (InvalidDataException) { dimsLanzo = true; }
+Comprobar(dimsLanzo, "deserializar rechaza dimensiones absurdas (archivo manipulado)");
+
 // ---------- favoritos de servidores del cliente ----------
 // Persistencia JSON de la lista de servidores favoritos (MundoVoxel.Core):
 // usa una ruta temporal para no tocar los favoritos reales del usuario.

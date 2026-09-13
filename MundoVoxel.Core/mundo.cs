@@ -279,11 +279,22 @@ public class Mundo
         return ms.ToArray();
     }
 
+    /// <summary>Limites de dimensiones al deserializar: un archivo o mensaje
+    /// manipulado no puede pedir una asignacion gigante via ancho/alto/profundo
+    /// absurdos. Cubre de sobra cualquier mundo creado por el juego.</summary>
+    public const int DimMax = 1024;
+    public const long BloquesMax = 64L * 1024 * 1024;
+
     public static Mundo Deserializar(byte[] datos)
     {
         using var ms = new MemoryStream(datos);
         using var br = new BinaryReader(ms);
         int a = br.ReadInt32(), al = br.ReadInt32(), p = br.ReadInt32(), s = br.ReadInt32();
+        // Tope de memoria: dimensiones absurdas (archivo o mensaje manipulado)
+        // se rechazan antes de asignar el array de bloques.
+        if (a < 1 || al < 1 || p < 1 || a > DimMax || al > DimMax || p > DimMax
+            || (long)a * al * p > BloquesMax)
+            throw new InvalidDataException("Dimensiones de mundo fuera de rango (posible archivo manipulado).");
         var m = new Mundo(a, al, p, s);
         for (int i = 0; i < m.Datos.Length; i++) m.Datos[i] = br.ReadUInt16();
         return m;

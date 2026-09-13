@@ -28,7 +28,7 @@ Ultima actualizacion: 2026-09-09 (tras v0.11.4).
 - [ ] Tokens de invitacion para mundos privados (el PIN de 6 digitos ya frena el fuerza bruta; el token evita compartir claves).
 - [ ] TLS opcional del servidor (o documentar tunel SSH/VPN) si se abre a internet.
 - [ ] Autenticacion basica de identidad (contrasena por jugador) si se abre a internet.
-- [ ] Tope de memoria al deserializar mundos cargados (hoy solo acota la descompresion).
+- [x] v0.11.6: tope de memoria al deserializar mundos cargados (dimensiones validadas; completa el tope de descompresion).
 
 ### Infraestructura
 - [ ] MSIX/instalador de Windows en el workflow de release (hoy solo zip).

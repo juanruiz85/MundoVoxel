@@ -2,6 +2,16 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.6] - 2026-09-13
+
+### Seguridad (tope de memoria al deserializar mundos)
+- **`Mundo.Deserializar` valida las dimensiones** (cada dim <= 1024 y total de bloques <= 64M) antes de asignar el array: un `.mundo` o mensaje manipulado con dimensiones absurdas se rechaza con `InvalidDataException` en vez de pedir gigas de memoria. Completa el tope de descompresion de la 0.11.0.
+- Los mundos validos no se ven afectados (el maximo configurable del juego entra de sobra).
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (98 comprobaciones; +1 "deserializar rechaza dimensiones absurdas").
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.11.5] - 2026-09-13
 
 ### Agregado (mundos mas grandes por defecto)
