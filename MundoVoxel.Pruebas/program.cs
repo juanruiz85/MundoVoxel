@@ -348,8 +348,16 @@ Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) ==
 // Noche de nuevo: los hostiles solo aparecen y atacan de noche.
 await c1.Enviar(new FijarHora { Hora = 0f });
 await Task.Delay(600);
-var mobsHostilMsg = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
-var hostil = mobsHostilMsg?.Lista.FirstOrDefault(m => m.Tipo == 3); // zombi
+// Espera acotada a que aparezca un zombi: al pasar de dia a medianoche los
+// hostiles necesitan unos ticks para aparecer (la poblacion ya puede estar
+// llena de pasivos), sobre todo en runners lentos.
+MobEstado? hostil = null;
+for (int r = 0; r < 3 && hostil == null; r++)
+{
+    var mh = await c1.LeerHasta<Mobs>(timeoutMs: 10000);
+    if (mh == null) break;
+    hostil = mh.Lista.FirstOrDefault(m => m.Tipo == 3); // zombi
+}
 if (hostil != null)
 {
     await c1.Enviar(new Posicion { Px = hostil.Px, Py = hostil.Py, Pz = hostil.Pz, Ry = 0, Pitch = 0 });
