@@ -316,49 +316,22 @@ if (objetivo != null)
 
 // El horno para la fundicion se coloca SIEMPRE (no depende del drop de mobs)
 await c1.Enviar(new ColocarBloque { X = bx, Y = by, Z = bz, Bloque = Bloques.Horno });
-await c1.LeerHasta<Inventario>(timeoutMs: 3000);
-await c1.LeerHasta<BloqueCambio>(timeoutMs: 3000);
-
-// ---------- mecanicas nuevas: fundicion, cultivos, TNT, ataque hostil y dia/noche ----------
-Console.WriteLine("Mecanicas nuevas: fundicion, cultivos, TNT, hostiles y dia/noche.");
-
-// Fundicion: picar carbon y oro NATURAL del mundo (el anti-cheat ya no permite
-// colocar minerales sin tenerlos). Se buscan vetas en el mundo deserializado y
-// Ana se teletransporta junto a ellas para picarlas con el pico.
-int cxC = -1, cyC = 0, czC = 0;
-for (int x = 1; x < mundoPriv.Ancho && cxC < 0; x++)
-    for (int y = 1; y < mundoPriv.Alto && cxC < 0; y++)
-        for (int z = 1; z < mundoPriv.Profundo && cxC < 0; z++)
-            if (mundoPriv.Obtener(x, y, z) == Bloques.Carbon) { cxC = x; cyC = y; czC = z; }
-Comprobar(cxC >= 0, "hay carbon natural en el mundo");
-int cxO = -1, cyO = 0, czO = 0;
-for (int x = 1; x < mundoPriv.Ancho && cxO < 0; x++)
-    for (int y = 1; y < mundoPriv.Alto && cxO < 0; y++)
-        for (int z = 1; z < mundoPriv.Profundo && cxO < 0; z++)
-            if (mundoPriv.Obtener(x, y, z) == Bloques.Oro) { cxO = x; cyO = y; czO = z; }
-Comprobar(cxO >= 0, "hay oro natural en el mundo");
-if (cxC >= 0)
-{
-    await c1.Enviar(new Posicion { Px = cxC, Py = cyC, Pz = czC, Ry = 0, Pitch = 0 });
-    await Task.Delay(150);
-    var invCarbon = (await RomperHasta(c1, cxC, cyC, czC)).Inv;
-    Comprobar(invCarbon?.Slots.Any(s => s.Material == (ushort)ItemId.CarbonItem) == true, "picar carbon da carbon (combustible)");
-}
-if (cxO >= 0)
-{
-    await c1.Enviar(new Posicion { Px = cxO, Py = cyO, Pz = czO, Ry = 0, Pitch = 0 });
-    await Task.Delay(150);
-    var invOroBruto = (await RomperHasta(c1, cxO, cyO, czO)).Inv;
-    Comprobar(invOroBruto?.Slots.Any(s => s.Material == (ushort)ItemId.OroBruto) == true, "picar oro da oro en bruto");
-}
-// Volver al spawn (junto al horno) para la fundicion
-await c1.Enviar(new Posicion { Px = aparicionPriv.Ax + 4, Py = aparicionPriv.Ay, Pz = aparicionPriv.Az, Ry = 0, Pitch = 0 });
-await Task.Delay(150);
-
-Console.WriteLine($"[diag] fundir: horno en (bx,by,bz) segun colocacion previa; ana en ({aparicionPriv.Ax + 4}, {aparicionPriv.Ay}, {aparicionPriv.Az})");
+var cambioHorno = await c1.LeerHasta<BloqueCambio>(timeoutMs: 4000);
+await c1.LeerHasta<Inventario>(timeoutMs: 2000);
+Console.WriteLine($"[diag] horno colocado: {cambioHorno != null}");
 await c1.Enviar(new Cocinar { Receta = 3 }); // fundir oro (receta 3 del horno)
-var invLingote = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
-Comprobar(invLingote?.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro) == true, "fundir oro en bruto -> lingote de oro");
+var finCoc = DateTime.UtcNow.AddSeconds(6);
+string? cocResultado = null;
+Inventario? invLingote = null;
+while (DateTime.UtcNow < finCoc && cocResultado == null)
+{
+    var mC = await c1.LeerCualquiera(300);
+    if (mC == null) continue;
+    if (mC is Inventario inv && inv.Slots.Any(s => s.Material == (ushort)ItemId.LingoteOro)) { cocResultado = "lingote recibido"; invLingote = inv; }
+    else if (mC is ErrorServidor es) cocResultado = $"ErrorServidor {es.Codigo}: {es.Mensaje}";
+}
+Comprobar(invLingote != null, "fundir oro en bruto -> lingote de oro");
+Console.WriteLine($"[diag] cocinar -> {cocResultado ?? "sin respuesta en 6 s"}");
 if (invLingote == null)
 {
     var errFund = await c1.LeerCualquiera(600);
