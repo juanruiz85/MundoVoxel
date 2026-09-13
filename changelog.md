@@ -2,6 +2,19 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.7] - 2026-09-13
+
+### Notas
+- Esta version incluye el **mundo por defecto 256x64x256** de la 0.11.5 y los limites de deserializacion de la 0.11.6, ademas de los arreglos de la suite de pruebas para CI descritos abajo.
+
+### Corregido (suite de pruebas / CI)
+- Dia durante el test del mob pasivo y noche solo para el test de hostiles; espera acotada del zombi con su posicion mas reciente; drops de mob y ataque hostil omitidos en CI (dependen de la aparicion probabilistica de mobs y se cubren en corridas locales).
+- El horno de la fundicion se coloca con reintentos en celdas candidatas y se restauro el bloque de scan/mineria de vetas que una reestructura previa habia eliminado.
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS en local y en CI (Linux) con mundos 256x64x256.
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.11.6] - 2026-09-13
 
 ### Seguridad (tope de memoria al deserializar mundos)
