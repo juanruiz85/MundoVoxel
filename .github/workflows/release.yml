@@ -20,12 +20,21 @@ jobs:
           dotnet-version: '10.0.301'
       - name: Publicar servidor linux-x64
         run: dotnet publish MundoVoxel.Server -c Release -r linux-x64 --self-contained -o pub/linux
-      - name: Empaquetar
+      - name: Empaquetar tar.gz
         run: |
           VER="${GITHUB_REF_NAME#v}"
           cp deploy/linux/mundo-voxel.service deploy/linux/INSTALL.txt pub/linux/
           tar -czf "MundoVoxel-Server-linux-x64-$VER.tar.gz" -C pub/linux .
-          bash deploy/linux/empaquetar-deb.sh pub/linux "$VER" .
+      - name: Empaquetar .deb
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          bash -x deploy/linux/empaquetar-deb.sh pub/linux "$VER" . 2>&1 | tee deb.log
+          exit ${PIPESTATUS[0]}
+      - name: Errores de empaquetado
+        if: failure()
+        run: |
+          tail -40 deb.log 2>/dev/null | while IFS= read -r line; do echo "::error::$line"; done || true
+          ls -la
       - uses: actions/upload-artifact@v4
         with:
           name: server-linux
