@@ -2,6 +2,14 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.11] - 2026-09-14
+
+### Infraestructura (CI mas rapido)
+- **Cache del workload MAUI en GitHub Actions** (`actions/cache` sobre packs/metadata/sdk-manifests/workloads, clave por SDK): cada job Windows deja de reinstalar MAUI desde cero (~6-8 min menos por job; 3 jobs por release). El primer run llena la cache y los siguientes la reutilizan.
+
+### Verificado
+- Suite sin cambios de juego; el CI (job MAUI) y el release validan la cache en sus siguientes ejecuciones.
+
 ## [0.11.10] - 2026-09-14
 
 ### Agregado (paquete .deb para Linux)
