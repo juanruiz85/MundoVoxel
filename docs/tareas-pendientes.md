@@ -33,7 +33,7 @@ Ultima actualizacion: 2026-09-09 (tras v0.11.4).
 ### Infraestructura
 - [ ] MSIX/instalador de Windows en el workflow de release (hoy solo zip).
 - [ ] Firma del APK con keystore propio de release (hoy usa la clave de debug).
-- [ ] Publicar el paquete Linux como .deb/systemd unit ademas del tar.gz.
+- [x] v0.11.9: unidad systemd + INSTALL.txt dentro del tar.gz del servidor Linux (el paquete .deb queda pendiente).
 - [ ] CI: cache del workload MAUI para acelerar los builds.
 
 ### Cliente
