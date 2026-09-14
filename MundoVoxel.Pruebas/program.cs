@@ -710,6 +710,36 @@ var chatLimpio = await EsperarChat(colaBruno);
 if (chatLimpio == null) Console.WriteLine($"[diag] chat limpio NO llego; conectado={c2.Conectado}, tipos={string.Join(",", tiposBruno.Select(kv => kv.Key + "=" + kv.Value))}");
 Comprobar(chatLimpio?.Texto == "linea1linea2", "el chat se limpia de caracteres de control");
 
+// ---------- chat privado: /msg <jugador> <texto> ----------
+Console.WriteLine("Chat privado: /msg llega solo al destinatario.");
+var c3 = await Conectar(puerto);
+await c3.Enviar(new Hola { Nombre = "Carlos", Version = "1.0" });
+await c3.LeerHasta<Bienvenido>();
+await c3.LeerHasta<ListaMundos>();
+await c3.Enviar(new Unirse { Id = idPrivado, Pin = "123456" });
+var resC3 = await LeerUnidoCompleto(c3);
+Comprobar(resC3.Unido != null, "Carlos entra al mundo para el chat privado");
+await Task.Delay(200);
+await c1.Enviar(new Chat { Texto = "/msg Bruno secreto123" });
+var privadoBruno = await EsperarChat(colaBruno, 8000);
+Comprobar(privadoBruno != null && privadoBruno.Texto == "secreto123" && privadoBruno.Nombre.StartsWith("Ana"),
+    "el chat privado llega al destinatario");
+// El eco puede llegar detras de broadcasts antiguos sin consumir: drenar y buscar
+var ecoAna = (Chat?)null;
+var finEco = DateTime.UtcNow.AddSeconds(4);
+while (DateTime.UtcNow < finEco && ecoAna == null)
+{
+    var mE = await c1.LeerCualquiera(300);
+    if (mE is Chat cE && cE.Texto == "secreto123") ecoAna = cE;
+}
+Comprobar(ecoAna != null, "el emisor recibe eco de su privado");
+var chCarlos = await c3.LeerHasta<Chat>(timeoutMs: 1500);
+Comprobar(chCarlos == null, "el chat privado no llega a terceros");
+await c1.Enviar(new Chat { Texto = "/msg Nadie hola" });
+var errPriv = await c1.LeerHasta<ErrorServidor>(timeoutMs: 4000);
+Comprobar(errPriv != null && errPriv.Codigo == "JUGADOR_NO_ENCONTRADO", "privado a jugador inexistente avisa");
+c3.Cerrar();
+
 // ---------- persistencia en memoria ----------
 // ---------- autoguardado periodico en disco ----------
 Console.WriteLine("Autoguardado: el servidor reescribe los .mundo periodicamente.");

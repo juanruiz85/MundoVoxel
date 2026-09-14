@@ -357,6 +357,29 @@ public sealed class GameServer : IAsyncDisposable
                         Log($"{c.Nombre}: chat limitado por rafaga.");
                         return;
                     }
+                    // Chat privado: /msg <jugador> <texto> va solo al destinatario
+                    // (mismo mundo) mas un eco al emisor; el resto del mundo no ve nada.
+                    if (texto.StartsWith("/msg ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var partes = texto[5..].Split(' ', 2, StringSplitOptions.TrimEntries);
+                        var destino = partes[0];
+                        var cuerpo = partes.Length > 1 ? partes[1] : "";
+                        if (destino.Length == 0 || cuerpo.Length == 0)
+                        {
+                            Enviar(c, new ErrorServidor { Codigo = "USO_MSG", Mensaje = "Uso: /msg <jugador> <mensaje>" });
+                            return;
+                        }
+                        if (!_mundos.TryGetValue(c.MundoId!, out var mundo)) return;
+                        var objetivo = mundo.Jugadores.Values.FirstOrDefault(j => j.Nombre == destino);
+                        if (objetivo == null)
+                        {
+                            Enviar(c, new ErrorServidor { Codigo = "JUGADOR_NO_ENCONTRADO", Mensaje = $"No hay ningun jugador llamado {destino} en este mundo." });
+                            return;
+                        }
+                        Enviar(objetivo, new Chat { Nombre = c.Nombre + " (privado)", Texto = cuerpo });
+                        Enviar(c, new Chat { Nombre = "(para " + destino + ")", Texto = cuerpo });
+                        return;
+                    }
                     Broadcast(c.MundoId!, new Chat { Nombre = c.Nombre, Texto = texto });
                 }
                 break;

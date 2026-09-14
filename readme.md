@@ -178,7 +178,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 | Soltar item | `Q` | Boton Soltar |
 | Modo espectador | `G` | Boton Espectador |
 | Inventario | `E` | Menu de pausa -> Inventario |
-| Chat | `T` | Botón Chat |
+| Chat (privado: `/msg <jugador> <texto>`) | `T` | Botón Chat |
 | Pausa / menú | `Esc` | Botón Menú |
 
 ---

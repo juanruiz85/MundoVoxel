@@ -22,7 +22,7 @@ Ultima actualizacion: 2026-09-09 (tras v0.11.4).
 - [ ] **Delta de bloques para reconexiones rapidas**: si el jugador reconoce en pocos segundos, reenviar solo los `BloqueCambio` del intervalo en vez del mundo completo.
 - [x] v0.11.5: mundos mas grandes por defecto (256x64x256) - viable con la transmision troceada; memoria por mundo ~8.4 MB.
 - [ ] Lista de servidores favoritos con ping/estado en vivo (jugadores conectados por servidor).
-- [ ] Chat privado entre jugadores (comandos `/msg`).
+- [x] v0.11.8: chat privado entre jugadores (comando `/msg`, solo el destinatario y eco al emisor).
 
 ### Seguridad (ver docs/auditoria-seguridad.md)
 - [ ] Tokens de invitacion para mundos privados (el PIN de 6 digitos ya frena el fuerza bruta; el token evita compartir claves).

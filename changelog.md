@@ -2,6 +2,19 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.8] - 2026-09-14
+
+### Agregado (chat privado)
+- **Chat privado `/msg <jugador> <mensaje>`**: el mensaje llega solo al destinatario (mismo mundo) con un eco al emisor; el resto del mundo no ve nada. A un jugador inexistente responde `JUGADOR_NO_ENCONTRADO`. La moderacion (caracteres de control, longitud, anti-flood) se aplica igual.
+- Sin cambios de protocolo: usa el mensaje `Chat` existente con el prefijo `/msg`.
+
+### Corregido (suite)
+- El eco del privado y el broadcast antiguo de Ana ya no se confunden: la lectura drena y busca el texto (los broadcasts del emisor quedaban en su cola de los tests anteriores).
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (102 comprobaciones; +4 de chat privado).
+- Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
+
 ## [0.11.7] - 2026-09-13
 
 ### Notas
