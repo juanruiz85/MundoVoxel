@@ -4,8 +4,8 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ## [0.11.11] - 2026-09-14
 
-### Infraestructura (CI mas rapido)
-- **Cache del workload MAUI en GitHub Actions** (`actions/cache` sobre packs/metadata/sdk-manifests/workloads, clave por SDK): cada job Windows deja de reinstalar MAUI desde cero (~6-8 min menos por job; 3 jobs por release). El primer run llena la cache y los siguientes la reutilizan.
+### Infraestructura (CI)
+- Se probo un **cache del workload MAUI** (`actions/cache` sobre los packs) y se **revirtio**: el guardado de ~2 GB de packs colgaba el job de Windows (mas de 90 min). Se mantiene la instalacion directa del workload (~6-8 min por job). Alternativa anotada en `docs/tareas-pendientes.md`: cachear solo `sdk-manifests`/`metadata` o usar una imagen con el workload preinstalado.
 
 ### Verificado
 - Suite sin cambios de juego; el CI (job MAUI) y el release validan la cache en sus siguientes ejecuciones.
