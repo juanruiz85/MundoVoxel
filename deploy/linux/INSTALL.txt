@@ -3,7 +3,15 @@ MundoVoxel - servidor en Linux
 
 El servidor es autocontenido: no necesita .NET instalado.
 
-Instalación rápida (systemd)
+Instalación rápida con el paquete .deb
+-----------------------------------
+     sudo apt install ./MundoVoxel-Server-linux-x64-<version>.deb
+     sudo systemctl start mundo-voxel
+
+(El .deb crea el usuario mundovoxel, habilita el servicio y usa /var/lib/mundovoxel
+para los mundos. Desinstalar: sudo apt remove mundo-voxel)
+
+Instalación manual (tar.gz + systemd)
 ----------------------------
 1) Copiar los archivos a /opt/mundovoxel:
      sudo mkdir -p /opt/mundovoxel

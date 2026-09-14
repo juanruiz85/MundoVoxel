@@ -1,0 +1,10 @@
+Package: mundo-voxel
+Version: __VERSION__
+Section: games
+Priority: optional
+Architecture: amd64
+Maintainer: MundoVoxel <noreply@github.com>
+Description: Servidor dedicado de MundoVoxel (juego voxel)
+ Servidor autocontenido (no requiere .NET instalado). Acepta clientes de
+ Windows y Android. Puerto por defecto: 25575/tcp. Los mundos se guardan en
+ /var/lib/mundovoxel/.local/share/MundoVoxel/mundos.

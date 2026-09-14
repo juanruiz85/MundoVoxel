@@ -25,10 +25,13 @@ jobs:
           VER="${GITHUB_REF_NAME#v}"
           cp deploy/linux/mundo-voxel.service deploy/linux/INSTALL.txt pub/linux/
           tar -czf "MundoVoxel-Server-linux-x64-$VER.tar.gz" -C pub/linux .
+          bash deploy/linux/empaquetar-deb.sh pub/linux "$VER" .
       - uses: actions/upload-artifact@v4
         with:
           name: server-linux
-          path: MundoVoxel-Server-linux-x64-*.tar.gz
+          path: |
+            MundoVoxel-Server-linux-x64-*.tar.gz
+            MundoVoxel-Server-linux-x64-*.deb
 
   servidor-windows:
     name: Servidor Windows

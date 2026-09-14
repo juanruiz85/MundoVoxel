@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+if ! id -u mundovoxel >/dev/null 2>&1; then
+  useradd -r -s /usr/sbin/nologin -d /var/lib/mundovoxel mundovoxel || true
+fi
+mkdir -p /var/lib/mundovoxel
+chown -R mundovoxel:mundovoxel /var/lib/mundovoxel /opt/mundovoxel || true
+systemctl daemon-reload || true
+systemctl enable mundo-voxel.service || true
+echo "MundoVoxel instalado. Inicia con: systemctl start mundo-voxel"
+exit 0

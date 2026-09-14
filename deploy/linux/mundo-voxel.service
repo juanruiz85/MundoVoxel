@@ -8,7 +8,8 @@ WorkingDirectory=/opt/mundovoxel
 ExecStart=/opt/mundovoxel/MundoVoxel.Server
 Restart=on-failure
 RestartSec=5
-# Usuario sin privilegios recomendado (crear con: useradd -r -s /usr/sbin/nologin mundovoxel)
+# Datos (mundos) y usuario sin privilegios
+Environment=HOME=/var/lib/mundovoxel
 User=mundovoxel
 Group=mundovoxel
 

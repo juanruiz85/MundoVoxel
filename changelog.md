@@ -2,6 +2,15 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.10] - 2026-09-14
+
+### Agregado (paquete .deb para Linux)
+- **El release publica ahora un `.deb` ademas del tar.gz**: `sudo apt install ./MundoVoxel-Server-linux-x64-<version>.deb` instala el servidor en `/opt/mundovoxel`, crea el usuario `mundovoxel`, habilita el servicio systemd (con HOME=/var/lib/mundovoxel para los mundos) y se desinstala limpio con `apt remove`. Construido con `deploy/linux/empaquetar-deb.sh` en el workflow de release.
+- El tar.gz sigue disponible e incluye `mundo-voxel.service` e `INSTALL.txt` con ambos metodos.
+
+### Verificado
+- CI: el job Servidor Linux construye el .deb con dpkg-deb (falla el job si el empaquetado no es valido); suite sin cambios de juego.
+
 ## [0.11.9] - 2026-09-14
 
 ### Agregado (despliegue Linux)
