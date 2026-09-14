@@ -2,6 +2,16 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.9] - 2026-09-14
+
+### Agregado (despliegue Linux)
+- **El tar.gz del servidor Linux incluye una unidad systemd y un `INSTALL.txt`** con los pasos de instalación (`/opt/mundovoxel`, usuario sin privilegios, `systemctl enable --now mundo-voxel`, registro con journalctl). Archivos fuente en `deploy/linux/`.
+- El readme de descargas lo menciona.
+
+### Verificado
+- Suite automatica: PRUEBAS SUPERADAS (sin cambios de codigo de juego).
+- El workflow de release valida el empaquetado en CI (job Servidor Linux).
+
 ## [0.11.8] - 2026-09-14
 
 ### Agregado (chat privado)

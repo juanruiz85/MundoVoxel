@@ -1,0 +1,37 @@
+MundoVoxel - servidor en Linux
+==============================
+
+El servidor es autocontenido: no necesita .NET instalado.
+
+Instalación rápida (systemd)
+----------------------------
+1) Copiar los archivos a /opt/mundovoxel:
+     sudo mkdir -p /opt/mundovoxel
+     sudo cp -r . /opt/mundovoxel/
+     sudo chmod +x /opt/mundovoxel/MundoVoxel.Server
+
+2) (Recomendado) usuario sin privilegios:
+     sudo useradd -r -s /usr/sbin/nologin mundovoxel
+     sudo chown -R mundovoxel:mundovoxel /opt/mundovoxel
+
+3) Instalar el servicio:
+     sudo cp /opt/mundovoxel/mundo-voxel.service /etc/systemd/system/
+     sudo systemctl daemon-reload
+     sudo systemctl enable --now mundo-voxel
+
+4) Ver estado y registros:
+     systemctl status mundo-voxel
+     journalctl -u mundo-voxel -f
+
+Ejecución manual (sin systemd)
+------------------------------
+     cd /opt/mundovoxel
+     ./MundoVoxel.Server
+
+Puerto: 25575/tcp (abrir en el cortafuegos si es necesario).
+Ajustes: editar /opt/mundovoxel/ajustes.config.json (se crea junto al ejecutable).
+
+Los mundos se guardan en la carpeta de datos del usuario que ejecuta el servidor
+(~/.local/share/MundoVoxel/mundos). Con el servicio systemd y el usuario
+mundovoxel, los datos quedan en /home/mundovoxel/.local/share/MundoVoxel/mundos
+(crear ese home o ajustar User= en la unidad).

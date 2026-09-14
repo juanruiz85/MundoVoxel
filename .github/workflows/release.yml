@@ -23,6 +23,7 @@ jobs:
       - name: Empaquetar
         run: |
           VER="${GITHUB_REF_NAME#v}"
+          cp deploy/linux/mundo-voxel.service deploy/linux/INSTALL.txt pub/linux/
           tar -czf "MundoVoxel-Server-linux-x64-$VER.tar.gz" -C pub/linux .
       - uses: actions/upload-artifact@v4
         with:
