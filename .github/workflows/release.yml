@@ -33,8 +33,7 @@ jobs:
       - name: Errores de empaquetado
         if: failure()
         run: |
-          tail -40 deb.log 2>/dev/null | while IFS= read -r line; do echo "::error::$line"; done || true
-          ls -la
+          tail -6 deb.log 2>/dev/null | while IFS= read -r line; do echo "::error::$line"; done || true
       - uses: actions/upload-artifact@v4
         with:
           name: server-linux

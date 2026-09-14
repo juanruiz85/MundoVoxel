@@ -14,6 +14,6 @@ cp deploy/linux/deb/DEBIAN/postinst deploy/linux/deb/DEBIAN/prerm "$ROOT/DEBIAN/
 chmod 755 "$ROOT/DEBIAN/postinst" "$ROOT/DEBIAN/prerm"
 find "$ROOT/opt" -type f -exec chmod 644 {} \;
 chmod 755 "$ROOT/opt/mundovoxel/MundoVoxel.Server"
-dpkg-deb --build --root-owner-group "$ROOT" "$OUT/MundoVoxel-Server-linux-x64-${VER}.deb"
+echo "[deb] construyendo paquete..."; ls -la "$ROOT" "$ROOT/DEBIAN"; dpkg-deb --build --root-owner-group "$ROOT" "$OUT/MundoVoxel-Server-linux-x64-${VER}.deb"
 rm -rf "$ROOT"
 echo "OK: $OUT/MundoVoxel-Server-linux-x64-${VER}.deb"
