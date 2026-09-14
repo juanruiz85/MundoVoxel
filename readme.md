@@ -231,32 +231,32 @@ Ideas a corto plazo:
 
 | Métrica | Valor |
 |---|---|
-| Período de desarrollo | 2026-08-13 → 2026-09-11 |
+| Período de desarrollo | 2026-08-13 → 2026-09-13 |
 | Sesiones de IA | 30 |
-| Prompts del desarrollador | 376 |
-| Respuestas generadas por IA | 6,645 |
-| Tokens de entrada (prompts + contexto) | 33,371,805 |
-| Tokens de salida (generación) | 7,475,356 |
-| **Tokens totales** | **40,847,161** |
-| Tokens de caché leídos | 1,353,166,464 |
+| Prompts del desarrollador | 499 |
+| Respuestas generadas por IA | 7,736 |
+| Tokens de entrada (prompts + contexto) | 48,552,644 |
+| Tokens de salida (generación) | 8,007,211 |
+| **Tokens totales** | **56,559,855** |
+| Tokens de caché leídos | 1,755,587,072 |
 | Costo real registrado | $0.00 (modelo ZAI sin cargo reportado) |
-| Costo estimado a tarifas de mercado | ~261.86 USD |
+| Costo estimado a tarifas de mercado | ~336.72 USD |
 | Agentes de IA con uso | auto-coder, main |
 
 ### Promedios
 
-- Tokens por prompt: ~88,755 de entrada / ~19,881 de salida.
-- Costo estimado por prompt: ~0.70 USD (a tarifas de mercado).
+- Tokens por prompt: ~97,300 de entrada / ~16,047 de salida.
+- Costo estimado por prompt: ~0.67 USD (a tarifas de mercado).
 
 ### Modelos utilizados
 
 | Modelo | Respuestas | % del total |
 |---|---|---|
-| zai_auto (ruteo automático) | 6346 | 95.5% |
-| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 3.2% |
-| zai/tdpsk_deepseek-v4-pro-202606 | 47 | 0.7% |
+| zai_auto (ruteo automático) | 7416 | 95.9% |
+| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 2.7% |
+| zai/tdpsk_deepseek-v4-pro-202606 | 56 | 0.7% |
+| zai/zaicoding_glm-5.3 | 26 | 0.3% |
 | gateway-injected (mensaje interno) | 14 | 0.2% |
-| zai/zaicoding_glm-5.3 | 14 | 0.2% |
 | zai/zaicoding_glm-5.2 | 12 | 0.2% |
 | zai/tdpsk_deepseek-v4-flash-202605 | 2 | 0% |
 
