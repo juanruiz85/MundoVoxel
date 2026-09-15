@@ -38,6 +38,7 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(UsarBloque), "UsarBloque")]
 [JsonDerivedType(typeof(SeleccionarSlot), "SeleccionarSlot")]
 [JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
+[JsonDerivedType(typeof(MundoDelta), "MundoDelta")]
 [JsonDerivedType(typeof(MundoChunk), "MundoChunk")]
 [JsonDerivedType(typeof(FijarHora), "FijarHora")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
@@ -86,7 +87,7 @@ public sealed class CrearMundo : Mensaje
     public float SegundosPorDia { get; set; }
 }
 public sealed class MundoCreado : Mensaje { public string Id { get; set; } = ""; }
-public sealed class Unirse : Mensaje { public string Id { get; set; } = ""; public string? Pin { get; set; } }
+public sealed class Unirse : Mensaje { public string Id { get; set; } = ""; public string? Pin { get; set; } public bool TengoMundo { get; set; } }
 public sealed class Unido : Mensaje
 {
     public string Id { get; set; } = "";
@@ -102,6 +103,13 @@ public sealed class ErrorServidor : Mensaje { public string Codigo { get; set; }
 /// los trozos van detras, para evitar un pico unico de memoria al entrar y
 /// habilitar streaming incremental mas adelante.</summary>
 public sealed class MundoChunk : Mensaje { public int Indice { get; set; } public int Total { get; set; } public byte[] Datos { get; set; } = Array.Empty<byte>(); }
+
+/// <summary>Un cambio de bloque para el delta de reconexion rapida.</summary>
+public sealed class CambioBloque { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public ushort Bloque { get; set; } }
+
+/// <summary>Delta del mundo: solo los bloques cambiados desde que el jugador
+/// salio (reconexion rapida; si no aplica, se manda el mundo completo).</summary>
+public sealed class MundoDelta : Mensaje { public string Id { get; set; } = ""; public List<CambioBloque> Cambios { get; set; } = new(); }
 public sealed class Salir : Mensaje { }
 public sealed class JugadorEntro : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
 public sealed class JugadorSalio : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; }

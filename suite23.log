@@ -1,0 +1,81 @@
+Servidor Â«Servidor de pruebaÂ» escuchando en el puerto 25600. Mundos en memoria: 40 mÃ¡x., 12 jugadores por mundo.
+Cliente 1: se conecta y crea un mundo publico.
+Ana se conectÃ³ (127.0.0.1:62412).
+  [OK]   recibe Bienvenido
+  [OK]   lista de mundos vacia al inicio
+Ana creÃ³ el mundo Â«Mundo de AnaÂ» (pÃºblico).
+  [OK]   mundo creado
+Ana entrÃ³ al mundo Â«Mundo de AnaÂ».
+  [OK]   recibe el mundo comprimido
+  [OK]   dimensiones del mundo (256x64x256)
+  [OK]   punto de aparicion despejado
+  [OK]   mobs del mundo publico difundidos (12)
+  [OK]   de dia solo se generan mobs pasivos
+  [OK]   hay variedad de tipos de mob (pasivos)
+Cliente 2: mundo privado, clave correcta e incorrecta.
+Bruno se conectÃ³ (127.0.0.1:62441).
+Bruno creÃ³ el mundo Â«Solo BrunoÂ» (privado).
+Bruno entrÃ³ al mundo Â«Solo BrunoÂ».
+  [OK]   Bruno entra a su mundo privado
+  [OK]   clave incorrecta rechazada
+Ana saliÃ³ del mundo Â«Mundo de AnaÂ» (quedan 0).
+Ana entrÃ³ al mundo Â«Solo BrunoÂ».
+  [OK]   el mundo llega troceado y se reensambla (2 trozos, 253352 bytes)
+  [OK]   Ana entra con la clave correcta
+Cofre inicial: herramientas basicas en el spawn + 4 antorchas.
+  [OK]   cofre inicial en el spawn
+  [OK]   4 antorchas alrededor del cofre
+  [OK]   abrir el cofre devuelve las herramientas
+  [OK]   el cofre tiene pico de piedra
+Mobs: el servidor genera y difunde mobs en el mundo.
+  [OK]   mobs difundidos (12)
+  [OK]   posiciones de mobs dentro del mundo
+  [OK]   hay variedad de tipos de mob
+Bloques: romper y colocar con difusion.
+  [FALLA] romper bloque difunde BloqueCambio
+  [FALLA] colocar bloque difunde BloqueCambio
+  [OK]   colocar consume 1 del inventario (tierra 10->9, quedo 9)
+  [OK]   colocar bloque sin tenerlo se ignora
+  [OK]   romper bloque lo mete al inventario
+  [OK]   craftear madera -> tablones (3x4=12)
+  [OK]   craftear 2 tablones -> 4 palos
+  [OK]   craftear 4 tablones -> mesa de trabajo
+  [OK]   picar piedra natural con pico en el inventario (conseguidas 8)
+  [OK]   craftear pico de madera
+  [OK]   craftear 8 piedra -> horno
+  [OK]   sin pico en el inventario, la piedra rompida no se guarda (0)
+  [OK]   piedra a mano requiere 5 golpes
+  [OK]   pico de madera rompe piedra en 2 golpes
+  [OK]   pico de hierro rompe piedra al primer golpe
+  [OK]   madera a mano requiere 3 golpes
+  [OK]   hacha rompe madera al primer golpe
+  [OK]   tierra a mano requiere 2 golpes
+  [OK]   pala rompe tierra al primer golpe
+  [OK]   las plantas siguen rompiendose al primer golpe
+  [OK]   craftear hacha de madera
+  [FALLA] con hacha en el inventario la madera cae al primer golpe
+  [OK]   craftear pala de madera
+  [FALLA] con pala en el inventario la tierra cae al primer golpe
+  [OK]   cocinar sin horno devuelve SIN_HORNO
+  [OK]   el mundo tiene carbon (1758 bloques)
+  [OK]   el mundo tiene hierro (873 bloques)
+  [OK]   el mundo tiene oro (367 bloques)
+  [OK]   el mundo tiene diamante (137 bloques)
+  matando un mob pasivo para probar drops...
+  [OK]   hay un mob pasivo en el mundo
+  [OK]   matar mob -> drop recogido -> carne cruda en inventario
+  [OK]   cocinar carne cruda -> carne cocinada
+  [OK]   hay carbon natural en el mundo
+  [OK]   hay oro natural en el mundo
+  [OK]   picar carbon da carbon (combustible)
+  [OK]   picar oro da oro en bruto
+[diag] horno colocado: False en (, , )
+  [OK]   fundir oro en bruto -> lingote de oro
+[diag] cocinar -> lingote recibido
+  [OK]   un mob hostil ataca al jugador cercano (la vida baja)
+  [OK]   el servidor envia el estado de oxigeno
+  [OK]   la lava es un liquido
+  [OK]   la lava no se puede colocar a mano
+  [OK]   el espectador no rompe bloques
+  [FALLA] la azada labra la tierra
+  [FALLA] plantar semillas en tierra labrada

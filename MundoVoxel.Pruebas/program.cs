@@ -777,6 +777,32 @@ Comprobar(invRe != null && invRe.Slots.Count > 0, "reconexion: el inventario per
 await Task.Delay(150);
 while (await c1.LeerCualquiera(60) != null) { } // drenar notificaciones del rejoin
 
+// ---------- reconexion rapida: delta de bloques ----------
+Console.WriteLine("Reconexion rapida: solo viajan los cambios de bloque.");
+var celdaDelta = ((int)aparicionPriv.Ax + 8, (int)aparicionPriv.Ay + 3, (int)aparicionPriv.Az);
+c1.Cerrar();
+await Task.Delay(400); // que el servidor registre la salida
+await c2.Enviar(new ColocarBloque { X = celdaDelta.Item1, Y = celdaDelta.Item2, Z = celdaDelta.Item3, Bloque = Bloques.Madera });
+BloqueCambio? cambioBruno = null;
+var finCB = DateTime.UtcNow.AddSeconds(8);
+while (DateTime.UtcNow < finCB && cambioBruno == null)
+{
+    while (colaBruno.TryDequeue(out var mB))
+        if (mB is BloqueCambio bcB && bcB.X == celdaDelta.Item1 && bcB.Y == celdaDelta.Item2 && bcB.Z == celdaDelta.Item3) cambioBruno = bcB;
+    if (cambioBruno == null) await Task.Delay(100);
+}
+Comprobar(cambioBruno != null, "Bruno coloca un bloque mientras Ana esta fuera");
+c1 = await Conectar(puerto);
+await c1.Enviar(new Hola { Nombre = "Ana", Version = "1.0" });
+await c1.LeerHasta<Bienvenido>();
+await c1.LeerHasta<ListaMundos>();
+await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456", TengoMundo = true });
+var resDelta = await LeerUnidoCompleto(c1);
+Comprobar(resDelta.Unido != null && resDelta.Delta != null, "reconexion rapida: llega el delta");
+Comprobar(resDelta.Delta != null && resDelta.Delta.Any(d => d.X == celdaDelta.Item1 && d.Y == celdaDelta.Item2 && d.Z == celdaDelta.Item3 && d.Bloque == Bloques.Madera),
+    "el delta trae el cambio de Bruno");
+Comprobar(resDelta.Trozos == 0, "reconexion rapida: no se reenvia el mundo completo");
+
 Console.WriteLine("Persistencia: el mundo vacio sigue existiendo y luego se borra.");
 await c1.Enviar(new Salir());
 await c2.Enviar(new Salir());
@@ -889,23 +915,25 @@ static async Task<Chat?> EsperarChat(System.Collections.Concurrent.ConcurrentQue
 /// <summary>Lee un Unido completo: el servidor envia primero el Unido sin datos
 /// y detras los MundoChunk; reensambla el mundo y devuelve el mensaje con los
 /// datos ya unidos (trozos = cantidad de trozos recibidos).</summary>
-static async Task<(Unido? Unido, int Trozos)> LeerUnidoCompleto(ClientePrueba c, int timeoutMs = 30000)
+static async Task<(Unido? Unido, int Trozos, List<CambioBloque>? Delta)> LeerUnidoCompleto(ClientePrueba c, int timeoutMs = 30000)
 {
     var unido = await c.LeerHasta<Unido>(timeoutMs);
     var partes = new List<byte[]>();
+    List<CambioBloque>? delta = null;
     int total = -1;
     var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-    while (unido != null && DateTime.UtcNow < fin)
+    while (unido != null && DateTime.UtcNow < fin && delta == null)
     {
-        var m = await c.LeerHasta<MundoChunk>(timeoutMs);
-        if (m == null) break;
-        total = m.Total;
-        while (partes.Count < m.Indice) partes.Add(Array.Empty<byte>());
-        partes.Add(m.Datos);
+        var m = await c.LeerCualquiera(500);
+        if (m is MundoDelta md) { delta = md.Cambios; break; }
+        if (m is not MundoChunk mc) continue;
+        total = mc.Total;
+        while (partes.Count < mc.Indice) partes.Add(Array.Empty<byte>());
+        partes.Add(mc.Datos);
         if (total > 0 && partes.Count >= total) break;
     }
     if (unido != null && partes.Count > 0) unido.MundoComprimido = partes.SelectMany(p => p).ToArray();
-    return (unido, partes.Count);
+    return (unido, partes.Count, delta);
 }
 
 static async Task<ClientePrueba> Conectar(int puerto)

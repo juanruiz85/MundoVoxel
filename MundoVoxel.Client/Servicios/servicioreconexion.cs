@@ -1,4 +1,4 @@
-using MundoVoxel.Core;
+﻿using MundoVoxel.Core;
 
 namespace MundoVoxel.Client.Servicios;
 
@@ -28,7 +28,7 @@ public sealed class ServicioReconexion
     /// los manejadores pueden tocar la UI directamente).</summary>
     public event Action<int, int>? AlIniciar;      // (intento, tope): mostrar panel
     public event Action<int, int>? AlIntento;      // actualizar "intento X de Y"
-    public event Action<Unido>? AlReconectado;     // volver a entrar al mundo
+    public event Action<Unido, List<CambioBloque>?>? AlReconectado; // volver a entrar (delta si solo llegan cambios)
     public event Action<string>? AlFallo;          // agotado o mundo ya no existe: mensaje listo
     public event Action<string>? AlCancelar;       // el usuario canceló: mensaje listo
 
@@ -99,20 +99,20 @@ public sealed class ServicioReconexion
                 }
 
                 // Reentrada por el mismo camino que PaginaMundos -> Unirse.
-                _red.Enviar(new Unirse { Id = mundoId, Pin = pin });
+                _red.Enviar(new Unirse { Id = mundoId, Pin = pin, TengoMundo = true });
                 var respuesta = await EsperarMensaje(TimeoutUnidoMs, token,
                     m => m is Unido or ErrorServidor);
                 if (token.IsCancellationRequested) { AlCancelarConexion(); return; }
                 if (respuesta is ErrorServidor er) { Fallo(TextoError(er)); return; }
                 if (respuesta is Unido unido)
                 {
-                    var (datosTrozos, errorTrozos) = await EsperarTrozosMundo(token);
+                    var (datosTrozos, delta, errorTrozos) = await EsperarTrozosMundo(token);
                     if (token.IsCancellationRequested) { AlCancelarConexion(); return; }
                     if (errorTrozos != null) { Fallo(errorTrozos); return; }
-                    if (datosTrozos == null) { _red.Desconectar(); continue; }
-                    unido.MundoComprimido = datosTrozos;
+                    if (datosTrozos == null && delta == null) { _red.Desconectar(); continue; }
+                    if (datosTrozos != null) unido.MundoComprimido = datosTrozos;
                     Fin();
-                    LanzarEnPrincipal(() => AlReconectado?.Invoke(unido));
+                    LanzarEnPrincipal(() => AlReconectado?.Invoke(unido, delta));
                     return;
                 }
                 // Sin Unido a tiempo: la próxima pasada desconecta y reintenta.
@@ -137,22 +137,25 @@ public sealed class ServicioReconexion
     /// Bienvenido y otros mensajes sueltos se descartan aquí).</summary>
     /// <summary>Reensambla el mundo troceado tras la reconexion: consume los
     /// MundoChunk hasta completar el Total y devuelve los bytes unidos.</summary>
-    async Task<(byte[]? Datos, string? Error)> EsperarTrozosMundo(CancellationToken token)
+    /// <summary>Tras el Unido: o bien llega el mundo troceado (MundoChunk) y se
+    /// reensambla, o bien un MundoDelta con solo los cambios (reconexion rapida).</summary>
+    async Task<(byte[]? Datos, List<CambioBloque>? Delta, string? Error)> EsperarTrozosMundo(CancellationToken token)
     {
         var trozos = new List<byte[]>();
         var fin = DateTime.UtcNow.AddMilliseconds(TimeoutUnidoMs);
         while (DateTime.UtcNow < fin)
         {
-            var m = await EsperarMensaje(TimeoutListaMs, token, x => x is MundoChunk or ErrorServidor);
-            if (token.IsCancellationRequested) return (null, null);
-            if (m is ErrorServidor er) return (null, TextoError(er));
-            if (m is not MundoChunk mc) return (null, null);
+            var m = await EsperarMensaje(TimeoutListaMs, token, x => x is MundoChunk or MundoDelta or ErrorServidor);
+            if (token.IsCancellationRequested) return (null, null, null);
+            if (m is ErrorServidor er) return (null, null, TextoError(er));
+            if (m is MundoDelta md) return (null, md.Cambios, null);
+            if (m is not MundoChunk mc) return (null, null, null);
             while (trozos.Count < mc.Indice) trozos.Add(Array.Empty<byte>());
             trozos.Add(mc.Datos);
             if (mc.Total > 0 && trozos.Count >= mc.Total)
-                return (trozos.SelectMany(t => t).ToArray(), null);
+                return (trozos.SelectMany(t => t).ToArray(), null, null);
         }
-        return (null, null);
+        return (null, null, null);
     }
 
     async Task<Mensaje?> EsperarMensaje(int timeoutMs, CancellationToken token, Func<Mensaje, bool> relevante)

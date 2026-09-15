@@ -178,6 +178,13 @@ public sealed class GameServer : IAsyncDisposable
         public readonly Dictionary<(int x, int y, int z), List<SlotInventario>> Cofres = new();
         /// <summary>Ultima posicion de cada jugador al salir (para volver donde estaba).</summary>
         public readonly Dictionary<string, (float X, float Y, float Z, float Ry)> Posiciones = new();
+        /// <summary>Cambios de bloque recientes para el delta de reconexion
+        /// (lista circular acotada + numeros de secuencia).</summary>
+        public readonly List<(int X, int Y, int Z, ushort Bloque)> Cambios = new();
+        public long CambiosSeq;
+        public long CambiosBase;
+        /// <summary>Cuando salio cada jugador y hasta que secuencia de cambios vio.</summary>
+        public readonly Dictionary<string, (DateTime Cuando, long Seq)> Salidas = new();
         public int Conteo => Jugadores.Count;
     }
 
@@ -230,6 +237,19 @@ public sealed class GameServer : IAsyncDisposable
         catch (Exception ex) { Log($"[writer] error de escritura para {c.Nombre}: {ex.Message}"); }
     }
 
+    /// <summary>Registra un cambio de bloque para el delta de reconexion rapida
+    /// (solo posicion + bloque final). Lista acotada: al desbordar se descarta
+    /// el cambio mas viejo y sube CambiosBase (el delta deja de cubrir ese tramo).</summary>
+    void AnotarCambio(MundoServidor mundo, int x, int y, int z, ushort bloque)
+    {
+        mundo.Cambios.Add((x, y, z, bloque));
+        mundo.CambiosSeq++;
+        if (mundo.Cambios.Count > 8192)
+        {
+            mundo.Cambios.RemoveAt(0);
+            mundo.CambiosBase++;
+        }
+    }
     void Desconectar(ConexionJugador c)
     {
         _conexiones.TryRemove(c.Id, out _);
@@ -640,7 +660,7 @@ public sealed class GameServer : IAsyncDisposable
             GuardarMundos(); // persistir el mundo nuevo desde el primer momento
             Log($"{c.Nombre} creÃ³ el mundo Â«{nombre}Â» ({(cm.Abierto ? "pÃºblico" : "privado")}).");
             Enviar(c, new MundoCreado { Id = mundo.Id });
-            UnirseInterno(c, mundo);
+            UnirseInterno(c, mundo, false); // creador auto-entra: mundo completo
             NotificarListas();
         }
     }
@@ -677,12 +697,12 @@ public sealed class GameServer : IAsyncDisposable
             }
             c.IntentosPin = 0;
             if (c.EnMundo) SalirDelMundo(c, notificar: true);
-            UnirseInterno(c, mundo);
+            UnirseInterno(c, mundo, u.TengoMundo); // delta si el cliente conserva el mundo
             NotificarListas();
         }
     }
 
-    void UnirseInterno(ConexionJugador c, MundoServidor mundo)
+    void UnirseInterno(ConexionJugador c, MundoServidor mundo, bool tengoMundo)
     {
         var aparicion = mundo.Mundo.ObtenerPuntoAparicion();
         float ry = 0;
@@ -702,30 +722,55 @@ public sealed class GameServer : IAsyncDisposable
         c.Muerto = false;
         c.CausaMuerte = "";
         mundo.Jugadores[c.Id] = c;
-        // El mundo viaja troceado: Unido llega sin datos y los trozos comprimidos
-        // van detras (MundoChunk), para evitar un pico unico de memoria al entrar
-        // y dejar listo el streaming incremental de mundos mas grandes.
-        var mundoDatos = Mundo.Comprimir(mundo.Mundo.Serializar());
-        Enviar(c, new Unido
+        // Reconexion rapida: si el cliente dice que aun tiene el mundo y la
+        // ausencia es corta, se manda solo el delta de cambios; si no, el mundo
+        // completo troceado (Unido sin datos + MundoChunk de 128 KB).
+        bool enviadoDelta = false;
+        if (tengoMundo && mundo.Salidas.TryGetValue(c.Nombre, out var salida)
+            && (DateTime.UtcNow - salida.Cuando).TotalMinutes < 5
+            && mundo.CambiosBase <= salida.Seq
+            && mundo.CambiosSeq - salida.Seq <= 2000)
         {
-            Id = mundo.Id,
-            Nombre = mundo.Nombre,
-            Dueno = mundo.NombreDueno,
-            IdDueno = mundo.IdDueno,
-            MundoComprimido = Array.Empty<byte>(),
-            Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
-        });
-        const int tamanoTrozo = 128 * 1024;
-        int totalTrozos = (mundoDatos.Length + tamanoTrozo - 1) / tamanoTrozo;
-        if (totalTrozos == 0) totalTrozos = 1;
-        for (int i = 0; i < totalTrozos; i++)
-        {
-            int desde = i * tamanoTrozo;
-            int n = Math.Min(tamanoTrozo, mundoDatos.Length - desde);
-            var datos = new byte[n];
-            Array.Copy(mundoDatos, desde, datos, 0, n);
-            Enviar(c, new MundoChunk { Indice = i, Total = totalTrozos, Datos = datos });
+            int desdeDelta = (int)(salida.Seq - mundo.CambiosBase);
+            var cambios = mundo.Cambios.Skip(desdeDelta)
+                .Select(t => new CambioBloque { X = t.X, Y = t.Y, Z = t.Z, Bloque = t.Bloque }).ToList();
+            Enviar(c, new Unido
+            {
+                Id = mundo.Id,
+                Nombre = mundo.Nombre,
+                Dueno = mundo.NombreDueno,
+                IdDueno = mundo.IdDueno,
+                MundoComprimido = Array.Empty<byte>(),
+                Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
+            });
+            Enviar(c, new MundoDelta { Id = mundo.Id, Cambios = cambios });
+            enviadoDelta = true;
         }
+        if (!enviadoDelta)
+        {
+            var mundoDatos = Mundo.Comprimir(mundo.Mundo.Serializar());
+            Enviar(c, new Unido
+            {
+                Id = mundo.Id,
+                Nombre = mundo.Nombre,
+                Dueno = mundo.NombreDueno,
+                IdDueno = mundo.IdDueno,
+                MundoComprimido = Array.Empty<byte>(),
+                Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
+            });
+            const int tamanoTrozo = 128 * 1024;
+            int totalTrozos = (mundoDatos.Length + tamanoTrozo - 1) / tamanoTrozo;
+            if (totalTrozos == 0) totalTrozos = 1;
+            for (int i = 0; i < totalTrozos; i++)
+            {
+                int desde = i * tamanoTrozo;
+                int n = Math.Min(tamanoTrozo, mundoDatos.Length - desde);
+                var datos = new byte[n];
+                Array.Copy(mundoDatos, desde, datos, 0, n);
+                Enviar(c, new MundoChunk { Indice = i, Total = totalTrozos, Datos = datos });
+            }
+        }
+        mundo.Salidas.Remove(c.Nombre);
         // Si el jugador ya tuvo inventario en este mundo (persistido), restaurarlo;
         // si no, dar el kit de inicio la primera vez que entra.
         if (c.Inventario.Count == 0 && mundo.Inventarios.TryGetValue(c.Nombre, out var guardado) && guardado.Count > 0)
@@ -766,6 +811,8 @@ public sealed class GameServer : IAsyncDisposable
                 mundo.Inventarios[c.Nombre] = c.Inventario.ToList();
                 // Y su ultima posicion (si murio, mejor reaparecer en el spawn)
                 if (!c.Muerto) mundo.Posiciones[c.Nombre] = (c.Pos.X, c.Pos.Y, c.Pos.Z, c.Ry);
+                // Para el delta de reconexion: cuando salio y hasta que cambios vio
+                mundo.Salidas[c.Nombre] = (DateTime.UtcNow, mundo.CambiosSeq);
                 mundo.Jugadores.Remove(c.Id);
                 if (notificar) Broadcast(id, new JugadorSalio { Id = c.Id, Nombre = c.Nombre });
                 // El mundo se mantiene en memoria aunque quede vacÃ­o: se puede volver a entrar despuÃ©s.
@@ -864,6 +911,7 @@ public sealed class GameServer : IAsyncDisposable
                 algo = true;
             }
             if (algo) Enviar(c, InventarioActual(c));
+            AnotarCambio(mundo, rb.X, rb.Y, rb.Z, Bloques.Aire);
             Broadcast(mundo.Id, new BloqueCambio { X = rb.X, Y = rb.Y, Z = rb.Z, Bloque = Bloques.Aire });
         }
     }
@@ -893,6 +941,7 @@ public sealed class GameServer : IAsyncDisposable
             m.Poner(cb.X, cb.Y, cb.Z, cb.Bloque);
             Quitar(c, cb.Bloque, 1);
             Enviar(c, InventarioActual(c));
+            AnotarCambio(mundo, cb.X, cb.Y, cb.Z, cb.Bloque);
             Broadcast(mundo.Id, new BloqueCambio { X = cb.X, Y = cb.Y, Z = cb.Z, Bloque = cb.Bloque });
         }
     }
@@ -966,6 +1015,7 @@ public sealed class GameServer : IAsyncDisposable
             if (Objetos.EsAzada(mano) && (bloque == Bloques.Tierra || bloque == Bloques.Cesped))
             {
                 m.Poner(ub.X, ub.Y, ub.Z, Bloques.TierraLabrada);
+                AnotarCambio(mundo, ub.X, ub.Y, ub.Z, Bloques.TierraLabrada);
                 Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y, Z = ub.Z, Bloque = Bloques.TierraLabrada });
                 return;
             }
@@ -976,6 +1026,7 @@ public sealed class GameServer : IAsyncDisposable
                 if (!Quitar(c, (ushort)ItemId.SemillasTrigo, 1)) return;
                 Enviar(c, InventarioActual(c));
                 m.Poner(ub.X, ub.Y + 1, ub.Z, Bloques.Trigo0);
+                AnotarCambio(mundo, ub.X, ub.Y + 1, ub.Z, Bloques.Trigo0);
                 Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y + 1, Z = ub.Z, Bloque = Bloques.Trigo0 });
                 return;
             }
@@ -986,6 +1037,7 @@ public sealed class GameServer : IAsyncDisposable
                 if (!Quitar(c, Bloques.Planton, 1)) return;
                 Enviar(c, InventarioActual(c));
                 m.Poner(ub.X, ub.Y + 1, ub.Z, Bloques.Planton);
+                AnotarCambio(mundo, ub.X, ub.Y + 1, ub.Z, Bloques.Planton);
                 Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y + 1, Z = ub.Z, Bloque = Bloques.Planton });
                 return;
             }
@@ -1191,6 +1243,7 @@ public sealed class GameServer : IAsyncDisposable
                         {
                             m.Poner(x, y, z, (ushort)(b + 1));
                             if (HayJugadorCerca(mundo, x, y, z, 64))
+                                AnotarCambio(mundo, x, y, z, (ushort)(b + 1));
                                 Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = (ushort)(b + 1) });
                         }
                     }
@@ -1200,6 +1253,7 @@ public sealed class GameServer : IAsyncDisposable
                     {
                         Mundo.PonerArbol(m, x, y, z, rnd);
                         if (HayJugadorCerca(mundo, x, y, z, 64))
+                            AnotarCambio(mundo, x, y, z, Bloques.Madera);
                             Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Madera });
                     }
                 }
@@ -1271,6 +1325,7 @@ public sealed class GameServer : IAsyncDisposable
                         // explotan con ella en vez de quedar como bloque.
                         mundo.Tnts.RemoveAll(t2 => t2.x == x && t2.y == y && t2.z == z);
                         m.Poner(x, y, z, Bloques.Aire);
+                        AnotarCambio(mundo, x, y, z, Bloques.Aire);
                         Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Aire });
                         continue;
                     }
@@ -1281,6 +1336,7 @@ public sealed class GameServer : IAsyncDisposable
                         foreach (var (mat, cant) in Objetos.DropAlRomper(b, true, rnd))
                             mundo.Drops.Add(new Drop { Id = ++mundo.SiguienteDropId, Material = mat, Px = x + 0.5f, Py = y + 0.5f, Pz = z + 0.5f });
                     }
+                    AnotarCambio(mundo, x, y, z, Bloques.Aire);
                     Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Aire });
                 }
         foreach (var j in mundo.Jugadores.Values)

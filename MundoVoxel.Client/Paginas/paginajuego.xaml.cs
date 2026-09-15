@@ -1279,13 +1279,27 @@ public partial class PaginaJuego : ContentPage
 
     void OnReconexionCancelada(string mensaje) => OnReconexionFallo(mensaje);
 
-    void OnReconectado(Unido u)
+    void OnReconectado(Unido u, List<CambioBloque>? delta)
     {
         try
         {
-            // El servidor manda el mundo completo tras re-entrar: reconstruir
-            // el estado local y reanudar el bucle (los mensajes siguientes ya
-            // llegan por el tick normal).
+            if (delta != null && _vista.Mundo != null)
+            {
+                // Reconexion rapida: solo llegaron los cambios; aplicarlos al
+                // mundo local (que seguia en memoria) y reanudar.
+                foreach (var cb in delta) _vista.Mundo.Poner(cb.X, cb.Y, cb.Z, cb.Bloque);
+                _vista.Renderizador.ConstruirMallas(_vista.Mundo);
+                _vista.Jugador.Pos = new Vector3(u.Ax, u.Ay, u.Az);
+                _vista.Jugador.Yaw = 0;
+                _vista.Jugador.Pitch = 0;
+                ActualizarLblBloque();
+                PanelReconexion.IsVisible = false;
+                _timer?.Start();
+                AgregarChat(_idioma.O("juego.reconectado_ok", u.Nombre));
+                return;
+            }
+            // Mundo completo: reconstruir el estado local y reanudar el bucle
+            // (los mensajes siguientes ya llegan por el tick normal).
             var mundo = Mundo.Deserializar(Mundo.Descomprimir(u.MundoComprimido));
             _vista.Mundo = mundo;
             _vista.Renderizador.ConstruirMallas(mundo);
