@@ -2,6 +2,11 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.12] - 2026-09-15
+
+### Notas de desarrollo
+- Intento de **reconexion rapida con delta de bloques**: implementado y preservado en la rama `feature/delta-reconexion`, pero la validacion con la suite mostro inestabilidad (fallos en cadenas de crafteo sin causa raiz); se revierte en `main` para mantenerlo estable y queda pendiente de depuracion.
+
 ## [0.11.11] - 2026-09-14
 
 ### Infraestructura (CI)
