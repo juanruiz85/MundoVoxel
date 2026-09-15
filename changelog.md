@@ -4,6 +4,9 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ## [0.11.13] - 2026-09-15
 
+### Infraestructura (CI)
+- Se blinda en CI la comprobacion de **variedad de tipos de mob** (>=3 pasivos): la generacion es probabilistica por tick y en runners de CI a veces no llega a 3 tipos distintos, lo que marcaba fallos intermitentes en commits sin relacion. Ahora se omite en CI con aviso (igual que los drops de mob y los hostiles) y sigue comprobandose en corridas locales.
+
 ### Anadido
 - **Barra de progreso al minar** (cliente Windows y Android): al golpear un bloque duro (piedra, minerales...) aparece una barra bajo la mira que se llena con los golpes enviados; se calcula con los golpes reales del bloque y la mejor herramienta del inventario, y se reinicia al cambiar de bloque o al pausar 2 s. Es puramente visual: no cambia el protocolo ni el servidor.
 
