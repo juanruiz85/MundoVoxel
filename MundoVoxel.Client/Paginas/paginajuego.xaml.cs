@@ -32,6 +32,11 @@ public partial class PaginaJuego : ContentPage
     readonly ServicioReconexion _reconexion;
     bool _renderizando;
     List<SlotEstado> _inventario = new();
+
+    // Progreso de minado (barra en el HUD): golpes enviados vs necesarios del bloque actual
+    (int X, int Y, int Z) _objetivoMinado;
+    int _golpesDados, _golpesNecesarios;
+    DateTime _ultimoGolpeMinado;
     // Inventario tipo Minecraft (slots)
     struct SlotUI { public ushort Material; public int Cantidad; }
     SlotUI[] _slots = new SlotUI[27];
@@ -219,6 +224,7 @@ public partial class PaginaJuego : ContentPage
                 {
                     var g = _vista.GolpeActual;
                     _red.Enviar(new RomperBloque { X = g.X, Y = g.Y, Z = g.Z });
+                    AnotarGolpeMineria(g.X, g.Y, g.Z);
                 }
             }
             // Clic sostenido: sigue golpeando el MISMO bloque hasta romperlo
@@ -227,6 +233,7 @@ public partial class PaginaJuego : ContentPage
             {
                 var g = _vista.GolpeActual;
                 _red.Enviar(new RomperBloque { X = g.X, Y = g.Y, Z = g.Z });
+                AnotarGolpeMineria(g.X, g.Y, g.Z);
             }
             if (!espectador && _vista.ConsumirColocar())
             {
@@ -474,6 +481,29 @@ public partial class PaginaJuego : ContentPage
     }
 
     // ------------------------------------------------------------- teclado
+
+    /// <summary>Cuenta un golpe al bloque objetivo y actualiza la barra de progreso
+    /// del HUD (los bloques duros necesitan varios golpes; la herramienta correcta
+    /// los reduce). Se reinicia si cambia el bloque o pasan 2 s sin golpear.</summary>
+    void AnotarGolpeMineria(int x, int y, int z)
+    {
+        var mundo = _vista.Mundo;
+        if (mundo == null || !mundo.Dentro(x, y, z)) { _vista.ProgresoMineria = 0f; return; }
+        var bloque = mundo.Obtener(x, y, z);
+        if (bloque == Bloques.Aire) { _vista.ProgresoMineria = 0f; return; }
+        var ahora = DateTime.UtcNow;
+        if (_objetivoMinado != (x, y, z) || (ahora - _ultimoGolpeMinado).TotalSeconds > 2)
+        {
+            _objetivoMinado = (x, y, z);
+            _golpesDados = 0;
+            int mejor = Objetos.GolpesPara(bloque, _vista.BloqueSeleccionado);
+            foreach (var s in _inventario) mejor = Math.Min(mejor, Objetos.GolpesPara(bloque, s.Material));
+            _golpesNecesarios = mejor;
+        }
+        _golpesDados++;
+        _ultimoGolpeMinado = ahora;
+        _vista.ProgresoMineria = _golpesNecesarios <= 1 ? 0f : Math.Min(1f, (float)_golpesDados / _golpesNecesarios);
+    }
 
     void OnTecla(int codigo)
     {

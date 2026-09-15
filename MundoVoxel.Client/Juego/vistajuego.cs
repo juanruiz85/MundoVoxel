@@ -23,6 +23,10 @@ public sealed class VistaJuego : IDrawable
 
     public int Slot { get; set; }
     public ushort BloqueSeleccionado => Hotbar[Math.Clamp(Slot, 0, Hotbar.Length - 1)].Material;
+
+    /// <summary>Progreso de minado del bloque bajo la mira (0 = nada, 1 = a punto
+    /// de romperse). Lo calcula la pagina con los golpes enviados y la herramienta.</summary>
+    public float ProgresoMineria;
     public ushort ItemEnMano => BloqueSeleccionado;
 
     // Vida del jugador (la envia el servidor)
@@ -211,6 +215,7 @@ public sealed class VistaJuego : IDrawable
     {
         _romperSostenido = false;
         _bloqueSostenido = null;
+        ProgresoMineria = 0f;
     }
 
     /// <summary>
@@ -619,6 +624,18 @@ public sealed class VistaJuego : IDrawable
         c.FillColor = new Color(1, 1, 1, 0.85f);
         c.FillRectangle(cx - 1, cy - 9, 2, 18);
         c.FillRectangle(cx - 9, cy - 1, 18, 2);
+
+        // Barra de progreso de minado (bloques duros): bajo la mira
+        if (ProgresoMineria > 0f && ProgresoMineria < 1f)
+        {
+            const float anchoBarra = 90, altoBarra = 8;
+            var fondo = new RectF(cx - anchoBarra / 2, cy + 26, anchoBarra, altoBarra);
+            c.FillColor = new Color(0, 0, 0, 0.55f);
+            c.FillRoundedRectangle(fondo, 3);
+            var lleno = new RectF(fondo.X + 1, fondo.Y + 1, (anchoBarra - 2) * ProgresoMineria, altoBarra - 2);
+            c.FillColor = new Color(1f, 0.78f, 0.2f, 0.95f);
+            c.FillRoundedRectangle(lleno, 2);
+        }
 
         int n = Hotbar.Length;
         const float slot = 40, gap = 4;

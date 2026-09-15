@@ -38,7 +38,7 @@ Ultima actualizacion: 2026-09-09 (tras v0.11.4).
 
 ### Cliente
 - [ ] Probar manualmente la reconexion automatica en Android (el test de protocolo cubre el flujo; falta el tactil real).
-- [ ] Barra de progreso visual al minar bloques duros (hoy solo hay feedback por golpes).
+- [x] **Barra de progreso al minar** (v0.11.13): hecho (barra bajo la mira con golpes/necesarios y mejor herramienta; solo cliente, sin cambios de protocolo).
 
 ### Documentacion
 - [ ] Manual de uso: capturas actualizadas con las funciones nuevas (favoritos, panel tactil).

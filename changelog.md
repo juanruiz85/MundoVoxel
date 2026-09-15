@@ -2,6 +2,11 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.13] - 2026-09-15
+
+### Anadido
+- **Barra de progreso al minar** (cliente Windows y Android): al golpear un bloque duro (piedra, minerales...) aparece una barra bajo la mira que se llena con los golpes enviados; se calcula con los golpes reales del bloque y la mejor herramienta del inventario, y se reinicia al cambiar de bloque o al pausar 2 s. Es puramente visual: no cambia el protocolo ni el servidor.
+
 ## [0.11.12] - 2026-09-15
 
 ### Notas de desarrollo
