@@ -96,7 +96,7 @@ mundo con `MundoRemoto` y el "Cargando el mundo... N %" cuenta regiones.
 
 Streaming por proximidad (primera parte): las regiones se envian de la más cercana al jugador a la más lejana, el cliente entra al mundo con la región de debajo de los pies y el resto se rellena dentro de la partida, dibujándose según llega; mientras falta una región sus bloques son sólidos (`Mundo.RegionRecibida`) para no caer al vacío.
 
-Pendiente: descargar (unload) las regiones que quedan lejos y afinar el radio de carga según se mueve el jugador.
+Descargar (unload) regiones ya esta preparado en Core: `Mundo.OlvidarRegion` vacia la region y `MundoRemoto.Olvidar` la vuelve a marcar como pendiente (sus bloques quedan en aire, asi que la colision la trata otra vez como sólida).
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.
 - Hilo lector por conexión (async), hilo de difusión de posiciones (10 Hz) y hilo de aceptación.

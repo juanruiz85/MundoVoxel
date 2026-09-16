@@ -1,4 +1,4 @@
-using System.Net.Security;
+﻿using System.Net.Security;
 using System.Net.Sockets;
 using MundoVoxel.Core;
 
@@ -947,6 +947,29 @@ var remFresco = new MundoRemoto(64, 16, 64, 1);
 try { remFresco.Aplicar(0, 0, new byte[8]); } catch (InvalidDataException) { remLanzo = true; }
 Comprobar(remLanzo && !remFresco.Recibida(0, 0) && remFresco.Recibidas == 0, "una region corrupta lanza y no cuenta como recibida");
 Comprobar(MundoRemoto.RegionDe(130.7f, 40.2f) == (2, 0), "RegionDe situa una posicion en su region");
+
+            // ---------- olvidar regiones (soltarlas al alejarse el jugador) ----------
+            {
+                var mOlv = new Mundo(100, 70, 100, 7);
+                var rOlv = new MundoRemoto(100, 70, 100, 7);
+                int olvX = 5, olvY = 40, olvZ = 5;
+                mOlv.Poner(olvX, olvY, olvZ, Bloques.Piedra);
+                Comprobar(mOlv.Obtener(olvX, olvY, olvZ) == Bloques.Piedra, "hay un bloque Piedra puesto para probar el olvido");
+                Comprobar(rOlv.Total == 4, "el ensamblador de 100x70x100 espera 4 regiones");
+                for (int rz = 0; rz < 2; rz++)
+                    for (int rx = 0; rx < 2; rx++)
+                        rOlv.Aplicar(rx, rz, mOlv.SerializarRegion(rx, rz));
+                Comprobar(rOlv.Completo && rOlv.Recibidas == 4, "las 4 regiones dejan el mundo completo");
+                Comprobar(rOlv.Olvidar(0, 0), "olvidar una region recibida funciona");
+                Comprobar(!rOlv.Recibida(0, 0), "la region olvidada vuelve a estar pendiente");
+                Comprobar(!rOlv.Completo && rOlv.Recibidas == 3, "el contador baja al olvidar");
+                Comprobar(rOlv.Mundo.Obtener(olvX, olvY, olvZ) == Bloques.Aire, "los bloques de la region olvidada quedan en aire (antes Piedra)");
+                Comprobar(!rOlv.Olvidar(0, 0), "olvidar dos veces la misma region no hace nada");
+                Comprobar(!rOlv.Olvidar(9, 9), "olvidar una region fuera del mundo se ignora");
+                rOlv.Aplicar(0, 0, mOlv.SerializarRegion(0, 0));
+                Comprobar(rOlv.Completo, "volver a recibir la region olvidada completa el mundo");
+                Comprobar(rOlv.Mundo.Obtener(olvX, olvY, olvZ) == mOlv.Obtener(olvX, olvY, olvZ), "la region vuelta a recibir es identica al original");
+            }
 
 // ---------- favoritos de servidores del cliente ----------
 // Persistencia JSON de la lista de servidores favoritos (MundoVoxel.Core):

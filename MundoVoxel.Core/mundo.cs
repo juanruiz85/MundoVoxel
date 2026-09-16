@@ -295,6 +295,21 @@ public class Mundo
     /// esta completo y no hay streaming).</summary>
     public bool RegionDisponible(int x, int z) => RegionRecibida is null || RegionRecibida(x, z);
 
+    /// <summary>Vacia una region (la deja como recien creada, todo aire) para soltar
+    /// memoria cuando el jugador se aleja. Devuelve false si la region esta fuera del
+    /// mundo.</summary>
+    public bool OlvidarRegion(int rx, int rz)
+    {
+        if (rx < 0 || rz < 0 || rx >= RegionesX || rz >= RegionesZ) return false;
+        int x1 = Math.Min((rx + 1) * LadoRegion, Ancho);
+        int z1 = Math.Min((rz + 1) * LadoRegion, Profundo);
+        for (int x = rx * LadoRegion; x < x1; x++)
+            for (int z = rz * LadoRegion; z < z1; z++)
+                for (int y = 0; y < Alto; y++)
+                    Poner(x, y, z, Bloques.Aire);
+        return true;
+    }
+
 
     /// <summary>Lado (en bloques) de una region.</summary>
     public const int LadoRegion = 64;

@@ -46,6 +46,18 @@ public sealed class MundoRemoto
         return Completo;
     }
 
+    /// <summary>Suelta una region: vuelve a contar como no recibida y sus bloques se
+    /// vacian, para que el cliente libere lo que ya no tiene cerca. Devuelve false si
+    /// no estaba recibida o esta fuera del mundo.</summary>
+    public bool Olvidar(int rx, int rz)
+    {
+        if (!Dentro(rx, rz) || !_recibidas[Indice(rx, rz)]) return false;
+        _recibidas[Indice(rx, rz)] = false;
+        Recibidas--;
+        Mundo.OlvidarRegion(rx, rz);
+        return true;
+    }
+
     /// <summary>Region (rx, rz) de una posicion del mundo, en coordenadas de bloque.</summary>
     public static (int Rx, int Rz) RegionDe(float x, float z)
         => Mundo.RegionDe((int)MathF.Floor(x), (int)MathF.Floor(z));
