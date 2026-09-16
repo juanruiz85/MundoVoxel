@@ -8,5 +8,9 @@
   "SensibilidadRaton": 1.0,          // sensibilidad por defecto del raton (multiplicador)
   "OxigenoMaximo": 15.0,             // segundos de oxigeno bajo el agua
   "DanioLavaPorSegundo": 4.0,        // dano por segundo al tocar lava
-  "DanioAhogamientoPorSegundo": 2.0  // dano por segundo sin oxigeno
+  "DanioAhogamientoPorSegundo": 2.0, // dano por segundo sin oxigeno
+  // Cifrado opcional (TLS): con true el servidor cifra las conexiones. El
+  // certificado autofirmado se genera solo la primera vez (%LOCALAPPDATA%\MundoVoxel\servidor.pfx).
+  // En el cliente hay que marcar "Servidor cifrado (TLS)" antes de conectar.
+  "Tls": false
 }

@@ -12,6 +12,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ### Corregido
 - Trama ilegible: antes el servidor cerraba esa conexion **sin dejar rastro** (parecia un cierre normal del cliente). Ahora `Frames` avisa con `InvalidDataException` y el servidor registra el motivo real.
+- Certificado TLS: al recargar el PFX la clave privada quedaba sin marcar como exportable, asi que el archivo no se llegaba a reescribir (el certificado se regeneraba en cada arranque y el cliente avisaba del cambio de huella).
 - Suite: las lecturas con tiempo limite y los drenajes ya no cancelan a mitad de trama (eso desincronizaba el flujo y perdia mensajes: era el origen de fallos intermitentes como el del mechero/TNT y el de la seccion de persistencia). Ahora se espera a que haya datos y la trama se lee completa.
 
 ## [0.11.15] - 2026-09-15

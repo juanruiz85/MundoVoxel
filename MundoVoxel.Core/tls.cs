@@ -27,7 +27,7 @@ public static class Tls
         ruta ??= RutaPorDefecto;
         if (File.Exists(ruta))
         {
-            try { return X509CertificateLoader.LoadPkcs12(File.ReadAllBytes(ruta), null); }
+            try { return X509CertificateLoader.LoadPkcs12(File.ReadAllBytes(ruta), null, X509KeyStorageFlags.Exportable); }
             catch { /* danado: se genera uno nuevo */ }
         }
         var cert = CrearAutofirmado();
@@ -64,7 +64,7 @@ public static class Tls
         // certificado (no a la instancia de RSA, que se libera al salir).
         var pfx = temporal.Export(X509ContentType.Pkcs12);
         temporal.Dispose();
-        return X509CertificateLoader.LoadPkcs12(pfx, null);
+        return X509CertificateLoader.LoadPkcs12(pfx, null, X509KeyStorageFlags.Exportable);
     }
 
     /// <summary>Huella SHA-256 en hexadecimal "AA:BB:...": es lo que el cliente

@@ -52,6 +52,10 @@ public static class Ajustes
         //    las caidas libres superan los 30 b/s, conviene un valor generoso).
         public float AntiCheatSaltoMax { get; set; } = 0f;
         public float AntiCheatVelocidadMax { get; set; } = 0f;
+        // Cifrado opcional (TLS) de las conexiones del servidor. El certificado
+        // autofirmado se genera solo la primera vez; en el cliente se conecta
+        // marcando "Servidor cifrado (TLS)" en el menu.
+        public bool Tls { get; set; } = false;
     }
 
     static Config _cfg = new();

@@ -55,6 +55,7 @@ public sealed class GameServer : IAsyncDisposable
         try
         {
             Ajustes.Cargar(AppContext.BaseDirectory);
+            if (Ajustes.Actual.Tls) TlsActivo = true;   // ajustes.config.json: "Tls": true
             _oyente.Start();
         }
         catch (SocketException ex)
