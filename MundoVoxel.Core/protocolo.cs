@@ -58,7 +58,13 @@ public abstract class Mensaje
 {
 }
 
-public sealed class Hola : Mensaje { public string Nombre { get; set; } = ""; public string Version { get; set; } = "1.0"; }
+public sealed class Hola : Mensaje
+{
+    public string Nombre { get; set; } = "";
+    public string Version { get; set; } = "1.0";
+    /// <summary>Clave de acceso del servidor: solo se envia si el servidor la pide.</summary>
+    public string? Clave { get; set; }
+}
 public sealed class Bienvenido : Mensaje { public int IdJugador { get; set; } public string NombreServidor { get; set; } = ""; }
 
 // Ping/Pong: sondeo ligero para la lista de servidores favoritos del cliente

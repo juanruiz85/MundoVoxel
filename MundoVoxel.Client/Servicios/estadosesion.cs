@@ -9,6 +9,9 @@ public static class EstadoSesion
     /// <summary>Si la conexion va cifrada con TLS (lo elige el jugador en el menu;
     /// la reconexion automatica lo reutiliza).</summary>
     public static bool Tls { get; set; }
+    /// <summary>Clave de acceso del servidor (solo si el servidor la pide; la
+    /// reconexion automatica la reutiliza).</summary>
+    public static string Clave { get; set; } = "";
     /// <summary>Mensaje pendiente para mostrar en el menú al volver (p. ej.
     /// reconexión agotada); se muestra una vez y se limpia.</summary>
     public static string MensajeMenu { get; set; } = "";

@@ -84,7 +84,12 @@ public sealed class ServicioReconexion
                 if (!ok) continue;
 
                 // Saludo: el servidor responde Bienvenido y luego ListaMundos.
-                _red.Enviar(new Hola { Nombre = EstadoSesion.Nombre, Version = "1.0" });
+                _red.Enviar(new Hola
+                {
+                    Nombre = EstadoSesion.Nombre,
+                    Version = "1.0",
+                    Clave = EstadoSesion.Clave.Length > 0 ? EstadoSesion.Clave : null,
+                });
                 var lista = await EsperarMensaje(TimeoutListaMs, token,
                     m => m is ListaMundos or ErrorServidor);
                 if (token.IsCancellationRequested) { AlCancelarConexion(); return; }

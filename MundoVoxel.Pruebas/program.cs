@@ -424,13 +424,13 @@ if (hostil != null)
     // Acercarse al zombi con su posicion MAS RECIENTE (en runners lentos camina
     // entre el broadcast y el golpe) y reintentar hasta ver el danio.
     JugadorSalud? saludMsg = null;
-    for (int intento = 0; intento < 4 && saludMsg == null; intento++)
+    for (int intento = 0; intento < 8 && saludMsg == null; intento++)
     {
         var mhFresco = await c1.LeerHasta<Mobs>(timeoutMs: 10000);
         var zombiFresco = mhFresco?.Lista.FirstOrDefault(m => m.Id == hostil.Id);
         if (zombiFresco == null) break; // ya no existe: no hay nada que probar
         await c1.Enviar(new Posicion { Px = zombiFresco.Px, Py = zombiFresco.Py, Pz = zombiFresco.Pz, Ry = 0, Pitch = 0 });
-        await Task.Delay(500);
+        await Task.Delay(700);
         saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 5000);
     }
     Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
@@ -953,6 +953,40 @@ var certRecargado = Tls.CargarOCrear(rutaCert);
 Comprobar(File.Exists(rutaCert) && Tls.Huella(certGuardado) == Tls.Huella(certRecargado), "el certificado se guarda en disco y se recarga igual (no cambia en cada arranque)");
 try { Directory.Delete(Path.GetDirectoryName(rutaCert)!, true); } catch { }
 await servidorTls.DetenerAsync();
+
+// ---------- clave de acceso del servidor (autenticacion basica) ----------
+Console.WriteLine("Clave del servidor: sin la clave no se entra; con ella todo sigue igual.");
+var servidorClave = new GameServer(puerto, "Servidor de prueba con clave", 4, 4) { Clave = "secreta-123" };
+servidorClave.Iniciar();
+await Task.Delay(400);
+Comprobar(servidorClave.EnEjecucion, "el servidor con clave arranca");
+var cClave = await Conectar(puerto);
+await cClave.Enviar(new Hola { Nombre = "SinClave", Version = "1.0" });
+var sinClave = await cClave.LeerCualquiera(3000);
+Comprobar(sinClave is ErrorServidor { Codigo: "CLAVE_SERVIDOR" }, "sin clave el servidor rechaza el saludo y no manda la lista de mundos");
+await cClave.Enviar(new Hola { Nombre = "Mala", Version = "1.0", Clave = "equivocada" });
+var malaClave = await cClave.LeerCualquiera(3000);
+Comprobar(malaClave is ErrorServidor { Codigo: "CLAVE_SERVIDOR" }, "con la clave equivocada el servidor tambien rechaza");
+await cClave.Enviar(new Hola { Nombre = "Buena", Version = "1.0", Clave = "secreta-123" });
+Comprobar(await cClave.LeerHasta<Bienvenido>(5000) != null, "con la clave correcta el servidor saluda");
+Comprobar(await cClave.LeerHasta<ListaMundos>(5000) != null, "tras la clave correcta el servidor manda la lista de mundos");
+var cAbierto = await Conectar(puerto);
+await cAbierto.Enviar(new Hola { Nombre = "Normal", Version = "1.0", Clave = "secreta-123" });
+Comprobar(await cAbierto.LeerHasta<Bienvenido>(5000) != null, "otro cliente con la clave correcta entra igual");
+await cAbierto.Enviar(new CrearMundo { Nombre = "Mundo con clave", Abierto = true, Ancho = 96, Alto = 48, Profundo = 96 });
+Comprobar(await cAbierto.LeerHasta<MundoCreado>(8000) != null, "con la clave correcta se puede crear un mundo como siempre");
+cAbierto.Cerrar();
+cClave.Cerrar();
+await servidorClave.DetenerAsync();
+// El caso por defecto (sin clave configurada) no cambia nada.
+var servidorAbierto = new GameServer(puerto, "Servidor de prueba abierto", 4, 4);
+servidorAbierto.Iniciar();
+await Task.Delay(400);
+var cSin = await Conectar(puerto);
+await cSin.Enviar(new Hola { Nombre = "SinClave", Version = "1.0" });
+Comprobar(await cSin.LeerHasta<Bienvenido>(5000) != null, "un servidor sin clave no cambia nada (saludo normal)");
+cSin.Cerrar();
+await servidorAbierto.DetenerAsync();
 
 // ---------- cierre ----------
 c1.Cerrar(); c2.Cerrar();

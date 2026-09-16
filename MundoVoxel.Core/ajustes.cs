@@ -56,6 +56,9 @@ public static class Ajustes
         // autofirmado se genera solo la primera vez; en el cliente se conecta
         // marcando "Servidor cifrado (TLS)" en el menu.
         public bool Tls { get; set; } = false;
+        // Clave de acceso del servidor (autenticacion basica, opt-in): si no esta
+        // vacia, el cliente debe enviarla en el saludo. Vacio = servidor abierto.
+        public string ClaveServidor { get; set; } = "";
     }
 
     static Config _cfg = new();

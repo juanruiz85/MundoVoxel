@@ -31,6 +31,9 @@ public partial class PaginaMenu : ContentPage
         LblControles.Text = idioma.O("menu.controles_desc");
         LblTls.Text = idioma.O("menu.servidor_cifrado");
         SwTls.IsToggled = EstadoSesion.Tls;
+        LblClave.Text = idioma.O("menu.clave_servidor");
+        EntClave.Placeholder = idioma.O("menu.clave_servidor_opcional");
+        EntClave.Text = Preferences.Get("clave_servidor", "");
         // Certificado TLS recordado por el cliente (trust-on-first-use)
         _red.AlHuellaNueva += h => MainThread.BeginInvokeOnMainThread(() =>
             MostrarEstado(idioma.O("menu.huella_nueva", h)));
@@ -42,6 +45,17 @@ public partial class PaginaMenu : ContentPage
         EntPuerto.Text = EstadoSesion.Puerto.ToString();
 
         _red.AlConectar += OnConectado;
+        // Si el servidor pide clave y no cuadra, el aviso llega al momento (antes el
+        // menu se quedaba en "Conectando." sin decir nada).
+        _red.AlErrorSaludo += er => MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _conectando = false;
+            BtnSolo.IsEnabled = true;
+            BtnConectar.IsEnabled = true;
+            BtnGuardarFavorito.IsEnabled = true;
+            MostrarEstado(TextoError(er));
+            _red.Desconectar();
+        });
     }
 
     protected override void OnAppearing()
@@ -55,10 +69,11 @@ public partial class PaginaMenu : ContentPage
         int puerto = ObtenerPuerto();
         ServidorLocal.Asegurar(puerto);
         if (!_red.Conectado) LblEstado.Text = _idioma.O("menu.servidor_local_ok", puerto);
-        ConectarYAvanzar("127.0.0.1", false); // el servidor local va sin cifrar
+        ConectarYAvanzar("127.0.0.1", false, ""); // el servidor local va sin cifrar ni clave
     }
 
-    void OnConectar(object? sender, EventArgs e) => ConectarYAvanzar(EntIp.Text?.Trim() ?? "", SwTls.IsToggled);
+    void OnConectar(object? sender, EventArgs e) =>
+        ConectarYAvanzar(EntIp.Text?.Trim() ?? "", SwTls.IsToggled, EntClave.Text?.Trim() ?? "");
 
     // ------------------------------------------------------- servidores favoritos
 
@@ -192,7 +207,15 @@ public partial class PaginaMenu : ContentPage
         EntIp.Text = favorito.Ip;
         EntPuerto.Text = favorito.Puerto.ToString();
         SwTls.IsToggled = favorito.Cifrado; // el favorito recuerda si su servidor va cifrado
-        ConectarYAvanzar(favorito.Ip, favorito.Cifrado);
+        ConectarYAvanzar(favorito.Ip, favorito.Cifrado, EntClave.Text?.Trim() ?? "");
+    }
+
+    /// <summary>Traduce un error del servidor: clave de idioma si existe; si no,
+    /// el mensaje que manda el servidor.</summary>
+    string TextoError(ErrorServidor er)
+    {
+        var clave = "error." + er.Codigo.ToLowerInvariant();
+        return _idioma.Lang.Contiene(clave) ? _idioma.O(clave) : er.Mensaje;
     }
 
     int ObtenerPuerto()
@@ -209,7 +232,7 @@ public partial class PaginaMenu : ContentPage
         LblEstado.IsVisible = true;
     }
 
-    async void ConectarYAvanzar(string ip, bool cifrado)
+    async void ConectarYAvanzar(string ip, bool cifrado, string clave = "")
     {
         var nombre = EntNombre.Text?.Trim() ?? "";
         if (nombre.Length == 0)
@@ -234,6 +257,11 @@ public partial class PaginaMenu : ContentPage
         // sondeo de estado de los favoritos (antes nunca se fijaba: reconectar a un
         // servidor cifrado iba sin cifrar y fallaba).
         EstadoSesion.Tls = cifrado;
+        // Clave de acceso del servidor (si el jugador la escribio): la reconexion
+        // automatica la reutiliza. Solo se guarda si hay algo, para no borrar la
+        // que ya estaba guardada al jugar solo.
+        EstadoSesion.Clave = clave;
+        if (clave.Length > 0) Preferences.Set("clave_servidor", clave);
 
         LblEstado.Text = _idioma.O("menu.conectando");
         LblEstado.IsVisible = true;
@@ -251,7 +279,7 @@ public partial class PaginaMenu : ContentPage
             _conectando = false;
             return;
         }
-        _red.Enviar(new Hola { Nombre = nombre, Version = "1.0" });
+        _red.Enviar(new Hola { Nombre = nombre, Version = "1.0", Clave = clave.Length > 0 ? clave : null });
     }
 
     void OnConectado()

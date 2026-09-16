@@ -35,6 +35,7 @@ Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, 
 - Los **mundos se guardan en disco** (`%LOCALAPPDATA%\MundoVoxel\mundos`) y se **restauran al arrancar** el servidor: si un mundo se queda vacío, no se borra; su creador puede **borrarlo** (también se elimina su archivo) o **dejarlo para volver después**.
 - El servidor es una sola aplicación que aloja hasta 40 mundos × 12 jugadores por defecto (configurable).
 - **Cifrado opcional (TLS)**: el servidor puede cifrar toda la conexiÓn (certificado autofirmado que se genera solo la primera vez). En el menú del cliente se activa con la casilla **Servidor cifrado (TLS)**.
+- **Clave de acceso (opcional)**: con `"ClaveServidor"` en `ajustes.config.json`, el servidor pide una clave antes de dejar entrar (y de mandar la lista de mundos). El cliente la escribe en el menú y la recuerda; la reconexión automática también la usa. La comparación es en tiempo constante y comparte el tope de intentos con las claves de mundo.
 
 ---
 

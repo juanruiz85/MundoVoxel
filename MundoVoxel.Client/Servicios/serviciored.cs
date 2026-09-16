@@ -18,6 +18,7 @@ public sealed class ServicioRed : IDisposable
     Thread? _lector;
     readonly ConcurrentQueue<Mensaje> _recibidos = new();
     readonly object _cerrojo = new();
+    bool _saludado;   // ya llego el primer Bienvenido (los errores previos son del saludo)
 
     public int MiId { get; private set; } = -1;
     public string NombreServidor { get; private set; } = "";
@@ -34,6 +35,11 @@ public sealed class ServicioRed : IDisposable
     /// en silencio.</summary>
     public event Action<string>? AlHuellaNueva;
     public event Action<string>? AlHuellaCambiada;
+
+    /// <summary>Un ErrorServidor que llega ANTES del primer Bienvenido (por ejemplo,
+    /// si el servidor pide clave): el menu lo muestra sin esperar al temporizador.
+    /// El mensaje tambien queda en la cola, porque la reconexion automatica lo espera ahi.</summary>
+    public event Action<ErrorServidor>? AlErrorSaludo;
 
     public bool Conectar(string ip, int puerto, int timeoutMs = 6000, bool cifrado = false)
     {
@@ -109,8 +115,13 @@ public sealed class ServicioRed : IDisposable
                     MiId = b.IdJugador;
                     NombreServidor = b.NombreServidor;
                 }
+                if (m is ErrorServidor errSaludo && !_saludado) AlErrorSaludo?.Invoke(errSaludo);
                 _recibidos.Enqueue(m);
-                if (m is Bienvenido) AlConectar?.Invoke();
+                if (m is Bienvenido)
+                {
+                    _saludado = true;
+                    AlConectar?.Invoke();
+                }
             }
         }
         catch
@@ -147,6 +158,7 @@ public sealed class ServicioRed : IDisposable
         _flujo = null;
         _tcp = null;
         _lector = null;
+        _saludado = false;
     }
 
     public void Dispose() => Desconectar();

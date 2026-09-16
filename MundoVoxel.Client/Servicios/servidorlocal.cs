@@ -16,6 +16,8 @@ public static class ServidorLocal
             var s = new GameServer(puerto, "MundoVoxel local");
             s.CargarMundos(); // mundos guardados de sesiones anteriores
             s.Iniciar();
+            // Jugar solo nunca pide clave de acceso (es tu propio equipo).
+            s.Clave = "";
             if (s.EnEjecucion) _servidor = s;
         }
     }

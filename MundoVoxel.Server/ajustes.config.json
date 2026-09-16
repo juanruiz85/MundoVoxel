@@ -12,5 +12,9 @@
   // Cifrado opcional (TLS): con true el servidor cifra las conexiones. El
   // certificado autofirmado se genera solo la primera vez (%LOCALAPPDATA%\MundoVoxel\servidor.pfx).
   // En el cliente hay que marcar "Servidor cifrado (TLS)" antes de conectar.
-  "Tls": false
+  "Tls": false,
+
+  // Clave de acceso del servidor (autenticacion basica): si no esta vacia, los
+  // clientes deben escribirla en el menu para entrar (vacia = servidor abierto).
+  "ClaveServidor": ""
 }

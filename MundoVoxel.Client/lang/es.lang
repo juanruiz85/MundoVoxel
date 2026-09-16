@@ -13,6 +13,8 @@ menu.puerto=Puerto
 menu.jugar_solo=Jugar solo (servidor local)
 menu.conectar=Conectar a un servidor
 menu.servidor_cifrado=Servidor cifrado (TLS)
+menu.clave_servidor=Clave del servidor (si la pide)
+menu.clave_servidor_opcional=Dejar vacío si el servidor no pide clave
 menu.huella_nueva=Certificado TLS guardado para este servidor (huella {0}).
 menu.huella_cambiada=El certificado de este servidor CAMBIÓ (huella {0}). ConexiÓn rechazada: puede ser una intercepciÓn.
 menu.conectando=Conectando…
@@ -83,6 +85,7 @@ error.limite_mundos=El servidor llegó al límite de mundos.
 error.mundo_borrado=El mundo fue borrado por su creador.
 error.nombre_vacio=El nombre del mundo no puede estar vacío.
 error.desconectado=Te desconectaste del servidor.
+error.clave_servidor=Este servidor pide una clave de acceso.
 
 # ---- Juego ----
 juego.bienvenido=¡Bienvenido a {0}!

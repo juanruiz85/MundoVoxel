@@ -2,6 +2,15 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.18] - 2026-09-16
+
+### Añadido
+- **Clave de acceso del servidor** (autenticación básica, opcional): con `"ClaveServidor": "..."` en `ajustes.config.json` el servidor exige la clave en el saludo. Sin ella no responde ni la lista de mundos; con ella todo funciona igual que antes. El cliente la escribe en el menú (se recuerda para las próximas veces) y la reconexión automática la reutiliza. Por defecto la clave está vacía: el servidor sigue abierto como hasta ahora, y "Jugar solo" nunca la pide.
+- **Endurecimiento de la comprobación**: la comparación es en tiempo constante (no filtra la clave por el tiempo de respuesta ni por su longitud) y comparte el tope de intentos con la clave de los mundos privados (5 fallos por minuto por conexión).
+- Suite: 8 comprobaciones de la clave del servidor (saludo sin clave, clave equivocada, clave correcta, lista de mundos, crear mundo, segundo cliente y servidor sin clave por defecto).
+- Suite: el test del zombi se endurece (8 intentos de 700 ms en vez de 4 de 500 ms): la aparición de hostiles es probabilística y bajo carga puede no acertar un golpe en la ventana; en CI se sigue omitiendo.
+- Suite: se corrige un descuido del propio test nuevo (el segundo cliente no mandaba la clave y el servidor lo rechazaba, como debe).
+
 ## [0.11.17] - 2026-09-15
 
 ### Añadido

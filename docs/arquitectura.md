@@ -55,23 +55,26 @@
 - Borrar: solo el `IdDueno` (la conexión que creó el mundo).
 
 ### Cifrado (TLS, opcional)
-- `GameServer.TlsActivo` (o `"Tls": true` en `ajustes.config.json`): al aceptar una conexi
+- `GameServer.TlsActivo` (o `"Tls": true` en `ajustes.config.json`): al aceptar una conexión se hace el handshake TLS antes de leer nada; el certificado es autofirmado y se genera/guarda en `%LOCALAPPDATA%\MundoVoxel\servidor.pfx`.
+- El cliente valida por **huella SHA-256 recordada** (trust-on-first-use): la primera vez la guarda y, si cambia, rechaza la conexión (posible interceptación). No se usa una CA pública a propósito: el servidor es autogestionado.
+- `Frames.LeerAsync` trabaja sobre `Stream`, así que el resto del protocolo es idéntico con o sin TLS.
+
+### Clave de acceso (opcional)
+- `GameServer.Clave` (o `"ClaveServidor": "..."` en `ajustes.config.json`): al recibir `Hola`, si hay clave configurada se comprueba **antes** de responder `Bienvenido`/`ListaMundos`; si no coincide se manda `ErrorServidor` con el c
 ó
-n se hace el handshake TLS antes de leer nada; el certificado es autofirmado y se genera/guarda en `%LOCALAPPDATA%\MundoVoxel\servidor.pfx`.
-- El cliente valida por **huella SHA-256 recordada** (trust-on-first-use): la primera vez la guarda y, si cambia, rechaza la conexi
+digo `CLAVE_SERVIDOR` y la conexi
 ó
-n (posible interceptaci
+n queda sin identificar.
+- La comparaci
 ó
-n). No se usa una CA p
-ú
-blica a prop
+n es en tiempo constante y comparte el tope de intentos con las claves de mundo (`IntentosPin`: 5 fallos por minuto y conexi
 ó
-sito: el servidor es autogestionado.
-- `Frames.LeerAsync` trabaja sobre `Stream`, as
-í
- que el resto del protocolo es id
-é
-ntico con o sin TLS.
+n).
+- El cliente guarda la clave en `Preferences` (`clave_servidor`), la manda en `Hola` y la reutiliza en la reconexi
+ó
+n autom
+á
+tica. "Jugar solo" nunca pide clave.
 
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.

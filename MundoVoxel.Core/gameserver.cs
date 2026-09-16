@@ -48,6 +48,11 @@ public sealed class GameServer : IAsyncDisposable
     /// <summary>Ruta del certificado TLS (por defecto, junto a los mundos).</summary>
     public string? RutaCertificado { get; set; }
 
+    /// <summary>Clave de acceso del servidor (opt-in, ajustes.config.json:
+    /// "ClaveServidor"). Si no esta vacia, el cliente debe enviarla en el saludo
+    /// (Hola) para entrar: sin ella no se le manda ni la lista de mundos.</summary>
+    public string Clave { get; set; } = "";
+
     X509Certificate2? _certificado;
 
     public void Iniciar()
@@ -56,6 +61,9 @@ public sealed class GameServer : IAsyncDisposable
         {
             Ajustes.Cargar(AppContext.BaseDirectory);
             if (Ajustes.Actual.Tls) TlsActivo = true;   // ajustes.config.json: "Tls": true
+            // "ClaveServidor": si el archivo la trae, el servidor la exige. Se
+            // respeta el valor puesto por codigo (asi las pruebas la pasan directa).
+            if (Ajustes.Actual.ClaveServidor.Length > 0) Clave = Ajustes.Actual.ClaveServidor;
             _oyente.Start();
         }
         catch (SocketException ex)
@@ -133,6 +141,34 @@ public sealed class GameServer : IAsyncDisposable
     void Log(string msg) => AlRegistrar?.Invoke(msg);
 
     // ------------------------------------------------------------------ conexiones
+
+    /// <summary>Comprueba la clave de acceso del servidor (si esta configurada).
+    /// La comparacion es en tiempo constante y comparte el tope de intentos con la
+    /// clave de los mundos privados (5 fallos por minuto por conexion).</summary>
+    bool ClaveCorrecta(ConexionJugador c, string? vista)
+    {
+        if (Clave.Length == 0) return true;
+        var ahora = DateTime.UtcNow;
+        if ((ahora - c.VentanaPin).TotalSeconds > 60) { c.VentanaPin = ahora; c.IntentosPin = 0; }
+        if (c.IntentosPin >= 5)
+        {
+            Enviar(c, new ErrorServidor { Codigo = "MUCHOS_INTENTOS", Mensaje = "Demasiados intentos de clave. Espera un minuto." });
+            return false;
+        }
+        var dada = vista ?? "";
+        // Tiempo constante: no se corta al primer byte distinto ni filtra la longitud.
+        int dif = dada.Length ^ Clave.Length;
+        for (int i = 0; i < Math.Min(dada.Length, Clave.Length); i++) dif |= dada[i] ^ Clave[i];
+        if (dif == 0)
+        {
+            c.IntentosPin = 0;
+            return true;
+        }
+        c.IntentosPin++;
+        Log($"Conexion desde {c.Tcp.Client.RemoteEndPoint} rechazada: clave del servidor incorrecta (intento {c.IntentosPin}).");
+        Enviar(c, new ErrorServidor { Codigo = "CLAVE_SERVIDOR", Mensaje = "Este servidor pide una clave de acceso." });
+        return false;
+    }
 
     sealed class ConexionJugador
     {
@@ -304,6 +340,9 @@ public sealed class GameServer : IAsyncDisposable
         switch (m)
         {
             case Hola h:
+                // Autenticacion basica: con clave configurada, sin ella no se
+                // responde ni la lista de mundos (el cliente muestra el aviso).
+                if (!ClaveCorrecta(c, h.Clave)) break;
                 var nombre = (h.Nombre ?? "").Trim();
                 c.Nombre = nombre.Length == 0 ? "Jugador" + c.Id : nombre[..Math.Min(20, nombre.Length)];
                 Enviar(c, new Bienvenido { IdJugador = c.Id, NombreServidor = NombreServidor });
