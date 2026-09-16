@@ -154,9 +154,14 @@ public partial class PaginaMundos : ContentPage
 
             case MundoRegion mr when _unidoPendiente != null && _remotoPendiente != null:
                 {
-                    bool completo = _remotoPendiente.Aplicar(mr.Rx, mr.Rz, mr.Datos);
+                    _remotoPendiente.Aplicar(mr.Rx, mr.Rz, mr.Datos);
                     MostrarCarga(_remotoPendiente.Recibidas, _remotoPendiente.Total);
-                    if (!completo) return false;
+                    // Streaming por proximidad: basta con la region de debajo de
+                    // los pies para entrar al mundo; el resto sigue llegando ya
+                    // dentro de la partida (y hasta entonces se trata como solido,
+                    // para no caer al vacio).
+                    var (rxPies, rzPies) = MundoRemoto.RegionDe(_unidoPendiente.Ax, _unidoPendiente.Az);
+                    if (!_remotoPendiente.Recibida(rxPies, rzPies)) return false;
 
                     var up = _unidoPendiente;
                     var rem = _remotoPendiente;
@@ -169,6 +174,7 @@ public partial class PaginaMundos : ContentPage
                         Dueno = up.Dueno,
                         IdDueno = up.IdDueno,
                         Mundo = rem.Mundo,
+                        Remoto = rem.Completo ? null : rem,
                         Ax = up.Ax, Ay = up.Ay, Az = up.Az,
                         Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
                         PinUsado = _pinPendiente,

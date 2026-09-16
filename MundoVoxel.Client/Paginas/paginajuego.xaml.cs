@@ -107,6 +107,14 @@ public partial class PaginaJuego : ContentPage
         // El mundo llega ya reensamblado a partir de las regiones del servidor
         var mundo = datos.Mundo;
         _vista.Mundo = mundo;
+        // Streaming por proximidad: si el mundo ha entrado por regiones, la
+        // colision trata como solidas las que todavia no han llegado, para no
+        // caer al vacio mientras sigue descargando.
+        if (datos.Remoto is not null)
+        {
+            var remoto = datos.Remoto;
+            mundo.RegionRecibida = (x, z) => { var (rx, rz) = MundoRemoto.RegionDe(x, z); return remoto.Recibida(rx, rz); };
+        }
         _vista.Renderizador.DistanciaChunks = Distancias[_nivelDistancia];
         _vista.Renderizador.ConstruirMallas(mundo);
         _vista.Jugador.Pos = new Vector3(datos.Ax, datos.Ay, datos.Az);
@@ -357,6 +365,23 @@ public partial class PaginaJuego : ContentPage
     {
         switch (m)
         {
+            // El resto del mundo sigue llegando dentro de la partida: cada region
+            // nueva se dibuja al momento y, cuando ya esta todo, la colision deja
+            // de tratar el terreno pendiente como solido.
+            case MundoRegion mr when _datos.Remoto is { Completo: false } remoto:
+                {
+                    remoto.Aplicar(mr.Rx, mr.Rz, mr.Datos);
+                    var mundoRem = _vista.Mundo;
+                    int ladoRegion = Mundo.LadoRegion;
+                    for (int x = mr.Rx * ladoRegion; x < Math.Min((mr.Rx + 1) * ladoRegion, mundoRem.Ancho); x += ChunkMalla.Tam)
+                        for (int z = mr.Rz * ladoRegion; z < Math.Min((mr.Rz + 1) * ladoRegion, mundoRem.Profundo); z += ChunkMalla.Tam)
+                            _vista.Renderizador.ReconstruirAlrededor(mundoRem, x, 0, z, false);
+                    // Ultima region: el mundo esta entero y la colision vuelve a
+                    // mirar solo los bloques de verdad.
+                    if (remoto.Completo) mundoRem.RegionRecibida = null;
+                    break;
+                }
+
             case BloqueCambio bc:
                 // Si se coloca o rompe una antorcha, recalcular la luz que emite
                 bool eraAntorcha = _vista.Mundo.Obtener(bc.X, bc.Y, bc.Z) == Bloques.Antorcha;

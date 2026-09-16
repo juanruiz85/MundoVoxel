@@ -13,6 +13,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - **Regiones del mundo** (`Mundo.LadoRegion`, `SerializarRegion`, `AplicarRegion`): cortan el mundo en trozos cuadrados de 64x64 columnas con todas sus capas, con las regiones de borde rellenas y validando el tamaño exacto al recibir (un mensaje manipulado se rechaza con `InvalidDataException`).
 - **Ensamblador `MundoRemoto`** (en Core, para poder probarlo sin MAUI): reensambla el mundo a partir de la cabecera y de las regiones recibidas, aguanta que lleguen desordenadas, ignora las repetidas o fuera de rango y expone el progreso (`Recibidas`/`Completo`).
 - **Pruebas**: 6 comprobaciones de las regiones y 7 del ensamblador en la suite, mas las comprobaciones de ida y vuelta del mundo por el protocolo (entrada, reconexion y mundo privado).
+- **Streaming por proximidad (primera parte)**: las regiones se mandan de la más cercana al jugador a la más lejana y el cliente entra al mundo en cuanto tiene la región de debajo de los pies, sin esperar al resto. Lo que falta sigue llegando dentro de la partida y se dibuja según aparece. Mientras una región no ha llegado, sus bloques cuentan como sólidos (`Mundo.RegionRecibida`), así que no se cae por el terreno pendiente; al completarse el mundo la colisión vuelve a mirar solo los bloques. La carga visible ya no es un "mundo entero" sino "el terreno que pisas": el resto se rellena solo.
 
 ## [0.11.19] - 2026-09-16
 

@@ -285,6 +285,16 @@ public class Mundo
     // donde este el jugador. La matriz plana guarda primero X y Z y deja Y al
     // final, asi que una region no es un tramo contiguo: se copia capa a capa.
     // ------------------------------------------------------------------
+    /// <summary>Solo para los mundos que llegan por regiones: dice si la region de una
+    /// columna ya se recibio (null = el mundo esta entero, no hay streaming). El cliente
+    /// lo usa para no caer por el terreno que aun no ha llegado: mientras falte una
+    /// region, sus bloques se tratan como solidos.</summary>
+    public Func<int, int, bool>? RegionRecibida { get; set; }
+
+    /// <summary>True si la region de esta columna ya se puede pisar (o si el mundo
+    /// esta completo y no hay streaming).</summary>
+    public bool RegionDisponible(int x, int z) => RegionRecibida is null || RegionRecibida(x, z);
+
 
     /// <summary>Lado (en bloques) de una region.</summary>
     public const int LadoRegion = 64;

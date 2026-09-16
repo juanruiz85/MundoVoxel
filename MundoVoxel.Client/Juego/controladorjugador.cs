@@ -145,7 +145,7 @@ public sealed class ControladorJugador
         for (int x = (int)MathF.Floor(min.X); x <= (int)MathF.Floor(max.X); x++)
             for (int y = (int)MathF.Floor(min.Y); y <= (int)MathF.Floor(max.Y); y++)
                 for (int z = (int)MathF.Floor(min.Z); z <= (int)MathF.Floor(max.Z); z++)
-                    if (Bloques.EsSolido(mundo.Obtener(x, y, z))) return true;
+                    if (!mundo.RegionDisponible(x, z) || Bloques.EsSolido(mundo.Obtener(x, y, z))) return true;
         return false;
     }
 
@@ -164,7 +164,7 @@ public sealed class ControladorJugador
         for (int x = x0; x <= x1 && !colision; x++)
             for (int y = y0; y <= y1 && !colision; y++)
                 for (int z = z0; z <= z1 && !colision; z++)
-                    if (Bloques.EsSolido(mundo.Obtener(x, y, z)))
+                    if (!mundo.RegionDisponible(x, z) || Bloques.EsSolido(mundo.Obtener(x, y, z)))
                         colision = true;
         if (!colision) return;
 

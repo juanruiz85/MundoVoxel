@@ -881,9 +881,17 @@ public sealed class GameServer : IAsyncDisposable
             Semilla = mundo.Mundo.Semilla,
             Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
         });
+        // De la region mas cercana a la mas lejana: lo primero que llega es el
+        // terreno de debajo de los pies, que es lo que necesita el cliente para
+        // entrar al mundo sin esperar al resto.
+        var (rxJ, rzJ) = Mundo.RegionDe((int)aparicion.X, (int)aparicion.Z);
+        var orden = new List<(int Dist, int Rx, int Rz)>();
         for (int rz = 0; rz < mundo.Mundo.RegionesZ; rz++)
             for (int rx = 0; rx < mundo.Mundo.RegionesX; rx++)
-                Enviar(c, new MundoRegion { Rx = rx, Rz = rz, Datos = mundo.Mundo.SerializarRegion(rx, rz) });
+                orden.Add(((rx - rxJ) * (rx - rxJ) + (rz - rzJ) * (rz - rzJ), rx, rz));
+        orden.Sort((a, b) => a.Dist.CompareTo(b.Dist));
+        foreach (var region in orden)
+            Enviar(c, new MundoRegion { Rx = region.Rx, Rz = region.Rz, Datos = mundo.Mundo.SerializarRegion(region.Rx, region.Rz) });
         // Si el jugador ya tuvo inventario en este mundo (persistido), restaurarlo;
         // si no, dar el kit de inicio la primera vez que entra.
         if (c.Inventario.Count == 0 && mundo.Inventarios.TryGetValue(c.Nombre, out var guardado) && guardado.Count > 0)

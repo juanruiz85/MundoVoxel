@@ -28,6 +28,9 @@ public sealed class DatosMundo
     public required int IdDueno { get; init; }
     /// <summary>Mundo ya reensamblado a partir de las regiones que manda el servidor.</summary>
     public required Mundo Mundo { get; init; }
+    /// <summary>Ensamblador de las regiones que aun no han llegado (streaming por
+    /// proximidad). Es null cuando el mundo ya estaba completo al entrar.</summary>
+    public MundoRemoto? Remoto { get; init; }
     public required float Ax { get; init; }
     public required float Ay { get; init; }
     public required float Az { get; init; }

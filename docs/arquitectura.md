@@ -94,8 +94,9 @@ Ya esta hecho: el protocolo manda la cabecera en `Unido` (dimensiones y semilla,
 detras una `MundoRegion` por mensaje, tanto al entrar como al reconectar; el cliente monta el
 mundo con `MundoRemoto` y el "Cargando el mundo... N %" cuenta regiones.
 
-Pendiente: ampliar el radio de carga según se mueve el jugador (mandando solo las
-regiones cercanas) y tratar como sólida la zona aún no recibida, para no caer al vacío.
+Streaming por proximidad (primera parte): las regiones se envian de la más cercana al jugador a la más lejana, el cliente entra al mundo con la región de debajo de los pies y el resto se rellena dentro de la partida, dibujándose según llega; mientras falta una región sus bloques son sólidos (`Mundo.RegionRecibida`) para no caer al vacío.
+
+Pendiente: descargar (unload) las regiones que quedan lejos y afinar el radio de carga según se mueve el jugador.
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.
 - Hilo lector por conexión (async), hilo de difusión de posiciones (10 Hz) y hilo de aceptación.
