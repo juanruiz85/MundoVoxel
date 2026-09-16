@@ -916,8 +916,11 @@ try { mundoBorde.AplicarRegion(0, 0, new byte[10]); }
 catch (InvalidDataException) { regionLanzo = true; }
 Comprobar(regionLanzo, "una region de tamano invalido se rechaza (mensaje manipulado)");
 var regPequena = new Mundo(32, 16, 32, 7);
-Comprobar(regPequena.TotalRegiones == 1 && regPequena.TamanoRegion == 16 * 32 * 32 * 2,
-    "un mundo menor que una region es una sola region");
+// La region siempre mide 64x64 columnas: en un mundo mas pequeno se manda
+// rellena de Vacio y el receptor la recorta (por eso el tamano no depende
+// del tamano del mundo, solo de Alto).
+Comprobar(regPequena.TotalRegiones == 1 && regPequena.TamanoRegion == regPequena.Alto * 64 * 64 * 2,
+    "un mundo menor que una region es una sola region (region de 64x64 con relleno)");
 
 // ---------- favoritos de servidores del cliente ----------
 // Persistencia JSON de la lista de servidores favoritos (MundoVoxel.Core):
