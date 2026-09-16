@@ -67,6 +67,9 @@ public sealed class GameServer : IAsyncDisposable
             // "ClaveServidor": si el archivo la trae, el servidor la exige. Se
             // respeta el valor puesto por codigo (asi las pruebas la pasan directa).
             if (Ajustes.Actual.ClaveServidor.Length > 0) Clave = Ajustes.Actual.ClaveServidor;
+            // "RadioRegiones": el archivo de ajustes manda al arrancar (1 = 3x3
+            // regiones alrededor del jugador); el servidor de verdad lo lee de ahi.
+            RadioRegiones = Ajustes.Actual.RadioRegiones;
             _oyente.Start();
         }
         catch (SocketException ex)

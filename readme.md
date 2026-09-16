@@ -1,4 +1,4 @@
-﻿# 🌍 MundoVoxel
+# 🌍 MundoVoxel
 
 [![CI](https://github.com/juanruiz85/MundoVoxel/actions/workflows/ci.yml/badge.svg)](https://github.com/juanruiz85/MundoVoxel/actions/workflows/ci.yml)
 
@@ -36,6 +36,7 @@ Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, 
 - El servidor es una sola aplicación que aloja hasta 40 mundos × 12 jugadores por defecto (configurable).
 - **Cifrado opcional (TLS)**: el servidor puede cifrar toda la conexiÓn (certificado autofirmado que se genera solo la primera vez). En el menú del cliente se activa con la casilla **Servidor cifrado (TLS)**.
 - **Clave de acceso (opcional)**: con `"ClaveServidor"` en `ajustes.config.json`, el servidor pide una clave antes de dejar entrar (y de mandar la lista de mundos). El cliente la escribe en el menú y la recuerda; la reconexión automática también la usa. La comparación es en tiempo constante y comparte el tope de intentos con las claves de mundo.
+- **Streaming por proximidad**: el mundo viaja por regiones de 64x64 columnas y el servidor sólo mantiene cargadas las del radio de carga (`RadioRegiones` en `ajustes.config.json`, 3x3 por defecto). Al alejarse suelta las que quedan atrás (y el cliente las descarga); al volver a acercarse se le mandan otra vez.
 
 ---
 

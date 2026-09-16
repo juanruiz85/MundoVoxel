@@ -16,5 +16,11 @@
 
   // Clave de acceso del servidor (autenticacion basica): si no esta vacia, los
   // clientes deben escribirla en el menu para entrar (vacia = servidor abierto).
-  "ClaveServidor": ""
+  "ClaveServidor": "",
+
+  // Streaming por proximidad: cuantas regiones (de 64x64 columnas) alrededor del
+  // jugador se mantienen cargadas. 1 = 3x3 = 192x192 columnas (por defecto).
+  // Al alejarse, el servidor suelta las que salen del radio y el cliente las
+  // descarga; si el jugador vuelve, se le mandan otra vez.
+  "RadioRegiones": 1
 }

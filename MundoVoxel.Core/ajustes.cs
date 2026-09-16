@@ -59,6 +59,10 @@ public static class Ajustes
         // Clave de acceso del servidor (autenticacion basica, opt-in): si no esta
         // vacia, el cliente debe enviarla en el saludo. Vacio = servidor abierto.
         public string ClaveServidor { get; set; } = "";
+        // Streaming por proximidad: cuantas regiones alrededor del jugador
+        // mantiene cargadas el servidor (1 = 3x3 = 192x192 columnas). Al
+        // alejarse, las que salen del radio se sueltan (MundoOlvida).
+        public int RadioRegiones { get; set; } = 1;
     }
 
     static Config _cfg = new();

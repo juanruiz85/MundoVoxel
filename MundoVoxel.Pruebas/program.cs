@@ -1,4 +1,4 @@
-﻿using System.Net.Security;
+using System.Net.Security;
 using System.Net.Sockets;
 using MundoVoxel.Core;
 
@@ -10,6 +10,7 @@ int puerto = 25600;
 var servidor = new GameServer(puerto, "Servidor de prueba");
 servidor.AlRegistrar += Console.WriteLine;
 servidor.Iniciar();
+servidor.RadioRegiones = 1; // radio fijo en las pruebas: el servidor lo lee de ajustes.config.json
 await Task.Delay(300);
 
 int errores = 0;
@@ -40,6 +41,23 @@ var mundo = mundoLeido!;
 Comprobar(mundo.Ancho == Ajustes.Actual.AnchoMundo && mundo.Alto == Ajustes.Actual.AltoMundo && mundo.Profundo == Ajustes.Actual.ProfundoMundo, $"dimensiones del mundo ({mundo.Ancho}x{mundo.Alto}x{mundo.Profundo})");
 var aparicion = mundo.ObtenerPuntoAparicion();
 Comprobar(mundo.Obtener((int)aparicion.X, (int)aparicion.Y, (int)aparicion.Z) == Bloques.Aire, "punto de aparicion despejado");
+
+// ---------- streaming por proximidad: el servidor suelta lo que queda lejos ----------
+Console.WriteLine("Streaming: al alejarse el servidor suelta regiones y al volver las manda otra vez.");
+{
+    var achVel = Ajustes.Actual.AntiCheatVelocidadMax;
+    var achSal = Ajustes.Actual.AntiCheatSaltoMax;
+    Ajustes.Actual.AntiCheatVelocidadMax = 0f; Ajustes.Actual.AntiCheatSaltoMax = 0f; // el salto del test es a proposito
+    // Esquina opuesta a la region de aparicion (el mundo es 4x4 regiones).
+    await c1.Enviar(new Posicion { Px = 200f, Py = 40f, Pz = 200f });
+    var olvidoStream = await c1.LeerHasta<MundoOlvida>(timeoutMs: 10000);
+    Comprobar(olvidoStream != null, "al alejarse, el servidor suelta una region");
+    Comprobar(olvidoStream == null || olvidoStream.Rx <= 1 || olvidoStream.Rz <= 1, "la region que se suelta es de las lejanas");
+    await c1.Enviar(new Posicion { Px = 8f, Py = 40f, Pz = 8f });
+    var regionStream = await c1.LeerHasta<MundoRegion>(timeoutMs: 10000);
+    Comprobar(regionStream != null, "al volver, el servidor manda las regiones que entran en el radio");
+    Ajustes.Actual.AntiCheatVelocidadMax = achVel; Ajustes.Actual.AntiCheatSaltoMax = achSal;
+}
 
 // La variedad de tipos de mob depende de la generacion probabilistica por tick:
 // en runners de CI puede no haber 3 tipos distintos en la ventana. En CI se
