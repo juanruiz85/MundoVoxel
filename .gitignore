@@ -3,3 +3,7 @@ obj/
 *.user
 .vs/
 artifacts/
+
+# logs de la suite de pruebas local
+suite*.log
+suite*.err
