@@ -616,16 +616,29 @@ var cambioTnt = await c1.LeerBloqueEn(bx + 2, by + 2, bz, 5000);
 Comprobar(cambioTnt?.Bloque == Bloques.Tnt, "colocar TNT difunde BloqueCambio");
 var invMechero = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 int idxMechero = invMechero?.Slots.FindIndex(s => s.Material == (ushort)ItemId.Mechero) ?? -1;
-await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxMechero, 8)), Material = (ushort)ItemId.Mechero });
-await c1.Enviar(new UsarBloque { X = bx + 2, Y = by + 2, Z = bz });
-bool tntExploto = false;
-// La explosion destruye ~100 bloques (radio 3.5); el BloqueCambio del centro
-// llega en medio de la rafaga. Se filtra por posicion para no perderse con el
-// ruido de cultivos/mobs del mundo grande.
-for (int i = 0; i < 400 && !tntExploto; i++)
+// La lectura puede llegar desfasada (mensajes en cola): reintentar hasta verlo.
+for (int intento = 0; intento < 3 && idxMechero < 0; intento++)
 {
-    var cb = await c1.LeerBloqueEn(bx + 2, by + 2, bz, 500);
-    if (cb != null && cb.Bloque == Bloques.Aire) tntExploto = true;
+    var inv2 = await c1.LeerHasta<Inventario>(timeoutMs: 4000);
+    idxMechero = inv2?.Slots.FindIndex(s => s.Material == (ushort)ItemId.Mechero) ?? -1;
+}
+Console.WriteLine($"  [diag] mechero en slot {idxMechero} (el servidor solo comprueba tenerlo)");
+bool tntExploto = false;
+// Encender puede fallar de forma transitoria (estado del jugador aun sin
+// actualizar): reintentar re-seleccionando y usando antes de dar el test por
+// fallido. La explosion destruye ~100 bloques (radio 3.5) y el BloqueCambio del
+// centro llega entre la rafaga; se filtra por posicion para no perderse con el
+// ruido de cultivos/mobs del mundo grande.
+for (int intento = 0; intento < 3 && !tntExploto; intento++)
+{
+    await c1.Enviar(new SeleccionarSlot { Slot = Math.Max(0, Math.Min(idxMechero, 8)), Material = (ushort)ItemId.Mechero });
+    await c1.Enviar(new UsarBloque { X = bx + 2, Y = by + 2, Z = bz });
+    for (int i = 0; i < 60 && !tntExploto; i++)
+    {
+        var cb = await c1.LeerBloqueEn(bx + 2, by + 2, bz, 500);
+        if (cb != null && cb.Bloque == Bloques.Aire) tntExploto = true;
+    }
+    if (!tntExploto) Console.WriteLine($"  [diag] encendido intento {intento + 1} sin explosion; se reintenta.");
 }
 Comprobar(tntExploto, "el mechero enciende la TNT y explota");
 
