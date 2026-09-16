@@ -38,7 +38,7 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(UsarBloque), "UsarBloque")]
 [JsonDerivedType(typeof(SeleccionarSlot), "SeleccionarSlot")]
 [JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
-[JsonDerivedType(typeof(MundoChunk), "MundoChunk")]
+[JsonDerivedType(typeof(MundoRegion), "MundoRegion")]
 [JsonDerivedType(typeof(FijarHora), "FijarHora")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
 [JsonDerivedType(typeof(OxigenoMsg), "Oxigeno")]
@@ -131,15 +131,20 @@ public sealed class Unido : Mensaje
     public string Nombre { get; set; } = "";
     public string Dueno { get; set; } = "";
     public int IdDueno { get; set; }
-    public byte[] MundoComprimido { get; set; } = Array.Empty<byte>();
+    // Cabecera del mundo: llega sola y detras van las regiones (MundoRegion),
+    // para poder mandar solo las cercanas al jugador (streaming por proximidad).
+    public int Ancho { get; set; }
+    public int Alto { get; set; }
+    public int Profundo { get; set; }
+    public int Semilla { get; set; }
     public float Ax { get; set; } public float Ay { get; set; } public float Az { get; set; }
 }
 public sealed class ErrorServidor : Mensaje { public string Codigo { get; set; } = ""; public string Mensaje { get; set; } = ""; }
 
-/// <summary>Trozo del mundo comprimido: el servidor envia el Unido sin datos y
-/// los trozos van detras, para evitar un pico unico de memoria al entrar y
-/// habilitar streaming incremental mas adelante.</summary>
-public sealed class MundoChunk : Mensaje { public int Indice { get; set; } public int Total { get; set; } public byte[] Datos { get; set; } = Array.Empty<byte>(); }
+/// <summary>Region del mundo (64x64 columnas): el servidor manda el Unido solo
+/// con la cabecera y detras una region por mensaje, para no hacer un pico unico
+/// de memoria al entrar y poder enviar solo las cercanas al jugador.</summary>
+public sealed class MundoRegion : Mensaje { public int Rx { get; set; } public int Rz { get; set; } public byte[] Datos { get; set; } = Array.Empty<byte>(); }
 public sealed class Salir : Mensaje { }
 public sealed class JugadorEntro : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
 public sealed class JugadorSalio : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; }

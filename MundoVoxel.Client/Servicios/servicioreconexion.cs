@@ -28,7 +28,7 @@ public sealed class ServicioReconexion
     /// los manejadores pueden tocar la UI directamente).</summary>
     public event Action<int, int>? AlIniciar;      // (intento, tope): mostrar panel
     public event Action<int, int>? AlIntento;      // actualizar "intento X de Y"
-    public event Action<Unido>? AlReconectado;     // volver a entrar al mundo
+    public event Action<Unido, Mundo>? AlReconectado;     // volver a entrar al mundo
     public event Action<string>? AlFallo;          // agotado o mundo ya no existe: mensaje listo
     public event Action<string>? AlCancelar;       // el usuario canceló: mensaje listo
 
@@ -112,13 +112,12 @@ public sealed class ServicioReconexion
                 if (respuesta is ErrorServidor er) { Fallo(TextoError(er)); return; }
                 if (respuesta is Unido unido)
                 {
-                    var (datosTrozos, errorTrozos) = await EsperarTrozosMundo(token);
+                    var (mundo, errorRegiones) = await EsperarRegiones(unido, token);
                     if (token.IsCancellationRequested) { AlCancelarConexion(); return; }
-                    if (errorTrozos != null) { Fallo(errorTrozos); return; }
-                    if (datosTrozos == null) { _red.Desconectar(); continue; }
-                    unido.MundoComprimido = datosTrozos;
+                    if (errorRegiones != null) { Fallo(errorRegiones); return; }
+                    if (mundo == null) { _red.Desconectar(); continue; }
                     Fin();
-                    LanzarEnPrincipal(() => AlReconectado?.Invoke(unido));
+                    LanzarEnPrincipal(() => AlReconectado?.Invoke(unido, mundo));
                     return;
                 }
                 // Sin Unido a tiempo: la próxima pasada desconecta y reintenta.
@@ -141,22 +140,19 @@ public sealed class ServicioReconexion
     /// <summary>Consulta la cola hasta que llega un mensaje relevante o se agota
     /// el tiempo (la interfaz no consume mientras hay reconexión en curso;
     /// Bienvenido y otros mensajes sueltos se descartan aquí).</summary>
-    /// <summary>Reensambla el mundo troceado tras la reconexion: consume los
-    /// MundoChunk hasta completar el Total y devuelve los bytes unidos.</summary>
-    async Task<(byte[]? Datos, string? Error)> EsperarTrozosMundo(CancellationToken token)
+    /// <summary>Reensambla el mundo que llega por regiones tras la reconexion:
+    /// consume los MundoRegion hasta dar el mundo por completo.</summary>
+    async Task<(Mundo? Mundo, string? Error)> EsperarRegiones(Unido cabecera, CancellationToken token)
     {
-        var trozos = new List<byte[]>();
+        var remoto = new MundoRemoto(cabecera.Ancho, cabecera.Alto, cabecera.Profundo, cabecera.Semilla);
         var fin = DateTime.UtcNow.AddMilliseconds(TimeoutUnidoMs);
         while (DateTime.UtcNow < fin)
         {
-            var m = await EsperarMensaje(TimeoutListaMs, token, x => x is MundoChunk or ErrorServidor);
+            var m = await EsperarMensaje(TimeoutListaMs, token, x => x is MundoRegion or ErrorServidor);
             if (token.IsCancellationRequested) return (null, null);
             if (m is ErrorServidor er) return (null, TextoError(er));
-            if (m is not MundoChunk mc) return (null, null);
-            while (trozos.Count < mc.Indice) trozos.Add(Array.Empty<byte>());
-            trozos.Add(mc.Datos);
-            if (mc.Total > 0 && trozos.Count >= mc.Total)
-                return (trozos.SelectMany(t => t).ToArray(), null);
+            if (m is not MundoRegion mr) return (null, null);
+            if (remoto.Aplicar(mr.Rx, mr.Rz, mr.Datos)) return (remoto.Mundo, null);
         }
         return (null, null);
     }

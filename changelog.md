@@ -2,19 +2,23 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.20] - 2026-09-16
+
+### Cambiado
+
+- **El mundo viaja por regiones**: al entrar a un mundo (y al reconectar) el servidor manda ahora una cabecera con el tamaño y la semilla y, detras, el mundo repartido en regiones de 64x64 columnas, una por mensaje. Antes mandaba el mundo entero comprimido en trozos de 128 KB que había que reensamblar y descomprimir de golpe; ahora el cliente monta el mundo region a region conforme llegan y sabe en todo momento cuantas le faltan (el "Cargando el mundo... N %" cuenta regiones). El comportamiento visible es el mismo (se sigue esperando a tener el mundo completo), pero pasa a ser la base del streaming por proximidad.
+
+### Añadido
+
+- **Regiones del mundo** (`Mundo.LadoRegion`, `SerializarRegion`, `AplicarRegion`): cortan el mundo en trozos cuadrados de 64x64 columnas con todas sus capas, con las regiones de borde rellenas y validando el tamaño exacto al recibir (un mensaje manipulado se rechaza con `InvalidDataException`).
+- **Ensamblador `MundoRemoto`** (en Core, para poder probarlo sin MAUI): reensambla el mundo a partir de la cabecera y de las regiones recibidas, aguanta que lleguen desordenadas, ignora las repetidas o fuera de rango y expone el progreso (`Recibidas`/`Completo`).
+- **Pruebas**: 6 comprobaciones de las regiones y 7 del ensamblador en la suite, mas las comprobaciones de ida y vuelta del mundo por el protocolo (entrada, reconexion y mundo privado).
+
 ## [0.11.19] - 2026-09-16
 
-### A
-ñ
-adido
-- **Progreso al entrar a un mundo**: al pulsar Unirse la pantalla avisa ("Entrando al mundo...") y, mientras el servidor manda el mundo troceado, muestra "Cargando el mundo... N %". Antes se quedaba muda hasta terminar: con mundos grandes o servidores lentos parec
-í
-a colgada. El porcentaje son los trozos ya recibidos sobre el total, as
-í
- que no depende de la velocidad del servidor.
-- Los avisos neutros (progreso, "Creando mundo.") van en blanco y los errores siguen en rojo: antes todo sal
-í
-a en el color de error.
+### Añadido
+- **Progreso al entrar a un mundo**: al pulsar Unirse la pantalla avisa ("Entrando al mundo...") y, mientras el servidor manda el mundo troceado, muestra "Cargando el mundo... N %". Antes se quedaba muda hasta terminar: con mundos grandes o servidores lentos parecía colgada. El porcentaje son los trozos ya recibidos sobre el total, así que no depende de la velocidad del servidor.
+- Los avisos neutros (progreso, "Creando mundo.") van en blanco y los errores siguen en rojo: antes todo salía en el color de error.
 
 ## [0.11.18] - 2026-09-16
 

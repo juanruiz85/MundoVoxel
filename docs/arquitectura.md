@@ -90,10 +90,12 @@ En el cliente, `MundoRemoto` reensambla el mundo a partir de la cabecera y de la
 regiones que van llegando: aguanta que lleguen desordenadas, ignora las repetidas
 y avisa de cuando el mundo esta completo.
 
-Pendiente: mandar las regiones por el protocolo (`MundoRegion` más una cabecera
-en `Unido`) en vez del mundo comprimido de golpe, ampliar el radio de carga segun
-se mueve el jugador y tratar como sólida la zona aun no recibida (para no caer al
-vacio).
+Ya esta hecho: el protocolo manda la cabecera en `Unido` (dimensiones y semilla, sin datos) y
+detras una `MundoRegion` por mensaje, tanto al entrar como al reconectar; el cliente monta el
+mundo con `MundoRemoto` y el "Cargando el mundo... N %" cuenta regiones.
+
+Pendiente: ampliar el radio de carga según se mueve el jugador (mandando solo las
+regiones cercanas) y tratar como sólida la zona aún no recibida, para no caer al vacío.
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.
 - Hilo lector por conexión (async), hilo de difusión de posiciones (10 Hz) y hilo de aceptación.
@@ -122,7 +124,7 @@ vacio).
 
 ## Límites actuales (diseño deliberado)
 - Los mundos se guardan en disco (`%LOCALAPPDATA%\MundoVoxel\mundos`, bloques comprimidos con gzip) al crearlos y al cerrar el servidor, y se restauran al arrancar; borrar un mundo también elimina su archivo.
-- El mundo se transmite troceado al entrar (`Unido` sin datos + `MundoChunk` de 128 KB): sin pico de memoria y listo para streaming incremental.
+- El mundo viaja por regiones de 64x64 columnas (`Unido` solo con la cabecera + una `MundoRegion` por mensaje): sin pico de memoria al entrar, con progreso en el cliente ("Cargando el mundo... N %") y listo para mandar solo lo cercano al jugador.
 - El renderizado es por software (canvas 2D con painter's algorithm): prioriza portabilidad; para mundos enormes convendría OpenGL/OpenGL ES (p. ej. Silk.NET).
 
 ## Próximos pasos

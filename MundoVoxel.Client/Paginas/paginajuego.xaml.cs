@@ -104,8 +104,8 @@ public partial class PaginaJuego : ContentPage
         SldSensibilidad.Value = _vista.Sensibilidad;
         LblSensibilidadValor.Text = _vista.Sensibilidad.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
 
-        // Construir el mundo local desde los datos comprimidos del servidor
-        var mundo = Mundo.Deserializar(Mundo.Descomprimir(datos.MundoComprimido));
+        // El mundo llega ya reensamblado a partir de las regiones del servidor
+        var mundo = datos.Mundo;
         _vista.Mundo = mundo;
         _vista.Renderizador.DistanciaChunks = Distancias[_nivelDistancia];
         _vista.Renderizador.ConstruirMallas(mundo);
@@ -1309,14 +1309,13 @@ public partial class PaginaJuego : ContentPage
 
     void OnReconexionCancelada(string mensaje) => OnReconexionFallo(mensaje);
 
-    void OnReconectado(Unido u)
+    void OnReconectado(Unido u, Mundo mundo)
     {
         try
         {
-            // El servidor manda el mundo completo tras re-entrar: reconstruir
-            // el estado local y reanudar el bucle (los mensajes siguientes ya
-            // llegan por el tick normal).
-            var mundo = Mundo.Deserializar(Mundo.Descomprimir(u.MundoComprimido));
+            // El servidor manda el mundo completo tras re-entrar (por regiones,
+            // ya reensamblado): reconstruir el estado local y reanudar el bucle
+            // (los mensajes siguientes ya llegan por el tick normal).
             _vista.Mundo = mundo;
             _vista.Renderizador.ConstruirMallas(mundo);
             _vista.Jugador.Pos = new Vector3(u.Ax, u.Ay, u.Az);

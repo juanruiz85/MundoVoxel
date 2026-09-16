@@ -34,9 +34,9 @@ await c1.Enviar(new CrearMundo { Nombre = "Mundo de Ana", Abierto = true });
 var creado = await c1.LeerHasta<MundoCreado>();
 Comprobar(creado != null, "mundo creado");
 string idMundo = creado!.Id;
-var unido = (await LeerUnidoCompleto(c1)).Unido;
-Comprobar(unido != null && unido.MundoComprimido.Length > 0, "recibe el mundo comprimido");
-var mundo = Mundo.Deserializar(Mundo.Descomprimir(unido!.MundoComprimido));
+var (unido, mundoLeido, regionesMundo) = await LeerUnidoCompleto(c1);
+Comprobar(unido != null && mundoLeido != null, $"recibe el mundo por regiones y se reensambla ({regionesMundo} regiones)");
+var mundo = mundoLeido!;
 Comprobar(mundo.Ancho == Ajustes.Actual.AnchoMundo && mundo.Alto == Ajustes.Actual.AltoMundo && mundo.Profundo == Ajustes.Actual.ProfundoMundo, $"dimensiones del mundo ({mundo.Ancho}x{mundo.Alto}x{mundo.Profundo})");
 var aparicion = mundo.ObtenerPuntoAparicion();
 Comprobar(mundo.Obtener((int)aparicion.X, (int)aparicion.Y, (int)aparicion.Z) == Bloques.Aire, "punto de aparicion despejado");
@@ -103,12 +103,12 @@ Comprobar(errPin?.Codigo == "PIN_INCORRECTO", "clave incorrecta rechazada");
 await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456" });
 var resPriv = await LeerUnidoCompleto(c1);
 var unidoPriv = resPriv.Unido;
-Comprobar(unidoPriv!.MundoComprimido.Length > 0 && resPriv.Trozos >= 1, $"el mundo llega troceado y se reensambla ({resPriv.Trozos} trozos, {unidoPriv.MundoComprimido.Length} bytes)");
+Comprobar(unidoPriv != null && resPriv.Mundo != null && resPriv.Regiones >= 1, $"el mundo llega por regiones y se reensambla ({resPriv.Regiones} regiones)");
 Comprobar(unidoPriv?.Id == idPrivado, "Ana entra con la clave correcta");
 
 // ---------- cofre inicial ----------
 Console.WriteLine("Cofre inicial: herramientas basicas en el spawn + 4 antorchas.");
-var mundoPriv = Mundo.Deserializar(Mundo.Descomprimir(unidoPriv!.MundoComprimido));
+var mundoPriv = resPriv.Mundo!;
 int cfx = (int)unidoPriv.Ax + 1, cfz = (int)unidoPriv.Az, cfy = (int)unidoPriv.Ay - 1;
 if (mundoPriv.Obtener(cfx, cfy, cfz) != Bloques.Cofre) { cfx = (int)unidoPriv.Ax; cfz = (int)unidoPriv.Az + 1; }
 Comprobar(mundoPriv.Obtener(cfx, cfy, cfz) == Bloques.Cofre, "cofre inicial en el spawn");
@@ -800,7 +800,7 @@ await c1.LeerHasta<ListaMundos>();
 await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456" });
 var resRe = await LeerUnidoCompleto(c1);
 var unidoRe = resRe.Unido;
-Comprobar(unidoRe != null && unidoRe.Id == idPrivado, $"reconexion: el mundo se retransmite troceado tras la caida ({resRe.Trozos} trozos)");
+Comprobar(unidoRe != null && unidoRe.Id == idPrivado && resRe.Mundo != null, $"reconexion: el mundo se retransmite por regiones y se reensambla tras la caida ({resRe.Regiones} regiones)");
 Comprobar(unidoRe != null && MathF.Abs(unidoRe.Ax - pxEsperado) < 0.5f,
     $"reconexion: vuelve a la posicion guardada (esperada x={pxEsperado:F1}, recibida x={unidoRe?.Ax ?? -999:F1})");
 var invRe = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
@@ -1107,26 +1107,25 @@ static async Task<Chat?> EsperarChat(System.Collections.Concurrent.ConcurrentQue
     return null;
 }
 
-/// <summary>Lee un Unido completo: el servidor envia primero el Unido sin datos
-/// y detras los MundoChunk; reensambla el mundo y devuelve el mensaje con los
-/// datos ya unidos (trozos = cantidad de trozos recibidos).</summary>
-static async Task<(Unido? Unido, int Trozos)> LeerUnidoCompleto(ClientePrueba c, int timeoutMs = 30000)
+/// <summary>Lee un Unido completo: el servidor envia primero la cabecera (sin
+/// datos) y detras una region por mensaje (MundoRegion); reensambla el mundo y
+/// devuelve la cabecera, el mundo montado (null si no llego entero) y cuantas
+/// regiones se recibieron.</summary>
+static async Task<(Unido? Unido, Mundo? Mundo, int Regiones)> LeerUnidoCompleto(ClientePrueba c, int timeoutMs = 30000)
 {
     var unido = await c.LeerHasta<Unido>(timeoutMs);
-    var partes = new List<byte[]>();
-    int total = -1;
+    if (unido == null) return (null, null, 0);
+    var remoto = new MundoRemoto(unido.Ancho, unido.Alto, unido.Profundo, unido.Semilla);
+    int regiones = 0;
     var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-    while (unido != null && DateTime.UtcNow < fin)
+    while (!remoto.Completo && DateTime.UtcNow < fin)
     {
-        var m = await c.LeerHasta<MundoChunk>(timeoutMs);
+        var m = await c.LeerHasta<MundoRegion>(timeoutMs);
         if (m == null) break;
-        total = m.Total;
-        while (partes.Count < m.Indice) partes.Add(Array.Empty<byte>());
-        partes.Add(m.Datos);
-        if (total > 0 && partes.Count >= total) break;
+        regiones++;
+        remoto.Aplicar(m.Rx, m.Rz, m.Datos);
     }
-    if (unido != null && partes.Count > 0) unido.MundoComprimido = partes.SelectMany(p => p).ToArray();
-    return (unido, partes.Count);
+    return (unido, remoto.Completo ? remoto.Mundo : null, regiones);
 }
 
 static async Task<ClientePrueba> Conectar(int puerto)

@@ -30,9 +30,9 @@ public partial class PaginaMundos : ContentPage
     /// <summary>Token de invitacion con el que se pidio entrar (alternativa a la
     /// clave): se recuerda para la reconexion automatica.</summary>
     string? _tokenPendiente;
-    /// <summary>Reensamblado del mundo troceado: Unido sin datos + MundoChunk.</summary>
+    /// <summary>Reensamblado del mundo por regiones: Unido solo con la cabecera + MundoRegion.</summary>
     Unido? _unidoPendiente;
-    List<byte[]>? _trozosMundo;
+    MundoRemoto? _remotoPendiente;
     /// <summary>Color de aviso del tema (rojo), guardado para alternar con los
     /// mensajes neutros de progreso.</summary>
     Color _colorError = Colors.OrangeRed;
@@ -147,38 +147,39 @@ public partial class PaginaMundos : ContentPage
                 break;
 
             case Unido u:
-                // El mundo llega troceado: guardar el Unido y esperar los MundoChunk.
+                // El mundo llega por regiones: guardar la cabecera y esperarlas.
                 _unidoPendiente = u;
-                _trozosMundo = new List<byte[]>();
+                _remotoPendiente = new MundoRemoto(u.Ancho, u.Alto, u.Profundo, u.Semilla);
                 return false;
 
-            case MundoChunk mc when _unidoPendiente != null && _trozosMundo != null:
-                while (_trozosMundo.Count < mc.Indice) _trozosMundo.Add(Array.Empty<byte>());
-                _trozosMundo.Add(mc.Datos);
-                MostrarCarga(_trozosMundo.Count, mc.Total);
-                if (_trozosMundo.Count < mc.Total) return false;
-
-                var up = _unidoPendiente;
-                up.MundoComprimido = _trozosMundo.SelectMany(t => t).ToArray();
-                _unidoPendiente = null;
-                _trozosMundo = null;
-                var datos = new DatosMundo
+            case MundoRegion mr when _unidoPendiente != null && _remotoPendiente != null:
                 {
-                    Id = up.Id,
-                    Nombre = up.Nombre,
-                    Dueno = up.Dueno,
-                    IdDueno = up.IdDueno,
-                    MundoComprimido = up.MundoComprimido,
-                    Ax = up.Ax, Ay = up.Ay, Az = up.Az,
-                    Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
-                    PinUsado = _pinPendiente,
-                    TokenUsado = _tokenPendiente,
-                };
-                // Al entrar al mundo el foco no debe quedar en ningun boton (la
-                // barra espaciadora es para saltar, no para activar el menu).
-                _timer?.Stop();
-                _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, _reconexion, datos));
-                return true;
+                    bool completo = _remotoPendiente.Aplicar(mr.Rx, mr.Rz, mr.Datos);
+                    MostrarCarga(_remotoPendiente.Recibidas, _remotoPendiente.Total);
+                    if (!completo) return false;
+
+                    var up = _unidoPendiente;
+                    var rem = _remotoPendiente;
+                    _unidoPendiente = null;
+                    _remotoPendiente = null;
+                    var datos = new DatosMundo
+                    {
+                        Id = up.Id,
+                        Nombre = up.Nombre,
+                        Dueno = up.Dueno,
+                        IdDueno = up.IdDueno,
+                        Mundo = rem.Mundo,
+                        Ax = up.Ax, Ay = up.Ay, Az = up.Az,
+                        Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
+                        PinUsado = _pinPendiente,
+                        TokenUsado = _tokenPendiente,
+                    };
+                    // Al entrar al mundo el foco no debe quedar en ningun boton (la
+                    // barra espaciadora es para saltar, no para activar el menu).
+                    _timer?.Stop();
+                    _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, _reconexion, datos));
+                    return true;
+                }
 
             case MundoCreado mundoCreado when mundoCreado.Token.Length > 0:
                 // Mundo privado recien creado: se muestra el token una vez para

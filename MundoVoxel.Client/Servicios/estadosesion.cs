@@ -1,3 +1,5 @@
+using MundoVoxel.Core;
+
 namespace MundoVoxel.Client.Servicios;
 
 /// <summary>Datos de la sesión actual (nombre e IP elegidos en el menú).</summary>
@@ -24,7 +26,8 @@ public sealed class DatosMundo
     public required string Nombre { get; init; }
     public required string Dueno { get; init; }
     public required int IdDueno { get; init; }
-    public required byte[] MundoComprimido { get; init; }
+    /// <summary>Mundo ya reensamblado a partir de las regiones que manda el servidor.</summary>
+    public required Mundo Mundo { get; init; }
     public required float Ax { get; init; }
     public required float Ay { get; init; }
     public required float Az { get; init; }
