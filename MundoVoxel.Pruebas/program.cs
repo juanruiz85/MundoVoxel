@@ -878,6 +878,47 @@ try { _ = Mundo.Deserializar(malo.ToArray()); }
 catch (InvalidDataException) { dimsLanzo = true; }
 Comprobar(dimsLanzo, "deserializar rechaza dimensiones absurdas (archivo manipulado)");
 
+// ---------- regiones del mundo (base del streaming por proximidad) ----------
+// El mundo se corta en regiones de 64x64 columnas con todas sus capas: extraer
+// y reensamblar regiones tiene que devolver el mundo identico, que es lo que
+// hara el cliente al entrar en vez de recibir el mundo de golpe.
+var mundoReg = Mundo.Generar(4242, ancho: 100, alto: 40, profundo: 70, nivelAgua: 0.35f, lagosLava: 0, lagosAgua: 0);
+Comprobar(mundoReg.RegionesX == 2 && mundoReg.RegionesZ == 2 && mundoReg.TotalRegiones == 4,
+    $"un mundo de 100x70 se corta en 2x2 regiones");
+Comprobar(Mundo.RegionDe(63, 0) == (0, 0) && Mundo.RegionDe(64, 64) == (1, 1) && Mundo.RegionDe(99, 69) == (1, 1),
+    "RegionDe asigna cada columna a su region");
+// Reensamblado en orden inverso (como si las regiones llegaran desordenadas)
+var mundoArmado = new Mundo(mundoReg.Ancho, mundoReg.Alto, mundoReg.Profundo, mundoReg.Semilla);
+for (int rz = mundoReg.RegionesZ - 1; rz >= 0; rz--)
+    for (int rx = mundoReg.RegionesX - 1; rx >= 0; rx--)
+        mundoArmado.AplicarRegion(rx, rz, mundoReg.SerializarRegion(rx, rz));
+int bloquesDistintos = 0;
+for (int i = 0; i < mundoReg.Datos.Length; i++)
+    if (mundoReg.Datos[i] != mundoArmado.Datos[i]) bloquesDistintos++;
+Comprobar(bloquesDistintos == 0, $"reensamblar las 4 regiones reproduce el mundo identico ({bloquesDistintos} bloques distintos)");
+// Los bordes parciales (regiones que sobresalen del mundo) no rompen nada
+var mundoBorde = new Mundo(mundoReg.Ancho, mundoReg.Alto, mundoReg.Profundo, mundoReg.Semilla);
+mundoBorde.AplicarRegion(1, 1, mundoReg.SerializarRegion(1, 1));
+bool soloSuRegion = true;
+for (int z = 0; z < mundoReg.Profundo && soloSuRegion; z++)
+    for (int x = 0; x < mundoReg.Ancho && soloSuRegion; x++)
+    {
+        bool propia = Mundo.RegionDe(x, z) == (1, 1);
+        for (int y = 0; y < mundoReg.Alto; y++)
+        {
+            ushort esperado = propia ? mundoReg.Obtener(x, y, z) : Bloques.Aire;
+            if (mundoBorde.Obtener(x, y, z) != esperado) { soloSuRegion = false; break; }
+        }
+    }
+Comprobar(soloSuRegion, "aplicar una region no escribe fuera de ella (y el resto sigue vacio)");
+bool regionLanzo = false;
+try { mundoBorde.AplicarRegion(0, 0, new byte[10]); }
+catch (InvalidDataException) { regionLanzo = true; }
+Comprobar(regionLanzo, "una region de tamano invalido se rechaza (mensaje manipulado)");
+var regPequena = new Mundo(32, 16, 32, 7);
+Comprobar(regPequena.TotalRegiones == 1 && regPequena.TamanoRegion == 16 * 32 * 32 * 2,
+    "un mundo menor que una region es una sola region");
+
 // ---------- favoritos de servidores del cliente ----------
 // Persistencia JSON de la lista de servidores favoritos (MundoVoxel.Core):
 // usa una ruta temporal para no tocar los favoritos reales del usuario.

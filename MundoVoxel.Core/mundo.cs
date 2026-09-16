@@ -279,6 +279,64 @@ public class Mundo
         return ms.ToArray();
     }
 
+    // ------------------------------------------------------------------
+    // Regiones: el mundo se corta en cuadrados de LadoRegion x LadoRegion
+    // columnas (con todas sus capas Y) para poder mandarlo por partes segun
+    // donde este el jugador. La matriz plana guarda primero X y Z y deja Y al
+    // final, asi que una region no es un tramo contiguo: se copia capa a capa.
+    // ------------------------------------------------------------------
+
+    /// <summary>Lado (en bloques) de una region.</summary>
+    public const int LadoRegion = 64;
+
+    public int RegionesX => (Ancho + LadoRegion - 1) / LadoRegion;
+    public int RegionesZ => (Profundo + LadoRegion - 1) / LadoRegion;
+    public int TotalRegiones => RegionesX * RegionesZ;
+
+    /// <summary>Region (rx, rz) que contiene la columna (x, z).</summary>
+    public static (int Rx, int Rz) RegionDe(int x, int z) => (x / LadoRegion, z / LadoRegion);
+
+    /// <summary>Tamano en bytes de una region serializada (todas las capas Y).</summary>
+    public int TamanoRegion => Alto * LadoRegion * LadoRegion * sizeof(ushort);
+
+    /// <summary>Extrae una region completa: LadoRegion x LadoRegion columnas con
+    /// todas sus capas, en orden y, z, x. Lo que cae fuera del mundo se manda
+    /// como Vacio (regiones de borde) y el receptor lo ignora.</summary>
+    public byte[] SerializarRegion(int rx, int rz)
+    {
+        int x0 = rx * LadoRegion, z0 = rz * LadoRegion;
+        var salida = new byte[TamanoRegion];
+        int i = 0;
+        for (int y = 0; y < Alto; y++)
+            for (int z = 0; z < LadoRegion; z++)
+                for (int x = 0; x < LadoRegion; x++)
+                {
+                    ushort b = Obtener(x0 + x, y, z0 + z);
+                    salida[i++] = (byte)(b & 0xFF);
+                    salida[i++] = (byte)(b >> 8);
+                }
+        return salida;
+    }
+
+    /// <summary>Escribe dentro de este mundo una region recibida. El tamano debe
+    /// ser el exacto (mensaje manipulado = error) y lo que caiga fuera de los
+    /// limites del mundo se ignora.</summary>
+    public void AplicarRegion(int rx, int rz, byte[] datos)
+    {
+        if (datos.Length != TamanoRegion)
+            throw new InvalidDataException($"Region de tamano invalido ({datos.Length} bytes, se esperaban {TamanoRegion}).");
+        int x0 = rx * LadoRegion, z0 = rz * LadoRegion;
+        int i = 0;
+        for (int y = 0; y < Alto; y++)
+            for (int z = 0; z < LadoRegion; z++)
+                for (int x = 0; x < LadoRegion; x++)
+                {
+                    ushort b = (ushort)(datos[i] | (datos[i + 1] << 8));
+                    i += 2;
+                    Poner(x0 + x, y, z0 + z, b);
+                }
+    }
+
     /// <summary>Limites de dimensiones al deserializar: un archivo o mensaje
     /// manipulado no puede pedir una asignacion gigante via ancho/alto/profundo
     /// absurdos. Cubre de sobra cualquier mundo creado por el juego.</summary>
