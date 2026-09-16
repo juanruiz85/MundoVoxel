@@ -33,6 +33,9 @@ public partial class PaginaMundos : ContentPage
     /// <summary>Reensamblado del mundo troceado: Unido sin datos + MundoChunk.</summary>
     Unido? _unidoPendiente;
     List<byte[]>? _trozosMundo;
+    /// <summary>Color de aviso del tema (rojo), guardado para alternar con los
+    /// mensajes neutros de progreso.</summary>
+    Color _colorError = Colors.OrangeRed;
 
     public PaginaMundos(ServicioRed red, ServicioIdioma idioma, ServicioTeclado teclado, ServicioReconexion reconexion)
     {
@@ -68,6 +71,7 @@ public partial class PaginaMundos : ContentPage
         SldDia.ValueChanged += (_, _) => LblCfgDia.Text = idioma.O("mundos.cfg_dia") + " " + (int)SldDia.Value + " min";
 
         _red.AlDesconectar += OnDesconectadoRed;
+        _colorError = LblEstado.TextColor;   // el rojo de aviso que trae el tema
     }
 
     /// <summary>Opciones de tamano de mundo: (Ancho, Alto, Profundo).</summary>
@@ -151,6 +155,7 @@ public partial class PaginaMundos : ContentPage
             case MundoChunk mc when _unidoPendiente != null && _trozosMundo != null:
                 while (_trozosMundo.Count < mc.Indice) _trozosMundo.Add(Array.Empty<byte>());
                 _trozosMundo.Add(mc.Datos);
+                MostrarCarga(_trozosMundo.Count, mc.Total);
                 if (_trozosMundo.Count < mc.Total) return false;
 
                 var up = _unidoPendiente;
@@ -200,8 +205,25 @@ public partial class PaginaMundos : ContentPage
 
     void MostrarError(string texto)
     {
+        LblEstado.TextColor = _colorError;
         LblEstado.Text = texto;
         LblEstado.IsVisible = true;
+    }
+
+    /// <summary>Aviso neutro en la barra de estado (no es un error).</summary>
+    void MostrarAviso(string texto)
+    {
+        LblEstado.TextColor = Colors.White;
+        LblEstado.Text = texto;
+        LblEstado.IsVisible = true;
+    }
+
+    /// <summary>Progreso de la descarga del mundo: el servidor lo manda troceado y
+    /// antes la pantalla se quedaba muda (con mundos grandes parecia colgada).</summary>
+    void MostrarCarga(int recibidos, int total)
+    {
+        if (total <= 0) return;
+        MostrarAviso(_idioma.O("mundos.cargando", Math.Clamp(recibidos * 100 / total, 0, 100)));
     }
 
     void OnUnirse(object? sender, EventArgs e)
@@ -213,6 +235,7 @@ public partial class PaginaMundos : ContentPage
     async Task UnirseAsync(InfoMundoView item)
     {
         var info = item.Info;
+        MostrarAviso(_idioma.O("mundos.entrando"));
         if (info.Abierto)
         {
             _pinPendiente = null;
@@ -307,6 +330,7 @@ public partial class PaginaMundos : ContentPage
         }
         PanelCrear.IsVisible = false;
         _pinPendiente = pin; // el mundo creado era privado: recuerda su clave para reconectar
+        MostrarAviso(_idioma.O("mundos.creando"));
         EnviarCrearMundo(nombre, publico, pin);
     }
 

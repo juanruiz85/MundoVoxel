@@ -2,6 +2,20 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.19] - 2026-09-16
+
+### A
+ñ
+adido
+- **Progreso al entrar a un mundo**: al pulsar Unirse la pantalla avisa ("Entrando al mundo...") y, mientras el servidor manda el mundo troceado, muestra "Cargando el mundo... N %". Antes se quedaba muda hasta terminar: con mundos grandes o servidores lentos parec
+í
+a colgada. El porcentaje son los trozos ya recibidos sobre el total, as
+í
+ que no depende de la velocidad del servidor.
+- Los avisos neutros (progreso, "Creando mundo.") van en blanco y los errores siguen en rojo: antes todo sal
+í
+a en el color de error.
+
 ## [0.11.18] - 2026-09-16
 
 ### Añadido
