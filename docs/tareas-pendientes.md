@@ -5,13 +5,13 @@ Ultima actualizacion: 2026-09-15 (tras v0.11.16).
 
 ## Hecho recientemente (para contexto)
 
-- [x] v0.10.8: lista de servidores favoritos + reconexion automatica del cliente (retroceso exponencial, re-entrada al mundo)
+- [x] v0.10.8: lista de servidores favoritos + reconexión automática del cliente (retroceso exponencial, re-entrada al mundo)
 - [x] v0.10.9: paridad Android/Windows (hotbar tactil, botones Usar/Soltar/Espectador)
 - [x] v0.11.0: transmision del mundo troceada (`Unido` + `MundoChunk` de 128 KB)
-- [x] v0.11.1: claves de mundos privados de 6 digitos
-- [x] v0.11.2: propiedad de mundos por nombre de jugador (bug: el dueno que reconecta la perdía) + test de reconexion a nivel de protocolo
+- [x] v0.11.1: claves de mundos privados de 6 dígitos
+- [x] v0.11.2: propiedad de mundos por nombre de jugador (bug: el dueno que reconecta la perdía) + test de reconexión a nivel de protocolo
 - [x] v0.11.3: autoguardado periodico de mundos en disco (`AutoguardadoSegundos`)
-- [x] v0.11.4: posicion del jugador persistida (al reconectar vuelves donde estabas; sin cambios de protocolo)
+- [x] v0.11.4: posición del jugador persistida (al reconectar vuelves donde estabas; sin cambios de protocolo)
 - [x] CI (GitHub Actions: suite en Linux + builds MAUI) y releases automaticos por tags (`release.yml`)
 - [x] Seguridad: anti-autoclick, tope de intentos de clave, mineria por golpes, tope de descompresion (ver docs/auditoria-seguridad.md)
 
@@ -19,15 +19,15 @@ Ultima actualizacion: 2026-09-15 (tras v0.11.16).
 
 ### Gameplay / red
 - [ ] **Streaming por proximidad**: enviar al entrar solo los trozos cercanos al jugador y el resto conforme se mueve (la transmision troceada ya esta hecha; falta que el cliente renderice mundos parciales y que el servidor decida que trozos mandar).
-- [ ] **Delta de bloques para reconexiones rapidas** (EN PROGRESO, rama `feature/delta-reconexion`): implementado (TengoMundo + MundoDelta + aplicacion en cliente) pero la suite mostro inestabilidad en cadenas de crafteo sin causa raiz identificada; main se mantiene estable. Retomar con depuracion paso a paso.
+- [ ] **Delta de bloques para reconexiones rapidas** (EN PROGRESO, rama `feature/delta-reconexion`): implementado (TengoMundo + MundoDelta + aplicación en cliente) pero la suite mostro inestabilidad en cadenas de crafteo sin causa raiz identificada; main se mantiene estable. Retomar con depuración paso a paso.
 - [x] v0.11.5: mundos mas grandes por defecto (256x64x256) - viable con la transmision troceada; memoria por mundo ~8.4 MB.
 - [x] **Estado en vivo de servidores favoritos** (v0.11.14): hecho (latencia + jugadores en linea con `Ping`/`Pong` ligero; sin identificarse).
 - [x] v0.11.8: chat privado entre jugadores (comando `/msg`, solo el destinatario y eco al emisor).
 
 ### Seguridad (ver docs/auditoria-seguridad.md)
-- [x] **Tokens de invitacion para mundos privados** (v0.11.15): hecho (token de 10 caracteres por mundo, visible solo para el dueno, validos en `Unirse` junto al PIN; la reconexion los reusa).
-- [x] **TLS opcional del servidor** (v0.11.16): hecho (certificado autofirmado autogenerado + casilla en el cliente con huella recordada). Falta: recordar el TLS por favorito y avisar en rojo si la huella cambia en plena partida.
-- [ ] Autenticacion basica de identidad (contrasena por jugador) si se abre a internet.
+- [x] **Tokens de invitacion para mundos privados** (v0.11.15): hecho (token de 10 caracteres por mundo, visible solo para el dueno, validos en `Unirse` junto al PIN; la reconexión los reusa).
+- [x] **TLS opcional del servidor** (v0.11.16, cerrado en v0.11.17): hecho (certificado autofirmado autogenerado + casilla en el cliente con huella recordada + el favorito recuerda el modo y lo marca en la lista). La huella se comprueba en el handshake: si el certificado cambia, la conexión se rechaza antes de entrar, así que no hay ventana a mitad de partida.
+- [ ] Autenticacion básica de identidad (contrasena por jugador) si se abre a internet.
 - [x] v0.11.6: tope de memoria al deserializar mundos cargados (dimensiones validadas; completa el tope de descompresion).
 
 ### Infraestructura
@@ -37,7 +37,7 @@ Ultima actualizacion: 2026-09-15 (tras v0.11.16).
 - [ ] CI: acelerar el workload MAUI (el cache completo de packs se cuelga; probar cachear solo sdk-manifests/metadata o una imagen con el workload).
 
 ### Cliente
-- [ ] Probar manualmente la reconexion automatica en Android (el test de protocolo cubre el flujo; falta el tactil real).
+- [ ] Probar manualmente la reconexión automática en Android (el test de protocolo cubre el flujo; falta el tactil real).
 - [x] **Barra de progreso al minar** (v0.11.13): hecho (barra bajo la mira con golpes/necesarios y mejor herramienta; solo cliente, sin cambios de protocolo).
 
 ### Documentacion

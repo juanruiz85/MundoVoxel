@@ -79,7 +79,7 @@ public partial class PaginaMenu : ContentPage
 
             var btnConectar = new Button
             {
-                Text = $"{f.Alias}  ({f.Ip}:{f.Puerto})",
+                Text = f.Cifrado ? $"{f.Alias}  ({f.Ip}:{f.Puerto}) (TLS)" : $"{f.Alias}  ({f.Ip}:{f.Puerto})",
                 FontSize = 13,
                 HeightRequest = 38,
                 Padding = new Thickness(8, 0),
@@ -171,7 +171,7 @@ public partial class PaginaMenu : ContentPage
         alias = alias.Trim();
         if (alias.Length == 0) alias = ip;
 
-        ServidoresFavoritos.Agregar(new ServidorFavorito { Alias = alias, Ip = ip, Puerto = puerto });
+        ServidoresFavoritos.Agregar(new ServidorFavorito { Alias = alias, Ip = ip, Puerto = puerto, Cifrado = SwTls.IsToggled });
         RefrescarFavoritos();
     }
 
@@ -191,7 +191,8 @@ public partial class PaginaMenu : ContentPage
         if (_conectando) return;
         EntIp.Text = favorito.Ip;
         EntPuerto.Text = favorito.Puerto.ToString();
-        ConectarYAvanzar(favorito.Ip, SwTls.IsToggled);
+        SwTls.IsToggled = favorito.Cifrado; // el favorito recuerda si su servidor va cifrado
+        ConectarYAvanzar(favorito.Ip, favorito.Cifrado);
     }
 
     int ObtenerPuerto()
@@ -229,6 +230,10 @@ public partial class PaginaMenu : ContentPage
         EstadoSesion.Nombre = nombre;
         EstadoSesion.Ip = ip;
         EstadoSesion.Puerto = ObtenerPuerto();
+        // Guardar el modo real de la sesion: lo reusan la reconexion automatica y el
+        // sondeo de estado de los favoritos (antes nunca se fijaba: reconectar a un
+        // servidor cifrado iba sin cifrar y fallaba).
+        EstadoSesion.Tls = cifrado;
 
         LblEstado.Text = _idioma.O("menu.conectando");
         LblEstado.IsVisible = true;

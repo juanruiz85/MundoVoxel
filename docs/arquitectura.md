@@ -107,7 +107,7 @@ ntico con o sin TLS.
 ## Próximos pasos
 
 Ya hechas (antes pendientes):
-- Persistencia de mundos en disco (guardado al crear/cerrar/borrar + autoguardado periodico cada `AutoguardadoSegundos`, con inventarios y ultima posicion por jugador).
+- Persistencia de mundos en disco (guardado al crear/cerrar/borrar + autoguardado periodico cada `AutoguardadoSegundos`, con inventarios y ultima posición por jugador).
 - Modo supervivencia (salud, hambre, oxígeno, daño ambiental, muerte y respawn) y natación.
 - Día/noche, iluminación por bloques (antorcha con luz real) y biomas (desierto, tundra).
 - Interpolación de jugadores remotos en el cliente (suavizado hacia la posición recibida).

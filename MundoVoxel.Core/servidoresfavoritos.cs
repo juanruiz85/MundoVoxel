@@ -8,6 +8,9 @@ public sealed class ServidorFavorito
     public string Alias { get; set; } = "";
     public string Ip { get; set; } = "";
     public int Puerto { get; set; } = 25575;
+    /// <summary>Si el servidor de este favorito va cifrado (TLS): al conectar se
+    /// marca la casilla sola y el modo se recuerda entre sesiones.</summary>
+    public bool Cifrado { get; set; }
 }
 
 /// <summary>
@@ -77,7 +80,10 @@ public static class ServidoresFavoritos
         var lista = Cargar(ruta);
         var existente = lista.FirstOrDefault(f => MismaDireccion(f, favorito));
         if (existente != null)
+        {
             existente.Alias = favorito.Alias;
+            existente.Cifrado = favorito.Cifrado; // el servidor pudo pasar a cifrado (o al reves)
+        }
         else
             lista.Add(favorito);
         Guardar(ruta, lista);

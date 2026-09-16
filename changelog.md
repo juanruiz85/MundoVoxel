@@ -2,53 +2,61 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.17] - 2026-09-15
+
+### Añadido
+- **El favorito recuerda si su servidor va cifrado (TLS)**: al guardar un servidor como favorito se guarda también el modo elegido en el menu, así que al entrar desde la lista la casilla se marca sola (antes había que acordarse de activarla en cada conexión). En la lista, los favoritos cifrados se distinguen con "(TLS)" después de la dirección.
+- Suite: comprobaciones de que el modo se guarda con el favorito, de que un favorito sin cifrado se lee como no cifrado y de que al re-guardar la misma dirección se actualiza el modo.
+
+### Corregido
+- `EstadoSesion.Tls` no se fijaba nunca: la **reconexión automática** a un servidor cifrado lo intentaba sin cifrar (y el servidor cifrado la rechazaba; se reconectaba bien solo al volver por el menu). Ahora se guarda el modo real de la sesion al conectar.
 ## [0.11.16] - 2026-09-15
 
-### Anadido
-- **TLS opcional del servidor** (cifrado de la conexion): con `TlsActivo` (o `"Tls": true` en `ajustes.config.json`) el servidor cifra todas las conexiones. El certificado es autofirmado y **se genera solo** la primera vez (`%LOCALAPPDATA%\MundoVoxel\servidor.pfx`); en el arranque el log publica su huella SHA-256. Un cliente que no negocie TLS se queda fuera (el handshake falla antes de aceptar nada).
-- **Cliente con casilla "Servidor cifrado (TLS)"** en el menu (Windows y Android): guarda la huella del certificado la primera vez (trust-on-first-use) y **rechaza la conexion si la huella cambia** (posible interceptacion) en vez de aceptarla en silencio. La reconexion automatica recuerda si la sesion iba cifrada.
+### Añadido
+- **TLS opcional del servidor** (cifrado de la conexión): con `TlsActivo` (o `"Tls": true` en `ajustes.config.json`) el servidor cifra todas las conexiones. El certificado es autofirmado y **se genera solo** la primera vez (`%LOCALAPPDATA%\MundoVoxel\servidor.pfx`); en el arranque el log publica su huella SHA-256. Un cliente que no negocie TLS se queda fuera (el handshake falla antes de aceptar nada).
+- **Cliente con casilla "Servidor cifrado (TLS)"** en el menu (Windows y Android): guarda la huella del certificado la primera vez (trust-on-first-use) y **rechaza la conexión si la huella cambia** (posible interceptacion) en vez de aceptarla en silencio. La reconexión automática recuerda si la sesion iba cifrada.
 - Nuevo `MundoVoxel.Core/tls.cs` (certificado, huella y regla de trust-on-first-use) y `Frames.LeerAsync` pasa a trabajar sobre cualquier `Stream`, no solo `NetworkStream`.
 - Suite: bloque TLS de extremo a extremo (cliente sin TLS rechazado, saludo/mundo/chat cifrados, huella distinta rechazada, certificado que persiste entre arranques).
 
 ### Corregido
-- Trama ilegible: antes el servidor cerraba esa conexion **sin dejar rastro** (parecia un cierre normal del cliente). Ahora `Frames` avisa con `InvalidDataException` y el servidor registra el motivo real.
-- Certificado TLS: al recargar el PFX la clave privada quedaba sin marcar como exportable, asi que el archivo no se llegaba a reescribir (el certificado se regeneraba en cada arranque y el cliente avisaba del cambio de huella).
+- Trama ilegible: antes el servidor cerraba esa conexión **sin dejar rastro** (parecia un cierre normal del cliente). Ahora `Frames` avisa con `InvalidDataException` y el servidor registra el motivo real.
+- Certificado TLS: al recargar el PFX la clave privada quedaba sin marcar como exportable, así que el archivo no se llegaba a reescribir (el certificado se regeneraba en cada arranque y el cliente avisaba del cambio de huella).
 - Suite: las lecturas con tiempo limite y los drenajes ya no cancelan a mitad de trama (eso desincronizaba el flujo y perdia mensajes: era el origen de fallos intermitentes como el del mechero/TNT y el de la seccion de persistencia). Ahora se espera a que haya datos y la trama se lee completa.
 
 ## [0.11.15] - 2026-09-15
 
-### Anadido
-- **Token de invitacion para mundos privados**: al crear un mundo privado el servidor genera un token de 10 caracteres (alfabeto sin letras ni digitos confundibles, sorteado con `RandomNumberGenerator`) que el cliente muestra y copia al portapapeles. Con el se entra sin escribir la clave, asi que se puede invitar sin revelarla. El dueno puede volver a verlo cuando quiera con el boton "Token" de su mundo (solo el dueno lo recibe; a los demas el servidor les responde `NO_DUENO`). El token se guarda con el mundo y la reconexion automatica tambien lo usa.
+### Añadido
+- **Token de invitacion para mundos privados**: al crear un mundo privado el servidor genera un token de 10 caracteres (alfabeto sin letras ni dígitos confundibles, sorteado con `RandomNumberGenerator`) que el cliente muestra y copia al portapapeles. Con el se entra sin escribir la clave, así que se puede invitar sin revelarla. El dueno puede volver a verlo cuando quiera con el boton "Token" de su mundo (solo el dueno lo recibe; a los demas el servidor les responde `NO_DUENO`). El token se guarda con el mundo y la reconexión automática también lo usa.
 - Protocolo: `MundoCreado.Token`, `Unirse.Token` y los mensajes `PedirToken` (cliente -> servidor) y `TokenMundo` (solo al dueno). La comparacion del token ignora mayusculas/minusculas y un token errado sigue contando para el tope anti-fuerza bruta.
 
 ### Corregido
-- La clave de los mundos privados no se podia escribir en el cliente: el campo de creacion limitaba a 4 caracteres y el dialogo de union tambien, cuando el servidor exige 6 digitos. Ahora el campo admite 6 y el dialogo acepta la clave de 6 digitos o el token.
-- `error.no_dueno` pasa a un texto generico ("Solo el creador del mundo puede hacer esta accion"), porque ahora cubre tambien la peticion del token.
+- La clave de los mundos privados no se podia escribir en el cliente: el campo de creación limitaba a 4 caracteres y el dialogo de union también, cuando el servidor exige 6 dígitos. Ahora el campo admite 6 y el dialogo acepta la clave de 6 dígitos o el token.
+- `error.no_dueno` pasa a un texto genérico ("Solo el creador del mundo puede hacer esta acción"), porque ahora cubre también la petición del token.
 
 ## [0.11.14] - 2026-09-15
 
-### Anadido
-- **Estado en vivo de los servidores favoritos** (cliente Windows y Android): cada favorito muestra bajo el boton su latencia y los jugadores en linea. Se consulta con un `Ping` ligero que no necesita identificarse ni entrar a ningun mundo; el servidor responde `Pong` con el eco de la marca de tiempo (para medir el ida y vuelta) y el numero de jugadores conectados. Si no hay respuesta en 2.5 s se indica "sin respuesta".
+### Añadido
+- **Estado en vivo de los servidores favoritos** (cliente Windows y Android): cada favorito muestra bajo el boton su latencia y los jugadores en linea. Se consulta con un `Ping` ligero que no necesita identificarse ni entrar a ningún mundo; el servidor responde `Pong` con el eco de la marca de tiempo (para medir el ida y vuelta) y el número de jugadores conectados. Si no hay respuesta en 2.5 s se indica "sin respuesta".
 - Suite: el test de encendido de la TNT con el mechero ahora reintenta (re-seleccionar + usar) antes de fallar; se detecto un fallo intermitente sin relacion con este cambio.
 - Protocolo: mensajes `Ping`/`Pong` (nuevos, retrocompatibles: los clientes antiguos no los usan). Suite: test de Pong con eco de marca y jugadores en linea.
 
 ## [0.11.13] - 2026-09-15
 
 ### Infraestructura (CI)
-- Se blinda en CI la comprobacion de **variedad de tipos de mob** (>=3 pasivos): la generacion es probabilistica por tick y en runners de CI a veces no llega a 3 tipos distintos, lo que marcaba fallos intermitentes en commits sin relacion. Ahora se omite en CI con aviso (igual que los drops de mob y los hostiles) y sigue comprobandose en corridas locales.
+- Se blinda en CI la comprobación de **variedad de tipos de mob** (>=3 pasivos): la generación es probabilística por tick y en runners de CI a veces no llega a 3 tipos distintos, lo que marcaba fallos intermitentes en commits sin relacion. Ahora se omite en CI con aviso (igual que los drops de mob y los hostiles) y sigue comprobandose en corridas locales.
 
-### Anadido
+### Añadido
 - **Barra de progreso al minar** (cliente Windows y Android): al golpear un bloque duro (piedra, minerales...) aparece una barra bajo la mira que se llena con los golpes enviados; se calcula con los golpes reales del bloque y la mejor herramienta del inventario, y se reinicia al cambiar de bloque o al pausar 2 s. Es puramente visual: no cambia el protocolo ni el servidor.
 
 ## [0.11.12] - 2026-09-15
 
 ### Notas de desarrollo
-- Intento de **reconexion rapida con delta de bloques**: implementado y preservado en la rama `feature/delta-reconexion`, pero la validacion con la suite mostro inestabilidad (fallos en cadenas de crafteo sin causa raiz); se revierte en `main` para mantenerlo estable y queda pendiente de depuracion.
+- Intento de **reconexión rapida con delta de bloques**: implementado y preservado en la rama `feature/delta-reconexion`, pero la validación con la suite mostro inestabilidad (fallos en cadenas de crafteo sin causa raiz); se revierte en `main` para mantenerlo estable y queda pendiente de depuración.
 
 ## [0.11.11] - 2026-09-14
 
 ### Infraestructura (CI)
-- Se probo un **cache del workload MAUI** (`actions/cache` sobre los packs) y se **revirtio**: el guardado de ~2 GB de packs colgaba el job de Windows (mas de 90 min). Se mantiene la instalacion directa del workload (~6-8 min por job). Alternativa anotada en `docs/tareas-pendientes.md`: cachear solo `sdk-manifests`/`metadata` o usar una imagen con el workload preinstalado.
+- Se probo un **cache del workload MAUI** (`actions/cache` sobre los packs) y se **revirtio**: el guardado de ~2 GB de packs colgaba el job de Windows (mas de 90 min). Se mantiene la instalación directa del workload (~6-8 min por job). Alternativa anotada en `docs/tareas-pendientes.md`: cachear solo `sdk-manifests`/`metadata` o usar una imagen con el workload preinstalado.
 
 ### Verificado
 - Suite sin cambios de juego; el CI (job MAUI) y el release validan la cache en sus siguientes ejecuciones.
@@ -56,7 +64,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 ## [0.11.10] - 2026-09-14
 
 ### Agregado (paquete .deb para Linux)
-- **El release publica ahora un `.deb` ademas del tar.gz**: `sudo apt install ./MundoVoxel-Server-linux-x64-<version>.deb` instala el servidor en `/opt/mundovoxel`, crea el usuario `mundovoxel`, habilita el servicio systemd (con HOME=/var/lib/mundovoxel para los mundos) y se desinstala limpio con `apt remove`. Construido con `deploy/linux/empaquetar-deb.sh` en el workflow de release.
+- **El release publica ahora un `.deb` además del tar.gz**: `sudo apt install ./MundoVoxel-Server-linux-x64-<versión>.deb` instala el servidor en `/opt/mundovoxel`, crea el usuario `mundovoxel`, habilita el servicio systemd (con HOME=/var/lib/mundovoxel para los mundos) y se desinstala limpio con `apt remove`. Construido con `deploy/linux/empaquetar-deb.sh` en el workflow de release.
 - El tar.gz sigue disponible e incluye `mundo-voxel.service` e `INSTALL.txt` con ambos metodos.
 
 ### Verificado
@@ -69,7 +77,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - El readme de descargas lo menciona.
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (sin cambios de codigo de juego).
+- Suite automática: PRUEBAS SUPERADAS (sin cambios de código de juego).
 - El workflow de release valida el empaquetado en CI (job Servidor Linux).
 
 ## [0.11.8] - 2026-09-14
@@ -82,30 +90,30 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - El eco del privado y el broadcast antiguo de Ana ya no se confunden: la lectura drena y busca el texto (los broadcasts del emisor quedaban en su cola de los tests anteriores).
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (102 comprobaciones; +4 de chat privado).
+- Suite automática: PRUEBAS SUPERADAS (102 comprobaciones; +4 de chat privado).
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 
 ## [0.11.7] - 2026-09-13
 
 ### Notas
-- Esta version incluye el **mundo por defecto 256x64x256** de la 0.11.5 y los limites de deserializacion de la 0.11.6, ademas de los arreglos de la suite de pruebas para CI descritos abajo.
+- Esta versión incluye el **mundo por defecto 256x64x256** de la 0.11.5 y los limites de deserializacion de la 0.11.6, además de los arreglos de la suite de pruebas para CI descritos abajo.
 
 ### Corregido (suite de pruebas / CI)
-- Dia durante el test del mob pasivo y noche solo para el test de hostiles; espera acotada del zombi con su posicion mas reciente; drops de mob y ataque hostil omitidos en CI (dependen de la aparicion probabilistica de mobs y se cubren en corridas locales).
-- El horno de la fundicion se coloca con reintentos en celdas candidatas y se restauro el bloque de scan/mineria de vetas que una reestructura previa habia eliminado.
+- Dia durante el test del mob pasivo y noche solo para el test de hostiles; espera acotada del zombi con su posición mas reciente; drops de mob y ataque hostil omitidos en CI (dependen de la aparicion probabilística de mobs y se cubren en corridas locales).
+- El horno de la fundicion se coloca con reintentos en celdas candidatas y se restauro el bloque de scan/mineria de vetas que una reestructura previa había eliminado.
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS en local y en CI (Linux) con mundos 256x64x256.
+- Suite automática: PRUEBAS SUPERADAS en local y en CI (Linux) con mundos 256x64x256.
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 
 ## [0.11.6] - 2026-09-13
 
 ### Seguridad (tope de memoria al deserializar mundos)
 - **`Mundo.Deserializar` valida las dimensiones** (cada dim <= 1024 y total de bloques <= 64M) antes de asignar el array: un `.mundo` o mensaje manipulado con dimensiones absurdas se rechaza con `InvalidDataException` en vez de pedir gigas de memoria. Completa el tope de descompresion de la 0.11.0.
-- Los mundos validos no se ven afectados (el maximo configurable del juego entra de sobra).
+- Los mundos validos no se ven afectados (el máximo configurable del juego entra de sobra).
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (98 comprobaciones; +1 "deserializar rechaza dimensiones absurdas").
+- Suite automática: PRUEBAS SUPERADAS (98 comprobaciones; +1 "deserializar rechaza dimensiones absurdas").
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 
 ## [0.11.5] - 2026-09-13
@@ -116,91 +124,91 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ### Corregido (suite de CI)
 - Dia durante el test del mob pasivo y noche solo para el test de hostiles (a noche un creeper interrumpia la cadena mob -> horno -> fundicion en runners lentos).
-- Espera acotada a que aparezca un zombi y acercamiento con su posicion mas reciente (en runners lentos camina entre el broadcast y el golpe).
+- Espera acotada a que aparezca un zombi y acercamiento con su posición mas reciente (en runners lentos camina entre el broadcast y el golpe).
 - El horno de la fundicion se coloca con reintentos en celdas candidatas (en CI la celda original podia estar ocupada por terreno o mobs movidos por la noche).
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (96 comprobaciones) con mundos 256x64x256 (carbon 1758, hierro 873, oro 367, diamante 137).
+- Suite automática: PRUEBAS SUPERADAS (96 comprobaciones) con mundos 256x64x256 (carbon 1758, hierro 873, oro 367, diamante 137).
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
-- Nota: 2 fallos intermitentes (drop de mob y fundicion) en una corrida previa no se reprodujeron en la re-corrida con el mismo codigo (flakiness de mobs nocturnos, no relacionado con el tamano).
+- Nota: 2 fallos intermitentes (drop de mob y fundicion) en una corrida previa no se reprodujeron en la re-corrida con el mismo código (flakiness de mobs nocturnos, no relacionado con el tamano).
 
 ## [0.11.4] - 2026-09-09
 
-### Agregado (posicion del jugador persistida)
-- **Vuelves donde estabas**: al salir o caer la conexion se guarda la ultima posicion (y rumbo) de cada jugador por mundo; al reentrar el servidor la restaura (validando que siga dentro del mundo) en vez de aparecerte siempre en el spawn. Si moriste, reapareces en el spawn como siempre.
-- Persistida en el `.mundo` (seccion nueva con guard de compatibilidad: los archivos viejos cargan igual). La reconexion automatica del cliente aprovecha esto: vuelves exactamente donde estabas.
-- Sin cambios de protocolo: la posicion viaja en el `Unido` existente (Ax/Ay/Az).
+### Agregado (posición del jugador persistida)
+- **Vuelves donde estabas**: al salir o caer la conexión se guarda la ultima posición (y rumbo) de cada jugador por mundo; al reentrar el servidor la restaura (validando que siga dentro del mundo) en vez de aparecerte siempre en el spawn. Si moriste, reapareces en el spawn como siempre.
+- Persistida en el `.mundo` (seccion nueva con guard de compatibilidad: los archivos viejos cargan igual). La reconexión automática del cliente aprovecha esto: vuelves exactamente donde estabas.
+- Sin cambios de protocolo: la posición viaja en el `Unido` existente (Ax/Ay/Az).
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (96 comprobaciones; +1 "reconexion: vuelve a la posicion guardada" - esperada x=99.5, recibida x=99.5).
+- Suite automática: PRUEBAS SUPERADAS (96 comprobaciones; +1 "reconexión: vuelve a la posición guardada" - esperada x=99.5, recibida x=99.5).
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 
 ## [0.11.3] - 2026-09-08
 
 ### Agregado (autoguardado periodico de mundos)
-- **Autoguardado en disco cada `AutoguardadoSegundos`** (300 s por defecto, `0` = apagado; ajustable en `ajustes.config.json`): un crash del servidor ya no pierde los cambios desde la ultima salida. El ciclo espera en pasos de 250 ms reevaluando el ajuste, asi que un cambio de configuracion surte efecto en menos de un segundo.
+- **Autoguardado en disco cada `AutoguardadoSegundos`** (300 s por defecto, `0` = apagado; ajustable en `ajustes.config.json`): un crash del servidor ya no pierde los cambios desde la ultima salida. El ciclo espera en pasos de 250 ms reevaluando el ajuste, así que un cambio de configuración surte efecto en menos de un segundo.
 - `GuardarMundos` sigue siendo el mismo camino seguro bajo el cerrojo (los mundos vacios no se reescriben sin motivo; el borrado de mundos ya elimina su archivo).
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (95 comprobaciones; +1 "autoguardado: el .mundo se reescribe en disco periodicamente").
+- Suite automática: PRUEBAS SUPERADAS (95 comprobaciones; +1 "autoguardado: el .mundo se reescribe en disco periodicamente").
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 - Documentacion: arquitectura (persistencia + autoguardado en limites actuales) y changelog al dia.
 
 ## [0.11.2] - 2026-09-08
 
 ### Corregido (propiedad de mundos tras reconectar)
-- **El creador que reconecta perde la propiedad de su mundo**: la propiedad se comprobaba por Id de conexion (nuevo en cada conexion), asi que tras una caida o reconexion el dueno ya no podia borrar su mundo (ni se le mostraba el boton). Ahora la propiedad se comprueba por **nombre de jugador** en el servidor y en el cliente. Nota: si dos jugadores usan el mismo nombre ambos podrian borrar ese mundo (los nombres no son unicos por diseno; la alternativa seria un sistema de identidad persistente).
+- **El creador que reconecta perde la propiedad de su mundo**: la propiedad se comprobaba por Id de conexión (nuevo en cada conexión), así que tras una caida o reconexión el dueno ya no podia borrar su mundo (ni se le mostraba el boton). Ahora la propiedad se comprueba por **nombre de jugador** en el servidor y en el cliente. Nota: si dos jugadores usan el mismo nombre ambos podrian borrar ese mundo (los nombres no son unicos por diseno; la alternativa seria un sistema de identidad persistente).
 
-### Agregado (cobertura de reconexion en la suite)
+### Agregado (cobertura de reconexión en la suite)
 - **Test nuevo a nivel de protocolo**: caida dura del socket sin `Salir`, el servidor conserva el mundo, el jugador vuelve a conectarse con su nombre, el mundo se retransmite troceado y se restaura su inventario persistido. Fue este test el que destapo el bug de propiedad.
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (94 comprobaciones).
+- Suite automática: PRUEBAS SUPERADAS (94 comprobaciones).
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 
 ## [0.11.1] - 2026-09-08
 
-### Seguridad (claves de mundo de 6 digitos)
-- **Las claves de los mundos privados pasan de 4 a 6 digitos** (1.000.000 de combinaciones frente a 10.000): validacion nueva en servidor y cliente, mensajes y diálogos actualizados. Combinado con el tope de 5 intentos por minuto por conexion (0.10.7) el fuerza bruta remota deja de ser viable.
-- Retrocompatible: los mundos privados ya creados con clave de 4 digitos siguen funcionando con su clave original (solo la creacion nueva exige 6).
+### Seguridad (claves de mundo de 6 dígitos)
+- **Las claves de los mundos privados pasan de 4 a 6 dígitos** (1.000.000 de combinaciones frente a 10.000): validación nueva en servidor y cliente, mensajes y diálogos actualizados. Combinado con el tope de 5 intentos por minuto por conexión (0.10.7) el fuerza bruta remota deja de ser viable.
+- Retrocompatible: los mundos privados ya creados con clave de 4 dígitos siguen funcionando con su clave original (solo la creación nueva exige 6).
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (92 comprobaciones) con la clave incorrecta rechazada y la correcta aceptada.
+- Suite automática: PRUEBAS SUPERADAS (92 comprobaciones) con la clave incorrecta rechazada y la correcta aceptada.
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 
 ## [0.11.0] - 2026-09-07
 
 ### Agregado (mundo troceado: chunk streaming fase 1)
 - **El mundo ya se transmite en trozos**: al entrar o reconectar, el servidor envia `Unido` sin datos y a continuacion el mundo comprimido en **`MundoChunk` de 128 KB** (`Indice`/`Total`). El cliente reensambla los trozos y construye el mundo igual que antes.
-- Elimina el pico unico de memoria al entrar y **habilita mundos mas grandes** y el streaming incremental de regiones mas adelante (los trozos ya viajan por la cola por conexion, sin bloquear el servidor por clientes lentos).
+- Elimina el pico único de memoria al entrar y **habilita mundos mas grandes** y el streaming incremental de regiones mas adelante (los trozos ya viajan por la cola por conexión, sin bloquear el servidor por clientes lentos).
 - Cambio de protocolo: mensaje nuevo `MundoChunk`; cliente y servidor se actualizan juntos (un servidor 0.11.0 no es compatible con clientes 0.10.x y viceversa).
 
 ### Documentacion
 - Corregida la codificacion de la seccion de uso de IA del readme (el script `docs/actualizar-stats-ia.ps1` se guardaba sin BOM y PowerShell leia los acentos y el emoji como ANSI, produciendo texto corrupto); textos con acentos correctos.
 
 ### Verificado
-- Suite automatica: PRUEBAS SUPERADAS (92 comprobaciones; +1 "el mundo llega troceado y se reensambla").
+- Suite automática: PRUEBAS SUPERADAS (92 comprobaciones; +1 "el mundo llega troceado y se reensambla").
 - Builds con 0 errores: Core, Pruebas, cliente Windows y cliente Android.
 
 ## [0.10.9] - 2026-09-07
 
 ### Agregado (paridad Android <-> Windows)
-- **Tocar un slot de la hotbar lo selecciona en movil** (paridad con las teclas 1-9 y la rueda del raton de escritorio): el toque sobre la franja de la hotbar cambia el slot seleccionado y avisa al servidor (`SeleccionarSlot`).
+- **Tocar un slot de la hotbar lo selecciona en móvil** (paridad con las teclas 1-9 y la rueda del raton de escritorio): el toque sobre la franja de la hotbar cambia el slot seleccionado y avisa al servidor (`SeleccionarSlot`).
 - **Botones nuevos en el panel tactil**: **Usar** (azada, semillas, planton, mechero y comer con comida en mano), **Soltar** (suelta 1 del slot seleccionado, igual que Q) y **Espectador** (alterna el modo espectador, igual que G). Con esto las funciones del juego son las mismas en ambos clientes.
 - Claves de idioma nuevas: `juego.soltar`, `juego.usar`, `juego.espectador`.
 
 ### Verificado
 - Builds con 0 errores: cliente Windows y cliente Android (`net10.0-android`).
-- El protocolo y el servidor no cambian: ambos clientes se conectan al mismo servidor Windows o Linux (la logica vive en `MundoVoxel.Core`, sin `#if` de plataforma; el CI compila el servidor y la suite en Linux y el cliente en Windows/Android en cada push).
+- El protocolo y el servidor no cambian: ambos clientes se conectan al mismo servidor Windows o Linux (la lógica vive en `MundoVoxel.Core`, sin `#if` de plataforma; el CI compila el servidor y la suite en Linux y el cliente en Windows/Android en cada push).
 
 ## [0.10.8] - 2026-09-05
 
-### Agregado (servidores favoritos y reconexion automatica)
+### Agregado (servidores favoritos y reconexión automática)
 - **Servidores favoritos**: en el menu se guarda el servidor actual (alias + IP + puerto), se listan los persistidos y se conecta con un clic. La lista vive en `%LOCALAPPDATA%\MundoVoxel\servidores.json` (JSON, tope de 20, sin duplicados por IP:puerto; un archivo danado se trata como lista vacia en vez de romper el menu). Logica en `MundoVoxel.Core/servidoresfavoritos.cs` con rutas inyectables para poder probarla.
-- **Reconexion automatica en plena partida**: si se pierde la conexion, el cliente reintenta al mismo servidor con retroceso exponencial (2 s, 4 s, 8 s... hasta 5 intentos) mostrando un panel con el intento en curso y un boton de cancelar. Al reconectar reenvia `Hola`, espera `ListaMundos`, vuelve a unirse al mismo mundo por el camino normal (recordando su Id y la clave si era privado) y reconstruye el mundo local con el `Unido` nuevo. Si el mundo ya no existe avisa; si se agotan los intentos vuelve al menu con el motivo. Todo en el cliente (`Servicios/servicioreconexion.cs`), sin cambios de protocolo ni del servidor.
+- **Reconexion automática en plena partida**: si se pierde la conexión, el cliente reintenta al mismo servidor con retroceso exponencial (2 s, 4 s, 8 s... hasta 5 intentos) mostrando un panel con el intento en curso y un boton de cancelar. Al reconectar reenvia `Hola`, espera `ListaMundos`, vuelve a unirse al mismo mundo por el camino normal (recordando su Id y la clave si era privado) y reconstruye el mundo local con el `Unido` nuevo. Si el mundo ya no existe avisa; si se agotan los intentos vuelve al menu con el motivo. Todo en el cliente (`Servicios/servicioreconexion.cs`), sin cambios de protocolo ni del servidor.
 
 ### Probado
-- Suite automatica: PRUEBAS SUPERADAS (91 comprobaciones; +8 de favoritos: persistencia, dedup por direccion, alias actualizado, tope de 20 y archivo danado).
+- Suite automática: PRUEBAS SUPERADAS (91 comprobaciones; +8 de favoritos: persistencia, dedup por dirección, alias actualizado, tope de 20 y archivo danado).
 - Builds con 0 errores: cliente Windows, cliente Android; Core y Pruebas.
 
 ### Documentacion
@@ -215,11 +223,11 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ### Seguridad (auditoria completa en docs/auditoria-seguridad.md)
 - **Anti-autoclick**: los golpes a mobs dentro de 250 ms se ignoran (antes un cliente modificado podia drenar la salud de un mob con cientos de mensajes por segundo).
-- **Fuerza bruta de clave**: maximo 5 claves erradas por minuto por conexion en mundos privados (error MUCHOS_INTENTOS); el contador se reinicia al acertar o tras 60 s.
+- **Fuerza bruta de clave**: máximo 5 claves erradas por minuto por conexión en mundos privados (error MUCHOS_INTENTOS); el contador se reinicia al acertar o tras 60 s.
 
 ### Corregido (suite)
 - Los puntos de rotura usan un nuevo helper RomperHasta (golpes hasta que cae el bloque): la suite ya no depende de que todo se rompa al primer golpe.
-- Los 5 fallos de la primera corrida de esta sesion fueron intermitentes (flaky), no una regresion: verificado con corridas A/B (HEAD verde y HEAD con los cambios tambien verde).
+- Los 5 fallos de la primera corrida de esta sesion fueron intermitentes (flaky), no una regresion: verificado con corridas A/B (HEAD verde y HEAD con los cambios también verde).
 
 ### Verificado
 - Suite: PRUEBAS SUPERADAS (82 comprobaciones; 12 nuevas: tabla de golpes, crafteo y efecto real de hacha y pala).
@@ -251,7 +259,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ### Corregido (survival: consumo de items, minerales y transparencias)
 - **Los bloques colocados son ilimitados**: `Colocar` no descontaba el bloque del inventario al colocarlo. Ahora el servidor **verifica que tienes el bloque** (anti-cheat) y **descuenta 1** al colocar, notificando el inventario actualizado al cliente. Verificado en la suite: colocar tierra 10 → 9.
-- **El oro (y otros minerales) no se guardaban al romperlos**: el drop solo salia si el pico estaba **seleccionado en la mano** — con otro item en mano el oro se rompia sin soltar nada. Ahora basta con **tener un pico en el inventario** (aunque no este seleccionado).
+- **El oro (y otros minerales) no se guardaban al romperlos**: el drop solo salía si el pico estaba **seleccionado en la mano** — con otro item en mano el oro se rompia sin soltar nada. Ahora basta con **tener un pico en el inventario** (aunque no este seleccionado).
 - **Transparencias junto al cofre y la mesa**: estaban marcados como opacos aunque **no llenan la celda** (el cofre es 0.06-0.94, la mesa tiene patas) — los vecinos no generaban sus caras contra el hueco. Ahora son **transparentes al render** (siguen solidos para la colision): los vecinos generan sus caras y el z-buffer oculta lo que no se ve.
 - **Soltar items (Q) imposible**: el drop caia a 2 bloques y el radio de auto-recogida es 2.5 — el item se volvia a recoger al instante y no se podia soltar nada. Ahora el item cae a **3 bloques** (fuera del radio de auto-recogida).
 - **Borrado de mundos fantasma**: el botón de borrar de la lista ya elimina también el archivo `.mundo` del disco (antes el mundo borrado reaparecia al reabrir).
@@ -269,7 +277,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 ### Corregido
 - **"Atraviesa bloques" / bloques invisibles**: era el mismo bug de los items fantasma — los items no-colocables se colocaban como bloques con id invalido que no eran solidos (se atravesaban) y se pintaban negros. Arreglado con `EsColocable`. Ademas se añadio un **anti-atasco**: si por lag o al salir del modo espectador el jugador queda dentro de un solido, se empuja hacia arriba hasta quedar libre (antes se quedaba encerrado o atravesando la pared).
 - **Cofre e inventario desincronizados**: el panel del cofre usaba un cursor local que el servidor no conocia — al mover items se duplicaban o desaparecian. Rediseñado sin cursor: **clic izquierdo mueve todo el stack** y **clic derecho mueve 1**, directo entre inventario y cofre en ambas direcciones (el servidor valida y responde con el estado nuevo de ambos paneles). El mensaje `SacarDeCofre` ahora lleva `Cantidad`.
-- **"Cuadro negro" al colocar items**: `EsColocable` aceptaba items que no son bloques (palo, pico, semillas... id >= 1000): el servidor los colocaba y el renderizador clampeaba su color al ultimo de la paleta (casi negro). Ahora solo los bloques reales (`id < Info.Length`) son colocables, y el cliente ni siquiera envía la colocación con un item no colocable (las semillas se plantan con la tecla U, por `UsarBloque`, sin cambios).
+- **"Cuadro negro" al colocar items**: `EsColocable` aceptaba items que no son bloques (palo, pico, semillas... id >= 1000): el servidor los colocaba y el renderizador clampeaba su color al último de la paleta (casi negro). Ahora solo los bloques reales (`id < Info.Length`) son colocables, y el cliente ni siquiera envía la colocación con un item no colocable (las semillas se plantan con la tecla U, por `UsarBloque`, sin cambios).
 - **Transparencias en cofre y mesa**: la malla omitía sus caras contra vecinos opacos y quedaban huecos. Ahora se generan TODAS las caras de la forma (el z-buffer oculta las que no se ven).
 
 ### Añadido (texturas e iconos procedurales, pedidos por el usuario)
@@ -414,9 +422,9 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ## [0.7.0] - 2026-08-15
 
-### Anadido (paquete estilo Minecraft Indev)
+### Añadido (paquete estilo Minecraft Indev)
 - **Soltar items (tecla Q)**: quita 1 del slot seleccionado y crea un drop frente al jugador que se puede recoger.
-- **Hotbar dinamica + herramientas en mano**: la hotbar muestra los primeros 9 slots del inventario; la herramienta seleccionada (pico/espada/hacha/pala/azada) se dibuja como figura voxel en la mano (mango de palo + cabeza del color del material). La seleccion viaja con el material (mensaje `SeleccionarSlot { Slot, Material }`) para que el servidor valide lo que hay en la mano.
+- **Hotbar dinamica + herramientas en mano**: la hotbar muestra los primeros 9 slots del inventario; la herramienta seleccionada (pico/espada/hacha/pala/azada) se dibuja como figura voxel en la mano (mango de palo + cabeza del color del material). La selección viaja con el material (mensaje `SeleccionarSlot { Slot, Material }`) para que el servidor valide lo que hay en la mano.
 - **Arboles -> plantones/manzanas/palos**: al romper hojas caen con probabilidad (10% planton, 6% manzana, 12% palo); el cesped puede soltar semillas de trigo.
 - **Trigo + azada**: la azada labra tierra/cesped (`TierraLabrada`), las semillas se plantan y el trigo crece en 4 etapas hasta madurar; cosecharlo da trigo + semillas. El planton crece hasta convertirse en arbol.
 - **TNT + mechero**: receta (lingote de hierro + piedra); el mechero enciende la TNT (cuenta 3 s) y explota (radio 3.5, destruye bloques con 30% de drops, daña jugadores y mobs).
@@ -429,15 +437,15 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - `CrearMundo` acepta una **semilla opcional** para mundos reproducibles.
 
 ### Corregido
-- **Drops de mob con varios items**: la recogida enviaba un `Inventario` por cada drop; el cliente podia leer un inventario intermedio sin todos los drops. Ahora se envia un unico inventario por jugador tras recoger todo el lote.
+- **Drops de mob con varios items**: la recogida enviaba un `Inventario` por cada drop; el cliente podia leer un inventario intermedio sin todos los drops. Ahora se envia un único inventario por jugador tras recoger todo el lote.
 - **TNT no desaparecia al explotar**: la TNT central se quedaba como bloque (solo se difundia el aire de los bloques alrededor). Ahora se consume y difunde su `BloqueCambio`.
 - **Pruebas**: el mundo privado de la suite usa semilla fija (terreno determinista); las posiciones de mineria se apartan de los jugadores (el servidor rechaza colocar bloques encima de un jugador) y la explosion de TNT se espera leyendo toda la rafaga de cambios. Suite completa: **PRUEBAS SUPERADAS (34 comprobaciones)**.
 
 ## [0.6.0] - 2026-08-15
 
-### Anadido
+### Añadido
 - **Inventario y crafteo tipo Minecraft**: panel con cuadricula de crafteo 2x2/3x3 (la mesa de trabajo cerca amplia a 3x3), boton de resultado, inventario 3x9 y cursor de items (clic para coger/soltar/apilar). El juego se pausa al abrirlo (tecla E o menu).
-- **Sistema de mobs extensible** (`mobsdef.cs`): cada mob se define con diseno voxel (capas ASCII + paleta de colores) + datos de comportamiento; anadir un mob nuevo = 1 entrada en el enum + su diseno + su fila en `MobsInfo.Datos` + su botin. Los mobs ya se ven como figuras (cuerpo, cabeza, patas) en vez de cuadros de color, rotan segun su orientacion y tienen tamano Minecraft.
+- **Sistema de mobs extensible** (`mobsdef.cs`): cada mob se define con diseno voxel (capas ASCII + paleta de colores) + datos de comportamiento; anadir un mob nuevo = 1 entrada en el enum + su diseno + su fila en `MobsInfo.Datos` + su botin. Los mobs ya se ven como figuras (cuerpo, cabeza, patas) en vez de cuadros de color, rotan según su orientacion y tienen tamano Minecraft.
 - **Mapa mas grande**: 128x48x128 (antes 64x40x64) con las mismas FPS (~208) gracias al render por chunks.
 - **Minerales** (como MinecraftJS): carbon (16), hierro (17), oro (18) y diamante (19) con colores de las texturas de referencia; vetas por profundidad (carbon comun y superficial, diamante raro y profundo) que solo reemplazan piedra; requieren pico para soltar su bloque.
 

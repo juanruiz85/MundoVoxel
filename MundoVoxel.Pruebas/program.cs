@@ -893,6 +893,12 @@ Comprobar(favoritos[0].Alias == "Casa renombrado" && favoritos[0].Ip == "192.168
 Comprobar(favoritos[1].Ip == "juego.example.com" && favoritos[1].Puerto == 25575, "el favorito nuevo conserva ip y puerto");
 ServidoresFavoritos.QuitarRuta(rutaFav, "192.168.1.10", 25575);
 Comprobar(ServidoresFavoritos.Cargar(rutaFav).Count == 1, "quitar un favorito lo elimina del archivo");
+ServidoresFavoritos.AgregarRuta(rutaFav, new ServidorFavorito { Alias = "Cifrado", Ip = "10.9.9.9", Puerto = 25575, Cifrado = true });
+var favCifrado = ServidoresFavoritos.Cargar(rutaFav).FirstOrDefault(f => f.Ip == "10.9.9.9");
+Comprobar(favCifrado is { Cifrado: true }, "el favorito recuerda que su servidor va cifrado (TLS)");
+Comprobar(ServidoresFavoritos.Cargar(rutaFav).FirstOrDefault(f => f.Ip == "juego.example.com")?.Cifrado == false, "un favorito sin cifrado se lee como no cifrado");
+ServidoresFavoritos.AgregarRuta(rutaFav, new ServidorFavorito { Alias = "Cifrado", Ip = "10.9.9.9", Puerto = 25575, Cifrado = false });
+Comprobar(ServidoresFavoritos.Cargar(rutaFav).FirstOrDefault(f => f.Ip == "10.9.9.9")?.Cifrado == false, "al re-guardar la misma direccion se actualiza su modo de cifrado");
 for (int i = 0; i < ServidoresFavoritos.Maximo + 5; i++)
     ServidoresFavoritos.AgregarRuta(rutaFav, new ServidorFavorito { Alias = "S" + i, Ip = "10.0.0." + i, Puerto = 25575 });
 Comprobar(ServidoresFavoritos.Cargar(rutaFav).Count == ServidoresFavoritos.Maximo, $"la lista de favoritos respeta el tope de {ServidoresFavoritos.Maximo}");

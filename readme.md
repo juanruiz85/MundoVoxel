@@ -154,7 +154,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 1. Un jugador (o un servidor dedicado) levanta `MundoVoxel.Server`.
 2. En el cliente: escribe tu **nombre**, la **IP** del servidor (o `127.0.0.1` para jugar solo) y pulsa **Conectar**.
    - Puedes **guardar el servidor como favorito** (alias + IP + puerto) en el mismo menu y conectarte con un clic; la lista queda en `%LOCALAPPDATA%\MundoVoxel\servidores.json`.
-   - Si el servidor va cifrado, activa **Servidor cifrado (TLS)** antes de conectar: el cliente recuerda la huella del certificado y avisa si cambia.
+   - Si el servidor va cifrado, activa **Servidor cifrado (TLS)** antes de conectar: el cliente recuerda la huella del certificado y avisa si cambia. Al guardar el servidor como **favorito** el modo se recuerda (la casilla se marca sola al entrar desde la lista; los favoritos cifrados se marcan con "(TLS)").
    - Si se te cae la conexión en plena partida, el cliente **reconecta automáticamente** (hasta 5 intentos con espera creciente) y vuelves a tu misma **posición con tu inventario**; puedes cancelar desde el panel de reconexión.
 3. En la lista de mundos: **Crear mundo** (público o privado con clave de 6 dígitos) o **Unirse** a uno existente.
    - Si el mundo es privado, te pedirá la clave de 6 dígitos o el token de invitación. El creador ve su token con el botón **Token** de la lista y el cliente lo copia al portapapeles.
@@ -215,7 +215,7 @@ Ideas a corto plazo:
 - ✅ Sistema de inventario y supervivencia (inventario, crafteo, cofres, salud, hambre, oxígeno, muerte y respawn).
 - ✅ Más tipos de bloques, iluminación por día/noche y biomas (desierto y tundra).
 - ✅ Anti-cheat básico de movimiento (opt-in) y moderación de chat.
-- Lista de servidores favoritos (con **latencia** y **jugadores en línea**) y reconexión automática.
+- Lista de servidores favoritos (con **latencia**, **jugadores en línea** y el modo **TLS** recordado por servidor) y reconexión automática.
 - Portar el cliente a Linux cuando MAUI tenga soporte oficial.
 
 ---
@@ -234,31 +234,31 @@ Ideas a corto plazo:
 | Métrica | Valor |
 |---|---|
 | Período de desarrollo | 2026-08-13 → 2026-09-15 |
-| Sesiones de IA | 45 |
-| Prompts del desarrollador | 673 |
-| Respuestas generadas por IA | 9,783 |
-| Tokens de entrada (prompts + contexto) | 71,304,586 |
-| Tokens de salida (generación) | 9,153,400 |
-| **Tokens totales** | **80,457,986** |
-| Tokens de caché leídos | 2,629,434,624 |
+| Sesiones de IA | 84 |
+| Prompts del desarrollador | 674 |
+| Respuestas generadas por IA | 10,046 |
+| Tokens de entrada (prompts + contexto) | 73,765,930 |
+| Tokens de salida (generación) | 9,309,660 |
+| **Tokens totales** | **83,075,590** |
+| Tokens de caché leídos | 2,654,368,384 |
 | Costo real registrado | $0.00 (modelo ZAI sin cargo reportado) |
-| Costo estimado a tarifas de mercado | ~478.78 USD |
+| Costo estimado a tarifas de mercado | ~487.45 USD |
 | Agentes de IA con uso | auto-coder, main |
 
 ### Promedios
 
-- Tokens por prompt: ~105,950 de entrada / ~13,601 de salida.
-- Costo estimado por prompt: ~0.71 USD (a tarifas de mercado).
+- Tokens por prompt: ~109,445 de entrada / ~13,813 de salida.
+- Costo estimado por prompt: ~0.72 USD (a tarifas de mercado).
 
 ### Modelos utilizados
 
 | Modelo | Respuestas | % del total |
 |---|---|---|
-| zai_auto (ruteo automático) | 9442 | 96.5% |
+| zai_auto (ruteo automático) | 9704 | 96.6% |
 | dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 2.1% |
 | zai/tdpsk_deepseek-v4-pro-202606 | 66 | 0.7% |
 | zai/zaicoding_glm-5.3 | 39 | 0.4% |
-| gateway-injected (mensaje interno) | 12 | 0.1% |
+| gateway-injected (mensaje interno) | 13 | 0.1% |
 | zai/zaicoding_glm-5.2 | 12 | 0.1% |
 | zai/tdpsk_deepseek-v4-flash-202605 | 2 | 0% |
 
