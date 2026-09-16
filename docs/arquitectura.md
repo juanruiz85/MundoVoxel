@@ -81,7 +81,7 @@ tica. "Jugar solo" nunca pide clave.
 El mundo se corta en regiones cuadradas de 64x64 columnas con todas sus capas
 (`Mundo.LadoRegion`). `Mundo.SerializarRegion(rx, rz)` extrae una region completa
 y `Mundo.AplicarRegion(rx, rz, datos)` la escribe. La matriz plana guarda primero
-X y Z y deja Y al final, as83 que una region no es un tramo contiguo: se copia
+X y Z y deja Y al final, así que una region no es un tramo contiguo: se copia
 capa a capa. Las regiones de borde se rellenan con `Vacio`, el receptor ignora lo
 que caiga fuera del mundo y el tamaño tiene que ser el exacto (un mensaje
 manipulado lanza `InvalidDataException`).
