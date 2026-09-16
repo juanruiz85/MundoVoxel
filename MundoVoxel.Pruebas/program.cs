@@ -968,7 +968,20 @@ Comprobar(MundoRemoto.RegionDe(130.7f, 40.2f) == (2, 0), "RegionDe situa una pos
                 Comprobar(!rOlv.Olvidar(9, 9), "olvidar una region fuera del mundo se ignora");
                 rOlv.Aplicar(0, 0, mOlv.SerializarRegion(0, 0));
                 Comprobar(rOlv.Completo, "volver a recibir la region olvidada completa el mundo");
-                Comprobar(rOlv.Mundo.Obtener(olvX, olvY, olvZ) == mOlv.Obtener(olvX, olvY, olvZ), "la region vuelta a recibir es identica al original");
+                                Comprobar(rOlv.Mundo.Obtener(olvX, olvY, olvZ) == mOlv.Obtener(olvX, olvY, olvZ), "la region vuelta a recibir es identica al original");
+                var r0 = new List<(int Rx, int Rz)>();
+                foreach (var rr in Mundo.RegionesEnRadio(0, 0, 1, 4, 3)) r0.Add(rr);
+                Comprobar(r0.Count == 4, "el radio de carga recorta en la esquina del mundo");
+                var r1 = new List<(int Rx, int Rz)>();
+                foreach (var rr in Mundo.RegionesEnRadio(1, 1, 1, 4, 3)) r1.Add(rr);
+                Comprobar(r1.Count == 9, "el radio de carga da 3x3 en el centro");
+                var r3 = new List<(int Rx, int Rz)>();
+                bool dentro = true;
+                foreach (var rr in Mundo.RegionesEnRadio(3, 2, 1, 4, 3)) { r3.Add(rr); if (rr.Rx > 3 || rr.Rz > 2) dentro = false; }
+                Comprobar(r3.Count == 4 && dentro, "el radio de carga recorta sin salirse del mundo");
+                var r0b = new List<(int Rx, int Rz)>();
+                foreach (var rr in Mundo.RegionesEnRadio(2, 1, 0, 4, 3)) r0b.Add(rr);
+                Comprobar(r0b.Count == 1 && r0b[0].Rx == 2 && r0b[0].Rz == 1, "radio cero deja solo la region del jugador");
             }
 
 // ---------- favoritos de servidores del cliente ----------

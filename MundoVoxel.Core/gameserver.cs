@@ -25,6 +25,9 @@ public sealed class GameServer : IAsyncDisposable
     readonly CancellationTokenSource _cts = new();
     readonly ConcurrentDictionary<int, ConexionJugador> _conexiones = new();
     readonly Dictionary<string, MundoServidor> _mundos = new();
+
+    /// <summary>Radio de carga en regiones: se mandan las (2*radio+1)^2 regiones alrededor del jugador y se sueltan las que se alejan.</summary>
+    public int RadioRegiones { get; set; } = 1;
     readonly object _cerrojo = new();
     int _siguienteId = 1;
 
@@ -198,6 +201,8 @@ public sealed class GameServer : IAsyncDisposable
         public bool Espectador;        // modo espectador: vuela y atraviesa bloques, no rompe/coloca
         public readonly List<SlotInventario> Inventario = new();
         public DateTime UltimaPosicion; // para el anti-cheat de velocidad/teletransportes
+        public (int Rx, int Rz) RegionActual = (-1, -1); // ultima region del jugador (streaming por proximidad)
+        public readonly HashSet<(int Rx, int Rz)> RegionesEnviadas = new(); // regiones que el cliente tiene cargadas
         public DateTime UltimoChat;     // para la moderacion anti-flood del chat
         public int ChatsEnRafaga;
         public DateTime UltimoGolpeMob; // anti-autoclick: cooldown entre golpes a mobs
@@ -408,6 +413,7 @@ public sealed class GameServer : IAsyncDisposable
                         c.Pos = nuevo; c.Ry = p.Ry; c.Pitch = p.Pitch;
                         c.UltimaPosicion = DateTime.UtcNow;
                     }
+                    ActualizarRegiones(c);
                 }
                 break;
 
@@ -865,6 +871,8 @@ public sealed class GameServer : IAsyncDisposable
         c.Muerto = false;
         c.CausaMuerte = "";
         mundo.Jugadores[c.Id] = c;
+        // Al entrar, la lista de regiones cargadas empieza de cero (las del mundo anterior no valen aunque coincidan las coordenadas).
+        c.RegionesEnviadas.Clear();
         // El mundo viaja por regiones (streaming por proximidad): primero la
         // cabecera con las dimensiones y la semilla, y despues cada region de
         // 64x64 columnas por separado. Asi se pueden mandar solo las cercanas
@@ -881,17 +889,12 @@ public sealed class GameServer : IAsyncDisposable
             Semilla = mundo.Mundo.Semilla,
             Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
         });
-        // De la region mas cercana a la mas lejana: lo primero que llega es el
-        // terreno de debajo de los pies, que es lo que necesita el cliente para
-        // entrar al mundo sin esperar al resto.
-        var (rxJ, rzJ) = Mundo.RegionDe((int)aparicion.X, (int)aparicion.Z);
-        var orden = new List<(int Dist, int Rx, int Rz)>();
-        for (int rz = 0; rz < mundo.Mundo.RegionesZ; rz++)
-            for (int rx = 0; rx < mundo.Mundo.RegionesX; rx++)
-                orden.Add(((rx - rxJ) * (rx - rxJ) + (rz - rzJ) * (rz - rzJ), rx, rz));
-        orden.Sort((a, b) => a.Dist.CompareTo(b.Dist));
-        foreach (var region in orden)
-            Enviar(c, new MundoRegion { Rx = region.Rx, Rz = region.Rz, Datos = mundo.Mundo.SerializarRegion(region.Rx, region.Rz) });
+        // Al entrar se manda el mundo entero, de la region mas cercana a la mas
+        // lejana: lo primero que llega es el terreno de debajo de los pies, que
+        // es lo que necesita el cliente para entrar al mundo sin esperar al
+        // resto. A partir de ahi, segun se mueve solo recibe las regiones del
+        // radio de carga y se le avisa de las que deja atras (streaming).
+        EnviarRegiones(c, mundo, (int)aparicion.X, (int)aparicion.Z, todo: true);
         // Si el jugador ya tuvo inventario en este mundo (persistido), restaurarlo;
         // si no, dar el kit de inicio la primera vez que entra.
         if (c.Inventario.Count == 0 && mundo.Inventarios.TryGetValue(c.Nombre, out var guardado) && guardado.Count > 0)
@@ -2095,6 +2098,41 @@ public sealed class GameServer : IAsyncDisposable
     };
 
     // ------------------------------------------------------------------ envÃ­o
+
+    // Streaming por proximidad: manda las regiones que entran en el radio de
+    // carga alrededor de (x, z) y avisa de las que el jugador deja atras.
+    void EnviarRegiones(ConexionJugador c, MundoServidor mundo, int x, int z, bool todo = false)
+    {
+        var (rx, rz) = Mundo.RegionDe(x, z);
+        c.RegionActual = (rx, rz);
+        var deseadas = new HashSet<(int Rx, int Rz)>();
+        if (todo)
+            for (int zz = 0; zz < mundo.Mundo.RegionesZ; zz++)
+                for (int xx = 0; xx < mundo.Mundo.RegionesX; xx++) deseadas.Add((xx, zz));
+        else
+            foreach (var enRadio in Mundo.RegionesEnRadio(rx, rz, RadioRegiones, mundo.Mundo.RegionesX, mundo.Mundo.RegionesZ)) deseadas.Add(enRadio);
+        var orden = new List<(int Dist, int Rx, int Rz)>();
+        foreach (var (drx, drz) in deseadas)
+            orden.Add(((drx - rx) * (drx - rx) + (drz - rz) * (drz - rz), drx, drz));
+        orden.Sort((a, b) => a.Dist.CompareTo(b.Dist));
+        foreach (var region in orden)
+            if (c.RegionesEnviadas.Add((region.Rx, region.Rz)))
+                Enviar(c, new MundoRegion { Rx = region.Rx, Rz = region.Rz, Datos = mundo.Mundo.SerializarRegion(region.Rx, region.Rz) });
+        foreach (var vieja in c.RegionesEnviadas.Where(r => !deseadas.Contains(r)).ToList())
+        {
+            c.RegionesEnviadas.Remove(vieja);
+            Enviar(c, new MundoOlvida { Rx = vieja.Rx, Rz = vieja.Rz });
+        }
+    }
+
+    // Al moverse el jugador: si cambia de region, se actualiza lo que tiene cargado.
+    void ActualizarRegiones(ConexionJugador c)
+    {
+        if (c.MundoId is null || !_mundos.TryGetValue(c.MundoId, out var mundo)) return;
+        var (rx, rz) = Mundo.RegionDe((int)c.Pos.X, (int)c.Pos.Z);
+        if ((rx, rz) == c.RegionActual) return;
+        EnviarRegiones(c, mundo, (int)c.Pos.X, (int)c.Pos.Z);
+    }
 
     void Broadcast(string mundoId, Mensaje m)
     {

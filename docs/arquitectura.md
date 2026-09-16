@@ -1,4 +1,4 @@
-﻿# Arquitectura de MundoVoxel
+# Arquitectura de MundoVoxel
 
 ## Visión general
 
@@ -96,7 +96,7 @@ mundo con `MundoRemoto` y el "Cargando el mundo... N %" cuenta regiones.
 
 Streaming por proximidad (primera parte): las regiones se envian de la más cercana al jugador a la más lejana, el cliente entra al mundo con la región de debajo de los pies y el resto se rellena dentro de la partida, dibujándose según llega; mientras falta una región sus bloques son sólidos (`Mundo.RegionRecibida`) para no caer al vacío.
 
-Descargar (unload) regiones ya esta preparado en Core: `Mundo.OlvidarRegion` vacia la region y `MundoRemoto.Olvidar` la vuelve a marcar como pendiente (sus bloques quedan en aire, asi que la colision la trata otra vez como sólida).
+El radio de carga es `GameServer.RadioRegiones` (por defecto 1, o sea 3x3 regiones = 192x192 columnas): al entrar solo se mandan esas regiones, y al cambiar de region el servidor manda las nuevas y avisa con `MundoOlvida` de las que quedan atras. El cliente las descarga con `MundoRemoto.Olvidar` + `Mundo.OlvidarRegion` (bloques en aire y submallas redibujadas vacias), mientras que el terreno que aun no ha llegado sigue contando como sólido para la colision. Las regiones descargadas se vuelven a pedir solas si el jugador regresa.
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.
 - Hilo lector por conexión (async), hilo de difusión de posiciones (10 Hz) y hilo de aceptación.

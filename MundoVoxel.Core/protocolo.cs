@@ -39,6 +39,7 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(SeleccionarSlot), "SeleccionarSlot")]
 [JsonDerivedType(typeof(TiempoMundo), "TiempoMundo")]
 [JsonDerivedType(typeof(MundoRegion), "MundoRegion")]
+[JsonDerivedType(typeof(MundoOlvida), "MundoOlvida")]
 [JsonDerivedType(typeof(FijarHora), "FijarHora")]
 [JsonDerivedType(typeof(JugadorSalud), "JugadorSalud")]
 [JsonDerivedType(typeof(OxigenoMsg), "Oxigeno")]
@@ -145,6 +146,9 @@ public sealed class ErrorServidor : Mensaje { public string Codigo { get; set; }
 /// con la cabecera y detras una region por mensaje, para no hacer un pico unico
 /// de memoria al entrar y poder enviar solo las cercanas al jugador.</summary>
 public sealed class MundoRegion : Mensaje { public int Rx { get; set; } public int Rz { get; set; } public byte[] Datos { get; set; } = Array.Empty<byte>(); }
+
+/// <summary>El servidor suelta una region que el jugador ya no tiene cerca: el cliente la descarga. Una region descargada vuelve a contar como pendiente y sus bloques quedan en aire, asi que la colision la trata otra vez como solida.</summary>
+public sealed class MundoOlvida : Mensaje { public int Rx { get; set; } public int Rz { get; set; } }
 public sealed class Salir : Mensaje { }
 public sealed class JugadorEntro : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } }
 public sealed class JugadorSalio : Mensaje { public int Id { get; set; } public string Nombre { get; set; } = ""; }

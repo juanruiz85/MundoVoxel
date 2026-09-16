@@ -376,9 +376,23 @@ public partial class PaginaJuego : ContentPage
                     for (int x = mr.Rx * ladoRegion; x < Math.Min((mr.Rx + 1) * ladoRegion, mundoRem.Ancho); x += ChunkMalla.Tam)
                         for (int z = mr.Rz * ladoRegion; z < Math.Min((mr.Rz + 1) * ladoRegion, mundoRem.Profundo); z += ChunkMalla.Tam)
                             _vista.Renderizador.ReconstruirAlrededor(mundoRem, x, 0, z, false);
-                    // Ultima region: el mundo esta entero y la colision vuelve a
-                    // mirar solo los bloques de verdad.
-                    if (remoto.Completo) mundoRem.RegionRecibida = null;
+                    // El mundo puede volver a quedar incompleto si el servidor
+                    // suelta las regiones que quedan lejos, asi que la colision
+                    // sigue tratando como solido lo que aun no ha llegado.
+                    break;
+                }
+
+            // El servidor suelta una region que el jugador ya no tiene cerca: se
+            // descarga (sus bloques vuelven a contar como pendientes) y se
+            // redibujan sus submallas, que quedan vacias.
+            case MundoOlvida mo when _datos.Remoto is { } remotoOlv:
+                {
+                    remotoOlv.Olvidar(mo.Rx, mo.Rz);
+                    var mundoOlv = _vista.Mundo;
+                    int ladoOlv = Mundo.LadoRegion;
+                    for (int x = mo.Rx * ladoOlv; x < Math.Min((mo.Rx + 1) * ladoOlv, mundoOlv.Ancho); x += ChunkMalla.Tam)
+                        for (int z = mo.Rz * ladoOlv; z < Math.Min((mo.Rz + 1) * ladoOlv, mundoOlv.Profundo); z += ChunkMalla.Tam)
+                            _vista.Renderizador.ReconstruirAlrededor(mundoOlv, x, 0, z, false);
                     break;
                 }
 

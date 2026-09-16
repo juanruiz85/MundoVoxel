@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
@@ -14,7 +14,8 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - **Ensamblador `MundoRemoto`** (en Core, para poder probarlo sin MAUI): reensambla el mundo a partir de la cabecera y de las regiones recibidas, aguanta que lleguen desordenadas, ignora las repetidas o fuera de rango y expone el progreso (`Recibidas`/`Completo`).
 - **Pruebas**: 6 comprobaciones de las regiones y 7 del ensamblador en la suite, mas las comprobaciones de ida y vuelta del mundo por el protocolo (entrada, reconexion y mundo privado).
 - **Soltar regiones (`Mundo.OlvidarRegion`, `MundoRemoto.Olvidar`)**: base para descargar lo que queda lejos. Una región olvidada vuelve a contar como no recibida y sus bloques quedan en aire (identico a como llegan antes de recibirse), de modo que la colisión la vuelve a tratar como sólida; volver a recibirla la restaura entera. 11 comprobaciones nuevas en la suite aplicarlas/olvidarlas.
-- **Pruebas**: la suite pasa a cubrir el olvido de regiones (contador, bloques en aire, repetir, fuera de rango y reaplicar).
+- **Radio de carga y aviso de olvido (`MundoOlvida`)**: el servidor ya no manda el mundo entero al entrar, sino solo las regiones dentro del radio de carga (por defecto 3x3, `GameServer.RadioRegiones`) alrededor del jugador, de la mas cercana a la mas lejana. Al cambiar de region, manda las que entran y avisa con `MundoOlvida` de las que se alejan, y el cliente las descarga (bloques en aire + submallas vaciadas) sin dejar de tratar como solido el terreno que aun no ha llegado. Pruebas: el radio de carga recortado a los bordes del mundo y el centro 3x3.
+- **Pruebas**: la suite pasa a cubrir el olvido de regiones (contador, bloques en aire, repetir, fuera de rango y reaplicar) y el calculo del radio de carga.
 - **Streaming por proximidad (primera parte)**: las regiones se mandan de la más cercana al jugador a la más lejana y el cliente entra al mundo en cuanto tiene la región de debajo de los pies, sin esperar al resto. Lo que falta sigue llegando dentro de la partida y se dibuja según aparece. Mientras una región no ha llegado, sus bloques cuentan como sólidos (`Mundo.RegionRecibida`), así que no se cae por el terreno pendiente; al completarse el mundo la colisión vuelve a mirar solo los bloques. La carga visible ya no es un "mundo entero" sino "el terreno que pisas": el resto se rellena solo.
 
 ## [0.11.19] - 2026-09-16

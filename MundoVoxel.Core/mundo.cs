@@ -298,6 +298,15 @@ public class Mundo
     /// <summary>Vacia una region (la deja como recien creada, todo aire) para soltar
     /// memoria cuando el jugador se aleja. Devuelve false si la region esta fuera del
     /// mundo.</summary>
+    /// <summary>Regiones que entran en el radio de carga (cuadrado de lado 2*radio+1) alrededor de (rx, rz), recortado a los limites del mundo.</summary>
+    public static IEnumerable<(int Rx, int Rz)> RegionesEnRadio(int rx, int rz, int radio, int regionesX, int regionesZ)
+    {
+        for (int z = rz - radio; z <= rz + radio; z++)
+            for (int x = rx - radio; x <= rx + radio; x++)
+                if (x >= 0 && z >= 0 && x < regionesX && z < regionesZ)
+                    yield return (x, z);
+    }
+
     public bool OlvidarRegion(int rx, int rz)
     {
         if (rx < 0 || rz < 0 || rx >= RegionesX || rz >= RegionesZ) return false;
