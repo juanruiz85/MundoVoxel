@@ -28,6 +28,8 @@
                                 <Button Text="{x:Static svc:T.Unirse}" Clicked="OnUnirse" HeightRequest="38" FontSize="14" Padding="6,0" />
                                 <Button Text="{x:Static svc:T.Borrar}" Style="{StaticResource BtnPeligro}" HeightRequest="34" FontSize="13"
                                         Padding="6,0" IsVisible="{Binding EsDueno}" Clicked="OnBorrar" />
+                                <Button Text="{x:Static svc:T.Token}" Style="{StaticResource BtnSecundario}" HeightRequest="34" FontSize="13"
+                                        Padding="6,0" IsVisible="{Binding PuedeVerToken}" Clicked="OnToken" />
                             </VerticalStackLayout>
                         </Grid>
                     </Border>
@@ -46,7 +48,7 @@
                 <Label x:Name="LblCrearTipo" Margin="0,8,0,0" />
                 <Switch x:Name="SwPublico" IsToggled="True" HorizontalOptions="Start" />
                 <Label x:Name="LblCrearClave" Margin="0,8,0,0" IsVisible="False" />
-                <Entry x:Name="EntPin" Keyboard="Numeric" IsVisible="False" MaxLength="4" />
+                <Entry x:Name="EntPin" Keyboard="Numeric" IsVisible="False" MaxLength="6" />
 
                 <!-- Ajustes del mundo (tamano, agua, lava, mobs, ciclo) -->
                 <Label x:Name="LblCfgTamano" Margin="0,10,0,0" FontAttributes="Bold" FontSize="14" />

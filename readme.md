@@ -31,7 +31,7 @@ Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, 
 
 ### Multijugador
 - Cada jugador puede **crear un mundo nuevo** o **unirse a otro** escribiendo la IP del servidor.
-- Mundos **públicos** (cualquiera entra) o **privados** (requieren **clave de 6 dígitos**).
+- Mundos **públicos** (cualquiera entra) o **privados** (requieren **clave de 6 dígitos** o un **token de invitación** que comparte el creador).
 - Los **mundos se guardan en disco** (`%LOCALAPPDATA%\MundoVoxel\mundos`) y se **restauran al arrancar** el servidor: si un mundo se queda vacío, no se borra; su creador puede **borrarlo** (también se elimina su archivo) o **dejarlo para volver después**.
 - El servidor es una sola aplicación que aloja hasta 40 mundos × 12 jugadores por defecto (configurable).
 
@@ -155,7 +155,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
    - Puedes **guardar el servidor como favorito** (alias + IP + puerto) en el mismo menu y conectarte con un clic; la lista queda en `%LOCALAPPDATA%\MundoVoxel\servidores.json`.
    - Si se te cae la conexión en plena partida, el cliente **reconecta automáticamente** (hasta 5 intentos con espera creciente) y vuelves a tu misma **posición con tu inventario**; puedes cancelar desde el panel de reconexión.
 3. En la lista de mundos: **Crear mundo** (público o privado con clave de 6 dígitos) o **Unirse** a uno existente.
-   - Si el mundo es privado, te pedirá la clave.
+   - Si el mundo es privado, te pedirá la clave de 6 dígitos o el token de invitación. El creador ve su token con el botón **Token** de la lista y el cliente lo copia al portapapeles.
 4. Dentro del mundo: construye, rompe y chatea con los demás.
 5. **Salir del mundo** te devuelve a la lista; tu mundo sigue en el servidor. Como **creador**, puedes **Borrar** el mundo desde la lista o desde el menú de pausa.
 
@@ -213,7 +213,7 @@ Ideas a corto plazo:
 - ✅ Sistema de inventario y supervivencia (inventario, crafteo, cofres, salud, hambre, oxígeno, muerte y respawn).
 - ✅ Más tipos de bloques, iluminación por día/noche y biomas (desierto y tundra).
 - ✅ Anti-cheat básico de movimiento (opt-in) y moderación de chat.
-- Lista de servidores favoritos y reconexión automática.
+- Lista de servidores favoritos (con **latencia** y **jugadores en línea**) y reconexión automática.
 - Portar el cliente a Linux cuando MAUI tenga soporte oficial.
 
 ---

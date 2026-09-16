@@ -52,6 +52,8 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(SacarDeCofre), "SacarDeCofre")]
 [JsonDerivedType(typeof(Ping), "Ping")]
 [JsonDerivedType(typeof(Pong), "Pong")]
+[JsonDerivedType(typeof(PedirToken), "PedirToken")]
+[JsonDerivedType(typeof(TokenMundo), "TokenMundo")]
 public abstract class Mensaje
 {
 }
@@ -94,8 +96,29 @@ public sealed class CrearMundo : Mensaje
     public int CantidadMobs { get; set; } = -1;
     public float SegundosPorDia { get; set; }
 }
-public sealed class MundoCreado : Mensaje { public string Id { get; set; } = ""; }
-public sealed class Unirse : Mensaje { public string Id { get; set; } = ""; public string? Pin { get; set; } }
+public sealed class MundoCreado : Mensaje
+{
+    public string Id { get; set; } = "";
+    /// <summary>Token de invitacion del mundo privado recien creado (vacio en
+    /// los publicos). Se muestra una sola vez al dueno; puede volver a pedirlo
+    /// con PedirToken.</summary>
+    public string Token { get; set; } = "";
+}
+
+public sealed class Unirse : Mensaje
+{
+    public string Id { get; set; } = "";
+    /// <summary>Clave corta de 6 digitos (mundos privados).</summary>
+    public string? Pin { get; set; }
+    /// <summary>Alternativa a la clave: token de invitacion del mundo privado.</summary>
+    public string? Token { get; set; }
+}
+
+/// <summary>Pide a un mundo privado propio su token de invitacion.</summary>
+public sealed class PedirToken : Mensaje { public string Id { get; set; } = ""; }
+
+/// <summary>Token de invitacion; solo llega al dueno del mundo.</summary>
+public sealed class TokenMundo : Mensaje { public string Id { get; set; } = ""; public string Token { get; set; } = ""; }
 public sealed class Unido : Mensaje
 {
     public string Id { get; set; } = "";

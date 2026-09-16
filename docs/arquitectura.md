@@ -38,9 +38,10 @@
 |---|---|---|
 | `Hola` / `Bienvenido` | C→S / S→C | Nombre del jugador; id asignado + nombre del servidor. |
 | `ListarMundos` / `ListaMundos` | C→S / S→C | Catálogo: id, nombre, creador, abierto, jugadores/máx, `IdDueno`. |
-| `CrearMundo` / `MundoCreado` | C→S / S→C | Nombre, `Abierto`, `Pin` (6 dígitos si es privado); id del mundo. |
-| `Unirse` / `Unido` | C→S / S→C | Id del mundo + `Pin` opcional; devuelve el mundo completo comprimido (GZip) y el punto de aparición. |
-| `Error` | S→C | Códigos: `PIN_INCORRECTO`, `LLENO`, `NO_EXISTE`, `NO_DUENO`, `PIN_INVALIDO`, `LIMITE_MUNDOS`, `MUNDO_BORRADO`. |
+| `CrearMundo` / `MundoCreado` | CS / SC | Nombre, `Abierto`, `Pin` (6 dígitos si es privado); id del mundo + `Token` de invitación (solo en los privados). |
+| `Unirse` / `Unido` | CS / SC | Id del mundo + `Pin` **o** `Token` de invitación (cualquiera de los dos abre los privados); devuelve el mundo completo comprimido (GZip) y el punto de aparicin. |
+| `PedirToken` / `TokenMundo` | CS / SC | El dueño pide el token de su mundo privado; solo él lo recibe (`NO_DUENO` para los demás, `MUNDO_PUBLICO` si el mundo es abierto). |
+| `Error` | SC | Cdigos: `PIN_INCORRECTO`, `LLENO`, `NO_EXISTE`, `NO_DUENO`, `PIN_INVALIDO`, `LIMITE_MUNDOS`, `MUNDO_BORRADO`, `MUNDO_PUBLICO`. |
 | `Salir` | C→S | Sale del mundo actual (el mundo queda en memoria). |
 | `BorrarMundo` / `MundoBorrado` | C→S / S→C | Solo el creador; expulsa a los jugadores dentro. |
 | `RomperBloque` / `ColocarBloque` / `BloqueCambio` | C→S / S→C | Coordenadas (+tipo al colocar); el servidor valida y difunde. |
@@ -50,7 +51,7 @@
 ### Validaciones del servidor (autoridad)
 - Romper: dentro del mundo, distancia ≤ 7 bloques, no `Aire` ni `Lecho`.
 - Colocar: dentro del mundo, `y > 0`, tipo colocable, destino vacío, distancia ≤ 7 y **no dentro del espacio de otro jugador**.
-- Clave: solo mundos privados; debe coincidir exactamente con los 6 dígitos.
+- Clave: solo mundos privados; debe coincidir exactamente con los 6 dígitos. El **token de invitación** (10 caracteres, ignorando mayúsculas) abre el mismo mundo sin revelar la clave; los intentos fallidos siguen contando para el tope de 5 por minuto y solo el dueño puede consultarlo.
 - Borrar: solo el `IdDueno` (la conexión que creó el mundo).
 
 ### Concurrencia

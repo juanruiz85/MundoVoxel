@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using MundoVoxel.Client.Juego;
 using MundoVoxel.Client.Servicios;
 using MundoVoxel.Core;
@@ -9,6 +9,9 @@ public sealed class InfoMundoView
 {
     public required InfoMundo Info { get; init; }
     public bool EsDueno { get; init; }
+    /// <summary>El boton "Token" solo tiene sentido para el dueno de un mundo
+    /// privado: es quien puede compartirlo.</summary>
+    public bool PuedeVerToken => EsDueno && !Info.Abierto;
     public string Nombre => Info.Nombre;
     public string Detalle { get; init; } = "";
 }
@@ -24,6 +27,9 @@ public partial class PaginaMundos : ContentPage
     /// <summary>Clave del último mundo creado o al que se pidió unirse (los
     /// mundos privados la necesitan para reconectar automáticamente).</summary>
     string? _pinPendiente;
+    /// <summary>Token de invitacion con el que se pidio entrar (alternativa a la
+    /// clave): se recuerda para la reconexion automatica.</summary>
+    string? _tokenPendiente;
     /// <summary>Reensamblado del mundo troceado: Unido sin datos + MundoChunk.</summary>
     Unido? _unidoPendiente;
     List<byte[]>? _trozosMundo;
@@ -161,12 +167,23 @@ public partial class PaginaMundos : ContentPage
                     Ax = up.Ax, Ay = up.Ay, Az = up.Az,
                     Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
                     PinUsado = _pinPendiente,
+                    TokenUsado = _tokenPendiente,
                 };
                 // Al entrar al mundo el foco no debe quedar en ningun boton (la
                 // barra espaciadora es para saltar, no para activar el menu).
                 _timer?.Stop();
                 _ = Navigation.PushAsync(new PaginaJuego(_red, _idioma, _teclado, _reconexion, datos));
                 return true;
+
+            case MundoCreado mundoCreado when mundoCreado.Token.Length > 0:
+                // Mundo privado recien creado: se muestra el token una vez para
+                // que el dueno lo comparta (luego puede volver a pedirlo).
+                _ = MostrarTokenAsync(mundoCreado.Token);
+                break;
+
+            case TokenMundo tokenMundo:
+                _ = MostrarTokenAsync(tokenMundo.Token);
+                break;
 
             case ErrorServidor er:
                 MostrarError(TextoError(er));
@@ -202,17 +219,44 @@ public partial class PaginaMundos : ContentPage
             _red.Enviar(new Unirse { Id = info.Id });
             return;
         }
-        var pin = await DisplayPromptAsync(_idioma.O("mundos.pedir_clave"), "",
-            maxLength: 4, keyboard: Keyboard.Numeric, cancel: "✕");
-        if (pin == null) return;
-        pin = pin.Trim();
-        if (pin.Length != 6 || !pin.All(char.IsAsciiDigit))
+        // Un mundo privado se abre con la clave de 6 digitos o con el token de
+        // invitacion que comparte el dueno: se acepta cualquiera de los dos.
+        var entrada = await DisplayPromptAsync(_idioma.O("mundos.pedir_clave_o_token"), "",
+            maxLength: 16, cancel: "?");
+        if (entrada == null) return;
+        entrada = entrada.Trim();
+        if (entrada.Length == 6 && entrada.All(char.IsAsciiDigit))
         {
-            MostrarError(_idioma.O("mundos.clave_invalida"));
+            _pinPendiente = entrada;
+            _tokenPendiente = null;
+            _red.Enviar(new Unirse { Id = info.Id, Pin = entrada });
             return;
         }
-        _pinPendiente = pin;
-        _red.Enviar(new Unirse { Id = info.Id, Pin = pin });
+        if (entrada.Length >= 8)
+        {
+            // El servidor compara el token sin distinguir mayusculas/minusculas.
+            _tokenPendiente = entrada.ToUpperInvariant();
+            _pinPendiente = null;
+            _red.Enviar(new Unirse { Id = info.Id, Token = _tokenPendiente });
+            return;
+        }
+        MostrarError(_idioma.O("mundos.clave_invalida"));
+    }
+
+    /// <summary>Muestra el token de invitacion y lo copia al portapapeles.</summary>
+    async Task MostrarTokenAsync(string token)
+    {
+        bool copiar = await DisplayAlertAsync(_idioma.O("mundos.token_titulo"),
+            _idioma.O("mundos.token_texto", token), _idioma.O("mundos.token_copiar"), _idioma.O("mundos.cancelar"));
+        if (!copiar) return;
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(token);
+        MostrarError(_idioma.O("mundos.token_copiado"));
+    }
+
+    void OnToken(object? sender, EventArgs e)
+    {
+        if ((sender as Button)?.BindingContext is not InfoMundoView item) return;
+        _red.Enviar(new PedirToken { Id = item.Info.Id });
     }
 
     async void OnBorrar(object? sender, EventArgs e)

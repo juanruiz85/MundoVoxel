@@ -27,4 +27,7 @@ public sealed class DatosMundo
     /// <summary>Clave usada para entrar (solo mundos privados; la recuerda en
     /// memoria para poder reconectar automáticamente a este mundo).</summary>
     public string? PinUsado { get; init; }
+    /// <summary>Token de invitacion con el que se entro a un mundo privado (si se
+    /// uso el token en vez de la clave): la reconexion automatica lo reusa.</summary>
+    public string? TokenUsado { get; init; }
 }

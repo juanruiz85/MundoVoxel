@@ -1281,7 +1281,7 @@ public partial class PaginaJuego : ContentPage
             AgregarChat("- " + _idioma.O("error.desconectado"));
             // Reconexión automática: reintenta al mismo servidor y vuelve a
             // entrar al mismo mundo; si se agota, vuelve al menú con mensaje.
-            _reconexion.Iniciar(_datos.Id, _datos.PinUsado);
+            _reconexion.Iniciar(_datos.Id, _datos.PinUsado, _datos.TokenUsado);
         });
     }
 

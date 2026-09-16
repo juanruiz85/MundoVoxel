@@ -1,4 +1,4 @@
-﻿using System.Net.Sockets;
+using System.Net.Sockets;
 using MundoVoxel.Core;
 
 // Prueba automatica del servidor y el protocolo multijugador:
@@ -69,7 +69,8 @@ await c2.LeerHasta<Bienvenido>();
 await c2.LeerHasta<ListaMundos>();
 
 await c2.Enviar(new CrearMundo { Nombre = "Solo Bruno", Abierto = false, Pin = "123456", Semilla = 12345, HoraInicial = 0 });
-await c2.LeerHasta<MundoCreado>();
+var creadoBruno = await c2.LeerHasta<MundoCreado>();
+string tokenBruno = creadoBruno?.Token ?? "";
 var unido2 = (await LeerUnidoCompleto(c2)).Unido;
 // Diagnostico CI: colector dedicado para Bruno desde su entrada al mundo; cuenta
 // los mensajes por tipo para ver si la entrega al cliente inactivo se cae.
@@ -823,6 +824,40 @@ await c1.Enviar(new ListarMundos());
 var lista2 = await c1.LeerHasta<ListaMundos>();
 Comprobar(!lista2!.Mundos.Any(m => m.Id == idMundo), "el dueno borra su mundo");
 Comprobar(lista2.Mundos.Any(m => m.Id == idPrivado), "el mundo de Bruno sigue en memoria");
+
+// ---------- token de invitacion: alternativa larga a la clave ----------
+Console.WriteLine("Token de invitacion: entrar a un mundo privado sin compartir la clave.");
+Comprobar(tokenBruno.Length >= 8, $"crear un mundo privado entrega un token de invitacion ({tokenBruno.Length} caracteres)");
+// El dueno puede volver a pedirlo cuando quiera (no solo al crear el mundo).
+await c2.Enviar(new PedirToken { Id = idPrivado });
+// Bruno tiene un lector dedicado en segundo plano (cola de diagnostico): su
+// TokenMundo cae ahi, no en el stream que consumen los LeerHasta del test.
+TokenMundo? tokDueno = null;
+var finTok = DateTime.UtcNow.AddSeconds(8);
+while (tokDueno == null && DateTime.UtcNow < finTok)
+{
+    while (colaBruno.TryDequeue(out var mTok))
+        if (mTok is TokenMundo tm) tokDueno = tm;
+    if (tokDueno == null) await Task.Delay(50);
+}
+Comprobar(tokDueno != null && tokDueno.Token.Length >= 8, "el dueno recupera el token de su mundo privado");
+Comprobar(tokDueno?.Token == tokenBruno, "el token recuperado es el mismo que se entrego al crear el mundo");
+// A quien no es dueno no se le entrega (el token vale tanto como la clave).
+await c1.Enviar(new PedirToken { Id = idPrivado });
+var errTok = await c1.LeerHasta<ErrorServidor>(timeoutMs: 8000);
+Comprobar(errTok?.Codigo == "NO_DUENO", "el token no se entrega a quien no es dueno");
+// Ana (fuera del mundo) entra SOLO con el token y en minusculas: la comparacion
+// no distingue mayusculas/minusculas.
+await c1.Enviar(new Unirse { Id = idPrivado, Token = tokenBruno.ToLowerInvariant() });
+var resTok = await LeerUnidoCompleto(c1);
+Comprobar(resTok.Unido?.Id == idPrivado, "se entra al mundo privado solo con el token, sin escribir la clave");
+await c1.Enviar(new Salir());
+await Task.Delay(200);
+while (await c1.LeerCualquiera(60) != null) { } // drenar notificaciones de la salida
+// Un token inventado no abre la puerta.
+await c1.Enviar(new Unirse { Id = idPrivado, Token = "TOKENFALSO1" });
+var errTokMal = await c1.LeerHasta<ErrorServidor>(timeoutMs: 8000);
+Comprobar(errTokMal?.Codigo == "PIN_INCORRECTO", "un token inventado no entra al mundo privado");
 
 // ---------- tope de descompresion (bomba gzip) ----------
 var bomba = Mundo.Comprimir(new byte[70 * 1024 * 1024]);

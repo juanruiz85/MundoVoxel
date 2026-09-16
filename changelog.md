@@ -2,6 +2,16 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.15] - 2026-09-15
+
+### Anadido
+- **Token de invitacion para mundos privados**: al crear un mundo privado el servidor genera un token de 10 caracteres (alfabeto sin letras ni digitos confundibles, sorteado con `RandomNumberGenerator`) que el cliente muestra y copia al portapapeles. Con el se entra sin escribir la clave, asi que se puede invitar sin revelarla. El dueno puede volver a verlo cuando quiera con el boton "Token" de su mundo (solo el dueno lo recibe; a los demas el servidor les responde `NO_DUENO`). El token se guarda con el mundo y la reconexion automatica tambien lo usa.
+- Protocolo: `MundoCreado.Token`, `Unirse.Token` y los mensajes `PedirToken` (cliente -> servidor) y `TokenMundo` (solo al dueno). La comparacion del token ignora mayusculas/minusculas y un token errado sigue contando para el tope anti-fuerza bruta.
+
+### Corregido
+- La clave de los mundos privados no se podia escribir en el cliente: el campo de creacion limitaba a 4 caracteres y el dialogo de union tambien, cuando el servidor exige 6 digitos. Ahora el campo admite 6 y el dialogo acepta la clave de 6 digitos o el token.
+- `error.no_dueno` pasa a un texto generico ("Solo el creador del mundo puede hacer esta accion"), porque ahora cubre tambien la peticion del token.
+
 ## [0.11.14] - 2026-09-15
 
 ### Anadido

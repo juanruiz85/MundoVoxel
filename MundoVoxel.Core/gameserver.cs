@@ -153,6 +153,10 @@ public sealed class GameServer : IAsyncDisposable
         public string Id = Guid.NewGuid().ToString("N");
         public string Nombre = "";
         public string Pin = "";
+        /// <summary>Token de invitacion (solo mundos privados): alternativa larga a
+        /// la clave de 6 digitos, para compartir sin revelar la clave. Vacio en los
+        /// mundos publicos y en los privados antiguos hasta que se les genera uno.</summary>
+        public string Token = "";
         public bool Abierto = true;
         public Mundo Mundo = null!;
         public int IdDueno;
@@ -272,6 +276,10 @@ public sealed class GameServer : IAsyncDisposable
 
             case Unirse u:
                 UnirseMundo(c, u);
+                break;
+
+            case PedirToken pt:
+                PedirTokenMundo(c, pt);
                 break;
 
             case Salir:
@@ -509,6 +517,9 @@ public sealed class GameServer : IAsyncDisposable
                             bw.Write(kv.Key);
                             bw.Write(kv.Value.X); bw.Write(kv.Value.Y); bw.Write(kv.Value.Z); bw.Write(kv.Value.Ry);
                         }
+                        // Token de invitacion (seccion final: los archivos viejos no
+                        // la traen y se les genera uno al vuelo si son privados).
+                        bw.Write(ms.Token);
                     }
                     File.WriteAllBytes(Path.Combine(CarpetaMundos, ms.Id + ".mundo"), mem.ToArray());
                 }
@@ -581,6 +592,9 @@ public sealed class GameServer : IAsyncDisposable
                                 ms.Posiciones[nombre] = (px, py, pz, pr);
                             }
                         }
+                        // Token de invitacion (seccion final): los archivos guardados
+                        // antes de esta version no lo traen -> se genera al pedirlo.
+                        if (br.BaseStream.Position < br.BaseStream.Length) ms.Token = br.ReadString();
                         _mundos[ms.Id] = ms;
                         Log($"Mundo cargado: {ms.Nombre}");
                     }
@@ -604,6 +618,18 @@ public sealed class GameServer : IAsyncDisposable
     }
 
     // ------------------------------------------------------------------ mundos
+
+    /// <summary>Token de invitacion: 10 caracteres de un alfabeto sin letras ni
+    /// digitos confundibles (0/O, 1/I/L) para poder dictarlo o teclearlo. Se
+    /// sortea con RandomNumberGenerator (no con Random, que es predecible).</summary>
+    static string GenerarToken()
+    {
+        const string alfabeto = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(10);
+        var sb = new System.Text.StringBuilder(10);
+        foreach (var b in bytes) sb.Append(alfabeto[b % alfabeto.Length]);
+        return sb.ToString();
+    }
 
     void CrearMundo(ConexionJugador c, CrearMundo cm)
     {
@@ -635,6 +661,7 @@ public sealed class GameServer : IAsyncDisposable
             {
                 Nombre = nombre,
                 Pin = pin,
+                Token = cm.Abierto ? "" : GenerarToken(),
                 Abierto = cm.Abierto,
                 IdDueno = c.Id,
                 NombreDueno = c.Nombre,
@@ -649,9 +676,35 @@ public sealed class GameServer : IAsyncDisposable
             _mundos[mundo.Id] = mundo;
             GuardarMundos(); // persistir el mundo nuevo desde el primer momento
             Log($"{c.Nombre} creÃ³ el mundo Â«{nombre}Â» ({(cm.Abierto ? "pÃºblico" : "privado")}).");
-            Enviar(c, new MundoCreado { Id = mundo.Id });
+            Enviar(c, new MundoCreado { Id = mundo.Id, Token = mundo.Token });
             UnirseInterno(c, mundo);
             NotificarListas();
+        }
+    }
+
+    /// <summary>Devuelve el token de invitacion al dueno del mundo privado (nadie
+    /// mas lo recibe: el token es equivalente a la clave).</summary>
+    void PedirTokenMundo(ConexionJugador c, PedirToken pt)
+    {
+        lock (_cerrojo)
+        {
+            if (!_mundos.TryGetValue(pt.Id, out var mundo))
+            {
+                Enviar(c, new ErrorServidor { Codigo = "NO_EXISTE", Mensaje = "El mundo ya no existe." });
+                return;
+            }
+            if (mundo.Abierto)
+            {
+                Enviar(c, new ErrorServidor { Codigo = "MUNDO_PUBLICO", Mensaje = "El mundo es publico: cualquiera puede entrar." });
+                return;
+            }
+            if (mundo.IdDueno != c.Id && mundo.NombreDueno != c.Nombre)
+            {
+                Enviar(c, new ErrorServidor { Codigo = "NO_DUENO", Mensaje = "Solo el dueno puede ver el token del mundo." });
+                return;
+            }
+            if (mundo.Token.Length == 0) mundo.Token = GenerarToken(); // mundos privados antiguos
+            Enviar(c, new TokenMundo { Id = mundo.Id, Token = mundo.Token });
         }
     }
 
@@ -679,7 +732,13 @@ public sealed class GameServer : IAsyncDisposable
                 Enviar(c, new ErrorServidor { Codigo = "MUCHOS_INTENTOS", Mensaje = "Demasiados intentos de clave. Espera un minuto." });
                 return;
             }
-            if (!mundo.Abierto && (u.Pin ?? "") != mundo.Pin)
+            // Un mundo privado se abre con la clave corta o con el token de
+            // invitacion (el dueno lo comparte sin revelar la clave). El token
+            // tiene mucha mas entropia, asi que acierta sin gastar intentos.
+            var tokenDado = (u.Token ?? "").Trim();
+            bool tokenOk = mundo.Token.Length > 0 && tokenDado.Length > 0
+                && string.Equals(tokenDado, mundo.Token, StringComparison.OrdinalIgnoreCase);
+            if (!mundo.Abierto && !tokenOk && (u.Pin ?? "") != mundo.Pin)
             {
                 c.IntentosPin++;
                 Enviar(c, new ErrorServidor { Codigo = "PIN_INCORRECTO", Mensaje = "Clave incorrecta." });

@@ -41,7 +41,7 @@ public sealed class ServicioReconexion
     /// <summary>Empieza el bucle de reconexión hacia el servidor de la sesión
     /// actual (EstadoSesion), recordando el mundo y su PIN. No hace nada si ya
     /// hay una reconexión en curso.</summary>
-    public void Iniciar(string mundoId, string? pin)
+    public void Iniciar(string mundoId, string? pin, string? tokenInvitacion = null)
     {
         lock (_cerrojo)
         {
@@ -51,7 +51,7 @@ public sealed class ServicioReconexion
         }
         var token = _cts.Token;
         LanzarEnPrincipal(() => AlIniciar?.Invoke(1, MaxIntentos));
-        _ = Task.Run(() => BucleAsync(mundoId, pin, token));
+        _ = Task.Run(() => BucleAsync(mundoId, pin, tokenInvitacion, token));
     }
 
     /// <summary>Cancela la reconexión en curso (botón Cancelar / tecla atrás).</summary>
@@ -61,7 +61,7 @@ public sealed class ServicioReconexion
         catch (ObjectDisposedException) { } // el bucle acabó justo antes: nada que cancelar
     }
 
-    async Task BucleAsync(string mundoId, string? pin, CancellationToken token)
+    async Task BucleAsync(string mundoId, string? pin, string? tokenInvitacion, CancellationToken token)
     {
         try
         {
@@ -98,8 +98,9 @@ public sealed class ServicioReconexion
                     return;
                 }
 
-                // Reentrada por el mismo camino que PaginaMundos -> Unirse.
-                _red.Enviar(new Unirse { Id = mundoId, Pin = pin });
+                // Reentrada por el mismo camino que PaginaMundos -> Unirse (con la
+                // clave o con el token de invitacion, segun como se entro).
+                _red.Enviar(new Unirse { Id = mundoId, Pin = pin, Token = tokenInvitacion });
                 var respuesta = await EsperarMensaje(TimeoutUnidoMs, token,
                     m => m is Unido or ErrorServidor);
                 if (token.IsCancellationRequested) { AlCancelarConexion(); return; }

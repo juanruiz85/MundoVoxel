@@ -11,6 +11,7 @@ public static class T
     public static string Crear = "Crear mundo";
     public static string Actualizar = "Actualizar";
     public static string Desconectar = "Desconectar";
+    public static string Token = "Token";
     public static string Reanudar = "Reanudar";
     public static string Romper = "Romper";
     public static string Colocar = "Colocar";
@@ -26,6 +27,7 @@ public static class T
         Crear = i.O("mundos.crear");
         Actualizar = i.O("mundos.refrescar");
         Desconectar = i.O("mundos.desconectar");
+        Token = i.O("mundos.token");
         Reanudar = i.O("pausa.reanudar");
         Romper = i.O("boton.romper");
         Colocar = i.O("boton.colocar");
