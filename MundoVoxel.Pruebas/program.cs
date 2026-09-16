@@ -922,6 +922,32 @@ var regPequena = new Mundo(32, 16, 32, 7);
 Comprobar(regPequena.TotalRegiones == 1 && regPequena.TamanoRegion == regPequena.Alto * 64 * 64 * 2,
     "un mundo menor que una region es una sola region (region de 64x64 con relleno)");
 
+// ---------- ensamblador de regiones (MundoRemoto) ----------
+// Lado cliente del streaming: las regiones pueden llegar en cualquier orden y
+// de una en una; el ensamblador avisa de cuando el mundo esta completo.
+var remSrc = Mundo.Generar(777, ancho: 100, alto: 40, profundo: 70, nivelAgua: 0.35f, lagosLava: 0, lagosAgua: 0);
+var rem = new MundoRemoto(remSrc.Ancho, remSrc.Alto, remSrc.Profundo, remSrc.Semilla);
+Comprobar(!rem.Completo && rem.Total == 4 && rem.Recibidas == 0, "el ensamblador de regiones empieza vacio y espera 4 regiones");
+bool remCompleto = false;
+for (int rz = rem.RegionesZ - 1; rz >= 0; rz--)
+    for (int rx = rem.RegionesX - 1; rx >= 0; rx--)
+        remCompleto = rem.Aplicar(rx, rz, remSrc.SerializarRegion(rx, rz));
+Comprobar(remCompleto && rem.Recibidas == 4, "con las 4 regiones el mundo queda completo");
+int remDistintos = 0;
+for (int i = 0; i < remSrc.Datos.Length; i++) if (remSrc.Datos[i] != rem.Mundo.Datos[i]) remDistintos++;
+Comprobar(remDistintos == 0, $"el mundo ensamblado por regiones es identico al original ({remDistintos} bloques distintos)");
+rem.Aplicar(0, 0, remSrc.SerializarRegion(0, 0));
+Comprobar(rem.Recibidas == 4 && rem.Recibida(0, 0), "una region repetida no se cuenta dos veces");
+var remChico = new MundoRemoto(64, 16, 64, 1);
+Comprobar(remChico.Total == 1 && remChico.Aplicar(0, 0, new Mundo(64, 16, 64, 1).SerializarRegion(0, 0)) && remChico.Completo,
+    "un mundo de 64x64 es una sola region y esa region lo completa");
+Comprobar(remChico.Aplicar(3, 0, new byte[0]) && remChico.Recibidas == 1, "una region fuera de rango se ignora sin romper nada");
+bool remLanzo = false;
+var remFresco = new MundoRemoto(64, 16, 64, 1);
+try { remFresco.Aplicar(0, 0, new byte[8]); } catch (InvalidDataException) { remLanzo = true; }
+Comprobar(remLanzo && !remFresco.Recibida(0, 0) && remFresco.Recibidas == 0, "una region corrupta lanza y no cuenta como recibida");
+Comprobar(MundoRemoto.RegionDe(130.7f, 40.2f) == (2, 0), "RegionDe situa una posicion en su region");
+
 // ---------- favoritos de servidores del cliente ----------
 // Persistencia JSON de la lista de servidores favoritos (MundoVoxel.Core):
 // usa una ruta temporal para no tocar los favoritos reales del usuario.

@@ -1,4 +1,4 @@
-# Tareas pendientes — MundoVoxel
+﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
 Ultima actualizacion: 2026-09-16 (tras v0.11.18).
@@ -18,7 +18,7 @@ Ultima actualizacion: 2026-09-16 (tras v0.11.18).
 ## Pendientes (orden sugerido)
 
 ### Gameplay / red
-- [ ] **Streaming por proximidad**: enviar al entrar solo los trozos cercanos al jugador y el resto conforme se mueve (la transmision troceada ya esta hecha; falta que el cliente renderice mundos parciales y que el servidor decida que trozos mandar).
+- [ ] **Streaming por proximidad** *(en curso)*: enviar al entrar solo los trozos cercanos al jugador y el resto conforme se mueve. Hecho: el mundo se corta en regiones de 64x64 columnas (Mundo.LadoRegion, SerializarRegion/AplicarRegion, con pruebas) y el cliente ya tiene el ensamblador (MundoRemoto, con pruebas en la suite). Falta: mandar las regiones por el protocolo (cabecera en Unido + MundoRegion), que el cliente arme el mundo desde la cabecera (paginas de mundos/juego y reconexion), el radio de carga al moverse y tratar como sólida la zona aun no recibida.
 - [ ] **Delta de bloques para reconexiones rapidas** (EN PROGRESO, rama `feature/delta-reconexion`): implementado (TengoMundo + MundoDelta + aplicación en cliente) pero la suite mostro inestabilidad en cadenas de crafteo sin causa raiz identificada; main se mantiene estable. Retomar con depuración paso a paso.
 - [x] v0.11.5: mundos mas grandes por defecto (256x64x256) - viable con la transmision troceada; memoria por mundo ~8.4 MB.
 - [x] **Estado en vivo de servidores favoritos** (v0.11.14): hecho (latencia + jugadores en linea con `Ping`/`Pong` ligero; sin identificarse).

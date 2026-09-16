@@ -76,6 +76,24 @@ n autom
 á
 tica. "Jugar solo" nunca pide clave.
 
+### Regiones del mundo (streaming por proximidad, en curso)
+
+El mundo se corta en regiones cuadradas de 64x64 columnas con todas sus capas
+(`Mundo.LadoRegion`). `Mundo.SerializarRegion(rx, rz)` extrae una region completa
+y `Mundo.AplicarRegion(rx, rz, datos)` la escribe. La matriz plana guarda primero
+X y Z y deja Y al final, asi que una region no es un tramo contiguo: se copia
+capa a capa. Las regiones de borde se rellenan con `Vacio`, el receptor ignora lo
+que caiga fuera del mundo y el tamaño tiene que ser el exacto (un mensaje
+manipulado lanza `InvalidDataException`).
+
+En el cliente, `MundoRemoto` reensambla el mundo a partir de la cabecera y de las
+regiones que van llegando: aguanta que lleguen desordenadas, ignora las repetidas
+y avisa de cuando el mundo esta completo.
+
+Pendiente: mandar las regiones por el protocolo (`MundoRegion` mas una cabecera
+en `Unido`) en vez del mundo comprimido de golpe, ampliar el radio de carga segun
+se mueve el jugador y tratar como sólida la zona aun no recibida (para no caer al
+vacio).
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.
 - Hilo lector por conexión (async), hilo de difusión de posiciones (10 Hz) y hilo de aceptación.
