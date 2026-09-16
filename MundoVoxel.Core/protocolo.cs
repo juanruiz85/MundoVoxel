@@ -50,12 +50,21 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(CofreAbierto), "CofreAbierto")]
 [JsonDerivedType(typeof(PonerEnCofre), "PonerEnCofre")]
 [JsonDerivedType(typeof(SacarDeCofre), "SacarDeCofre")]
+[JsonDerivedType(typeof(Ping), "Ping")]
+[JsonDerivedType(typeof(Pong), "Pong")]
 public abstract class Mensaje
 {
 }
 
 public sealed class Hola : Mensaje { public string Nombre { get; set; } = ""; public string Version { get; set; } = "1.0"; }
 public sealed class Bienvenido : Mensaje { public int IdJugador { get; set; } public string NombreServidor { get; set; } = ""; }
+
+// Ping/Pong: sondeo ligero para la lista de servidores favoritos del cliente
+// (latencia y jugadores en linea). El cliente envia Ping con su marca de tiempo;
+// el servidor responde Pong con la misma marca y el estado actual. No hace falta
+// entrar a ningun mundo ni identificarse, asi que no deja rastro en los jugadores.
+public sealed class Ping : Mensaje { public long MarcaTiempo { get; set; } }
+public sealed class Pong : Mensaje { public long MarcaTiempo { get; set; } public int JugadoresEnLinea { get; set; } }
 public sealed class ListarMundos : Mensaje { }
 public sealed class ListaMundos : Mensaje { public List<InfoMundo> Mundos { get; set; } = new(); }
 public sealed class InfoMundo : Mensaje

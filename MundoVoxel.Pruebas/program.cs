@@ -45,6 +45,15 @@ Comprobar(mundo.Obtener((int)aparicion.X, (int)aparicion.Y, (int)aparicion.Z) ==
 // omite (y se indica); se cubre en corridas locales.
 bool ciMobs = Environment.GetEnvironmentVariable("CI") == "true";
 
+// ---------- ping / estado en vivo ----------
+Console.WriteLine("Ping: sondeo ligero de estado (latencia + jugadores en linea).");
+long pingMarca = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+await c1.Enviar(new Ping { MarcaTiempo = pingMarca });
+var pong = await c1.LeerHasta<Pong>(timeoutMs: 6000);
+Comprobar(pong != null, "el servidor responde Pong al Ping");
+Comprobar(pong != null && pong.MarcaTiempo == pingMarca, "el Pong devuelve la misma marca de tiempo (permite medir latencia)");
+Comprobar(pong != null && pong.JugadoresEnLinea >= 1, $"el Pong informa jugadores en linea ({pong?.JugadoresEnLinea ?? 0})");
+
 // El mundo publico empieza de dia: los hostiles (zombi/esqueleto/creeper) solo salen de noche
 var mobsPublico = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
 Comprobar(mobsPublico != null && mobsPublico.Lista.Count > 0, $"mobs del mundo publico difundidos ({mobsPublico?.Lista.Count ?? 0})");

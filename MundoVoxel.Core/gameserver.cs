@@ -256,6 +256,16 @@ public sealed class GameServer : IAsyncDisposable
                 Enviar(c, ListaMundosActual());
                 break;
 
+            case Ping p:
+                // Sondeo de la lista de favoritos: responde la latencia (eco de la
+                // marca de tiempo) y cuantos jugadores identificados hay en el servidor.
+                Enviar(c, new Pong
+                {
+                    MarcaTiempo = p.MarcaTiempo,
+                    JugadoresEnLinea = _conexiones.Values.Count(x => !string.IsNullOrEmpty(x.Nombre)),
+                });
+                break;
+
             case CrearMundo cm:
                 CrearMundo(c, cm);
                 break;

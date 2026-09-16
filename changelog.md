@@ -2,6 +2,12 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.14] - 2026-09-15
+
+### Anadido
+- **Estado en vivo de los servidores favoritos** (cliente Windows y Android): cada favorito muestra bajo el boton su latencia y los jugadores en linea. Se consulta con un `Ping` ligero que no necesita identificarse ni entrar a ningun mundo; el servidor responde `Pong` con el eco de la marca de tiempo (para medir el ida y vuelta) y el numero de jugadores conectados. Si no hay respuesta en 2.5 s se indica "sin respuesta".
+- Protocolo: mensajes `Ping`/`Pong` (nuevos, retrocompatibles: los clientes antiguos no los usan). Suite: test de Pong con eco de marca y jugadores en linea.
+
 ## [0.11.13] - 2026-09-15
 
 ### Infraestructura (CI)

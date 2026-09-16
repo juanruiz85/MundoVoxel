@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using MundoVoxel.Client.Servicios;
 using MundoVoxel.Core;
 
@@ -66,6 +67,8 @@ public partial class PaginaMenu : ContentPage
             var fila = new Grid { ColumnSpacing = 6 };
             fila.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
             fila.ColumnDefinitions.Add(new ColumnDefinition(44));
+            fila.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            fila.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
             var btnConectar = new Button
             {
@@ -93,7 +96,55 @@ public partial class PaginaMenu : ContentPage
             fila.Children.Add(btnQuitar);
 
             PanelFavoritos.Children.Add(fila);
+
+            // Estado en vivo del servidor (latencia + jugadores en linea): ping ligero
+            var lblEstado = new Label
+            {
+                Text = _idioma.O("menu.favoritos_esperando"),
+                FontSize = 11,
+                Opacity = 0.75,
+                TextColor = Colors.White,
+                Margin = new Thickness(6, 0, 0, 4),
+            };
+            Grid.SetRow(lblEstado, 1);
+            Grid.SetColumn(lblEstado, 0);
+            Grid.SetColumnSpan(lblEstado, 2);
+            fila.Children.Add(lblEstado);
+            _ = ComprobarEstadoAsync(fav, lblEstado);
         }
+    }
+
+    /// <summary>Comprueba el estado del favorito con un ping ligero y escribe en la
+    /// etiqueta la latencia y los jugadores en linea (o "sin respuesta").</summary>
+    async Task ComprobarEstadoAsync(ServidorFavorito fav, Label lbl)
+    {
+        var r = await SondearAsync(fav.Ip, fav.Puerto);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            lbl.Text = r.HasValue
+                ? _idioma.O("menu.favoritos_estado", r.Value.Jugadores, r.Value.Ms)
+                : _idioma.O("menu.favoritos_sin_respuesta");
+        });
+    }
+
+    /// <summary>Ping ligero (no se identifica ni entra a ningun mundo): devuelve
+    /// (jugadores en linea, latencia ms) o null si no responde en 2.5 s.</summary>
+    static async Task<(int Jugadores, long Ms)?> SondearAsync(string ip, int puerto)
+    {
+        try
+        {
+            using var tcp = new TcpClient { NoDelay = true };
+            var conectar = tcp.ConnectAsync(ip, puerto);
+            if (await Task.WhenAny(conectar, Task.Delay(2500)) != conectar || !tcp.Connected) return null;
+            using var flujo = tcp.GetStream();
+            long marca = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            await flujo.WriteAsync(Protocolo.Codificar(new Ping { MarcaTiempo = marca }));
+            using var cts = new CancellationTokenSource(2500);
+            if (await Frames.LeerAsync(flujo, cts.Token) is Pong p)
+                return (p.JugadoresEnLinea, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - p.MarcaTiempo);
+        }
+        catch { /* servidor caido o respuesta invalida */ }
+        return null;
     }
 
     async void OnGuardarFavorito(object? sender, EventArgs e)

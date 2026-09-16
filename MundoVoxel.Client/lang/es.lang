@@ -26,6 +26,9 @@ menu.favoritos_guardar=★ Guardar servidor como favorito
 menu.favoritos_alias=Alias para guardar «{0}»:
 menu.favoritos_borrar=¿Quitar el favorito «{0}»?
 menu.favoritos_vacio_ip=Escribe primero la IP del servidor.
+menu.favoritos_esperando=Comprobando estado.
+menu.favoritos_estado={0} jugadores en linea - {1} ms
+menu.favoritos_sin_respuesta=Sin respuesta (servidor apagado o inaccesible)
 
 # ---- Lista de mundos ----
 mundos.titulo=Mundos en {0}
