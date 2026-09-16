@@ -2,6 +2,18 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.16] - 2026-09-15
+
+### Anadido
+- **TLS opcional del servidor** (cifrado de la conexion): con `TlsActivo` (o `"Tls": true` en `ajustes.config.json`) el servidor cifra todas las conexiones. El certificado es autofirmado y **se genera solo** la primera vez (`%LOCALAPPDATA%\MundoVoxel\servidor.pfx`); en el arranque el log publica su huella SHA-256. Un cliente que no negocie TLS se queda fuera (el handshake falla antes de aceptar nada).
+- **Cliente con casilla "Servidor cifrado (TLS)"** en el menu (Windows y Android): guarda la huella del certificado la primera vez (trust-on-first-use) y **rechaza la conexion si la huella cambia** (posible interceptacion) en vez de aceptarla en silencio. La reconexion automatica recuerda si la sesion iba cifrada.
+- Nuevo `MundoVoxel.Core/tls.cs` (certificado, huella y regla de trust-on-first-use) y `Frames.LeerAsync` pasa a trabajar sobre cualquier `Stream`, no solo `NetworkStream`.
+- Suite: bloque TLS de extremo a extremo (cliente sin TLS rechazado, saludo/mundo/chat cifrados, huella distinta rechazada, certificado que persiste entre arranques).
+
+### Corregido
+- Trama ilegible: antes el servidor cerraba esa conexion **sin dejar rastro** (parecia un cierre normal del cliente). Ahora `Frames` avisa con `InvalidDataException` y el servidor registra el motivo real.
+- Suite: las lecturas con tiempo limite y los drenajes ya no cancelan a mitad de trama (eso desincronizaba el flujo y perdia mensajes: era el origen de fallos intermitentes como el del mechero/TNT y el de la seccion de persistencia). Ahora se espera a que haya datos y la trama se lee completa.
+
 ## [0.11.15] - 2026-09-15
 
 ### Anadido

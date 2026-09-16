@@ -29,6 +29,13 @@ public partial class PaginaMenu : ContentPage
         LblFavoritosTitulo.Text = idioma.O("menu.favoritos_titulo");
         LblControlesTitulo.Text = idioma.O("menu.controles_titulo");
         LblControles.Text = idioma.O("menu.controles_desc");
+        LblTls.Text = idioma.O("menu.servidor_cifrado");
+        SwTls.IsToggled = EstadoSesion.Tls;
+        // Certificado TLS recordado por el cliente (trust-on-first-use)
+        _red.AlHuellaNueva += h => MainThread.BeginInvokeOnMainThread(() =>
+            MostrarEstado(idioma.O("menu.huella_nueva", h)));
+        _red.AlHuellaCambiada += h => MainThread.BeginInvokeOnMainThread(() =>
+            MostrarEstado(idioma.O("menu.huella_cambiada", h)));
 
         EntNombre.Text = EstadoSesion.Nombre;
         EntIp.Text = EstadoSesion.Ip;
@@ -48,10 +55,10 @@ public partial class PaginaMenu : ContentPage
         int puerto = ObtenerPuerto();
         ServidorLocal.Asegurar(puerto);
         if (!_red.Conectado) LblEstado.Text = _idioma.O("menu.servidor_local_ok", puerto);
-        ConectarYAvanzar("127.0.0.1");
+        ConectarYAvanzar("127.0.0.1", false); // el servidor local va sin cifrar
     }
 
-    void OnConectar(object? sender, EventArgs e) => ConectarYAvanzar(EntIp.Text?.Trim() ?? "");
+    void OnConectar(object? sender, EventArgs e) => ConectarYAvanzar(EntIp.Text?.Trim() ?? "", SwTls.IsToggled);
 
     // ------------------------------------------------------- servidores favoritos
 
@@ -184,7 +191,7 @@ public partial class PaginaMenu : ContentPage
         if (_conectando) return;
         EntIp.Text = favorito.Ip;
         EntPuerto.Text = favorito.Puerto.ToString();
-        ConectarYAvanzar(favorito.Ip);
+        ConectarYAvanzar(favorito.Ip, SwTls.IsToggled);
     }
 
     int ObtenerPuerto()
@@ -194,7 +201,14 @@ public partial class PaginaMenu : ContentPage
         return 25575;
     }
 
-    async void ConectarYAvanzar(string ip)
+    /// <summary>Muestra un aviso en el menu (huellas TLS, avisos, errores).</summary>
+    void MostrarEstado(string texto)
+    {
+        LblEstado.Text = texto;
+        LblEstado.IsVisible = true;
+    }
+
+    async void ConectarYAvanzar(string ip, bool cifrado)
     {
         var nombre = EntNombre.Text?.Trim() ?? "";
         if (nombre.Length == 0)
@@ -222,7 +236,7 @@ public partial class PaginaMenu : ContentPage
         BtnConectar.IsEnabled = false;
         BtnGuardarFavorito.IsEnabled = false;
 
-        bool ok = await Task.Run(() => _red.Conectar(ip, EstadoSesion.Puerto));
+        bool ok = await Task.Run(() => _red.Conectar(ip, EstadoSesion.Puerto, cifrado: cifrado));
         if (!ok)
         {
             LblEstado.Text = _idioma.O("menu.error_conexion", $"{ip}:{EstadoSesion.Puerto}");

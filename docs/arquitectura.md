@@ -54,6 +54,25 @@
 - Clave: solo mundos privados; debe coincidir exactamente con los 6 dígitos. El **token de invitación** (10 caracteres, ignorando mayúsculas) abre el mismo mundo sin revelar la clave; los intentos fallidos siguen contando para el tope de 5 por minuto y solo el dueño puede consultarlo.
 - Borrar: solo el `IdDueno` (la conexión que creó el mundo).
 
+### Cifrado (TLS, opcional)
+- `GameServer.TlsActivo` (o `"Tls": true` en `ajustes.config.json`): al aceptar una conexi
+ó
+n se hace el handshake TLS antes de leer nada; el certificado es autofirmado y se genera/guarda en `%LOCALAPPDATA%\MundoVoxel\servidor.pfx`.
+- El cliente valida por **huella SHA-256 recordada** (trust-on-first-use): la primera vez la guarda y, si cambia, rechaza la conexi
+ó
+n (posible interceptaci
+ó
+n). No se usa una CA p
+ú
+blica a prop
+ó
+sito: el servidor es autogestionado.
+- `Frames.LeerAsync` trabaja sobre `Stream`, as
+í
+ que el resto del protocolo es id
+é
+ntico con o sin TLS.
+
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.
 - Hilo lector por conexión (async), hilo de difusión de posiciones (10 Hz) y hilo de aceptación.

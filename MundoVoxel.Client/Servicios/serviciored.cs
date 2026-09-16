@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using MundoVoxel.Core;
 
 namespace MundoVoxel.Client.Servicios;
@@ -11,7 +14,7 @@ namespace MundoVoxel.Client.Servicios;
 public sealed class ServicioRed : IDisposable
 {
     TcpClient? _tcp;
-    NetworkStream? _flujo;
+    Stream? _flujo;
     Thread? _lector;
     readonly ConcurrentQueue<Mensaje> _recibidos = new();
     readonly object _cerrojo = new();
@@ -24,7 +27,15 @@ public sealed class ServicioRed : IDisposable
     public event Action? AlConectar;
     public event Action? AlDesconectar;
 
-    public bool Conectar(string ip, int puerto, int timeoutMs = 6000)
+    /// <summary>Conexion TLS (opt-in): el certificado del servidor es autofirmado,
+    /// asi que se valida por su huella SHA-256 recordada por servidor
+    /// (trust-on-first-use). La primera vez se guarda y se avisa; si despues
+    /// CAMBIA, se rechaza la conexion (posible interceptacion) en vez de aceptarla
+    /// en silencio.</summary>
+    public event Action<string>? AlHuellaNueva;
+    public event Action<string>? AlHuellaCambiada;
+
+    public bool Conectar(string ip, int puerto, int timeoutMs = 6000, bool cifrado = false)
     {
         Desconectar();
         var tcp = new TcpClient { NoDelay = true };
@@ -34,8 +45,51 @@ public sealed class ServicioRed : IDisposable
             tcp.Dispose();
             return false;
         }
+        Stream flujo = tcp.GetStream();
+        if (cifrado)
+        {
+            string huellaVista = "";
+            var ssl = new SslStream(flujo, false, (_, certificado, _, _) =>
+            {
+                if (certificado == null) return false;
+                huellaVista = Tls.Huella(certificado.GetRawCertData());
+                var esperada = Preferences.Get(Tls.ClaveHuella(ip, puerto), "");
+                if (!Tls.HuellaAceptable(esperada, huellaVista))
+                {
+                    AlHuellaCambiada?.Invoke(huellaVista);   // posible interceptacion
+                    return false;
+                }
+                if (esperada.Length == 0)
+                {
+                    Preferences.Set(Tls.ClaveHuella(ip, puerto), huellaVista);
+                    AlHuellaNueva?.Invoke(huellaVista);
+                }
+                return true;
+            });
+            try
+            {
+                var handshake = ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
+                {
+                    TargetHost = "localhost", // el certificado cubre localhost/equipo/loopback
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                });
+                if (!handshake.Wait(timeoutMs))
+                {
+                    ssl.Dispose();
+                    tcp.Close();
+                    return false;
+                }
+            }
+            catch
+            {
+                try { ssl.Dispose(); } catch { }
+                try { tcp.Close(); } catch { }
+                return false;
+            }
+            flujo = ssl;
+        }
         _tcp = tcp;
-        _flujo = tcp.GetStream();
+        _flujo = flujo;
         IpConectada = ip;
         _lector = new Thread(LoopLectura) { IsBackground = true };
         _lector.Start();

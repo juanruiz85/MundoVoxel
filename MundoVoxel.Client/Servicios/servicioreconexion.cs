@@ -79,7 +79,7 @@ public sealed class ServicioReconexion
                 esperaMs *= 2;
                 if (token.IsCancellationRequested) return;
 
-                bool ok = await Task.Run(() => _red.Conectar(ip, puerto), token);
+                bool ok = await Task.Run(() => _red.Conectar(ip, puerto, cifrado: EstadoSesion.Tls), token);
                 if (token.IsCancellationRequested) { AlCancelarConexion(); return; }
                 if (!ok) continue;
 

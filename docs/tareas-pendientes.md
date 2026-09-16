@@ -1,7 +1,7 @@
 ﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
-Ultima actualizacion: 2026-09-15 (tras v0.11.15).
+Ultima actualizacion: 2026-09-15 (tras v0.11.16).
 
 ## Hecho recientemente (para contexto)
 
@@ -26,7 +26,7 @@ Ultima actualizacion: 2026-09-15 (tras v0.11.15).
 
 ### Seguridad (ver docs/auditoria-seguridad.md)
 - [x] **Tokens de invitacion para mundos privados** (v0.11.15): hecho (token de 10 caracteres por mundo, visible solo para el dueno, validos en `Unirse` junto al PIN; la reconexion los reusa).
-- [ ] TLS opcional del servidor (o documentar tunel SSH/VPN) si se abre a internet.
+- [x] **TLS opcional del servidor** (v0.11.16): hecho (certificado autofirmado autogenerado + casilla en el cliente con huella recordada). Falta: recordar el TLS por favorito y avisar en rojo si la huella cambia en plena partida.
 - [ ] Autenticacion basica de identidad (contrasena por jugador) si se abre a internet.
 - [x] v0.11.6: tope de memoria al deserializar mundos cargados (dimensiones validadas; completa el tope de descompresion).
 

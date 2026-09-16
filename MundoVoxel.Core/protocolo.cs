@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -191,12 +191,12 @@ public static class Protocolo
     public static Mensaje? Decodificar(byte[] frame) => JsonSerializer.Deserialize<Mensaje>(frame, Opciones);
 }
 
-/// <summary>Lectura de tramas con prefijo de longitud desde un NetworkStream.</summary>
+/// <summary>Lectura de tramas con prefijo de longitud desde un flujo (TCP o TLS).</summary>
 public static class Frames
 {
     const int MaxTrama = 64 * 1024 * 1024;
 
-    public static async Task<Mensaje?> LeerAsync(NetworkStream flujo, CancellationToken ct)
+    public static async Task<Mensaje?> LeerAsync(Stream flujo, CancellationToken ct)
     {
         var cab = new byte[4];
         int leidos = 0;
@@ -207,7 +207,10 @@ public static class Frames
             leidos += n;
         }
         int len = BinaryPrimitives.ReadInt32LittleEndian(cab);
-        if (len < 0 || len > MaxTrama) return null;
+        // Una longitud imposible significa flujo desincronizado o basura: se
+        // avisa con excepcion (y quien lee registra el motivo) en vez de dejar la
+        // conexion caer en silencio como si fuera un cierre normal.
+        if (len < 0 || len > MaxTrama) throw new InvalidDataException($"trama con longitud invalida ({len})");
         var cuerpo = new byte[len];
         leidos = 0;
         while (leidos < len)
@@ -216,7 +219,9 @@ public static class Frames
             if (n <= 0) return null;
             leidos += n;
         }
-        return Protocolo.Decodificar(cuerpo);
+        var mensaje = Protocolo.Decodificar(cuerpo);
+        if (mensaje == null) throw new InvalidDataException($"mensaje ilegible ({len} bytes)");
+        return mensaje;
     }
 }
 

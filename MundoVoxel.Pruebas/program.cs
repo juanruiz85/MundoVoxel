@@ -1,3 +1,4 @@
+using System.Net.Security;
 using System.Net.Sockets;
 using MundoVoxel.Core;
 
@@ -805,13 +806,13 @@ Comprobar(unidoRe != null && MathF.Abs(unidoRe.Ax - pxEsperado) < 0.5f,
 var invRe = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 Comprobar(invRe != null && invRe.Slots.Count > 0, "reconexion: el inventario persistido se restaura");
 await Task.Delay(150);
-while (await c1.LeerCualquiera(60) != null) { } // drenar notificaciones del rejoin
+await c1.DrenarAsync(60); // drenar notificaciones del rejoin
 
 Console.WriteLine("Persistencia: el mundo vacio sigue existiendo y luego se borra.");
 await c1.Enviar(new Salir());
 await c2.Enviar(new Salir());
 await Task.Delay(200);
-while (await c1.LeerCualquiera(60) != null) { } // drenar antes de pedir la lista
+await c1.DrenarAsync(60); // drenar antes de pedir la lista
 await c1.Enviar(new ListarMundos());
 var lista1 = await c1.LeerHasta<ListaMundos>();
 Comprobar(lista1!.Mundos.Any(m => m.Id == idPrivado), "el mundo privado permanece en memoria sin jugadores");
@@ -819,7 +820,7 @@ Comprobar(lista1!.Mundos.Any(m => m.Id == idPrivado), "el mundo privado permanec
 // Borrar el mundo publico (Ana es la duena)
 await c1.Enviar(new BorrarMundo { Id = idMundo });
 await Task.Delay(200);
-while (await c1.LeerCualquiera(60) != null) { } // drenar la notificacion del borrado
+await c1.DrenarAsync(60); // drenar la notificacion del borrado
 await c1.Enviar(new ListarMundos());
 var lista2 = await c1.LeerHasta<ListaMundos>();
 Comprobar(!lista2!.Mundos.Any(m => m.Id == idMundo), "el dueno borra su mundo");
@@ -853,7 +854,7 @@ var resTok = await LeerUnidoCompleto(c1);
 Comprobar(resTok.Unido?.Id == idPrivado, "se entra al mundo privado solo con el token, sin escribir la clave");
 await c1.Enviar(new Salir());
 await Task.Delay(200);
-while (await c1.LeerCualquiera(60) != null) { } // drenar notificaciones de la salida
+await c1.DrenarAsync(60); // drenar notificaciones de la salida
 // Un token inventado no abre la puerta.
 await c1.Enviar(new Unirse { Id = idPrivado, Token = "TOKENFALSO1" });
 var errTokMal = await c1.LeerHasta<ErrorServidor>(timeoutMs: 8000);
@@ -900,6 +901,52 @@ Comprobar(ServidoresFavoritos.Cargar(rutaFav).Count == 0, "un archivo de favorit
 ServidoresFavoritos.QuitarRuta(rutaFav, "10.0.0.0", 25575); // sin efecto: archivo danado, no debe lanzar
 Comprobar(true, "quitar sobre un archivo danado no lanza excepcion");
 try { Directory.Delete(Path.GetDirectoryName(rutaFav)!, true); } catch { }
+
+// ---------- TLS: la partida puede ir cifrada ----------
+Console.WriteLine("TLS: el servidor cifrado rechaza a los clientes sin TLS y atiende a los que lo negocian.");
+await servidor.DetenerAsync();   // el servidor de pruebas (sin TLS) ya no hace falta
+var servidorTls = new GameServer(puerto, "Servidor de prueba TLS", 4, 4) { TlsActivo = true };
+var logsTls = new System.Collections.Concurrent.ConcurrentQueue<string>();
+servidorTls.AlRegistrar += m => logsTls.Enqueue(m);
+servidorTls.Iniciar();
+await Task.Delay(400);
+Comprobar(servidorTls.EnEjecucion, "el servidor cifrado arranca");
+Comprobar(logsTls.Any(l => l.Contains("TLS activado: huella SHA-256")), "el servidor publica la huella del certificado en su log");
+
+// (1) Un cliente de siempre (sin TLS) no puede hablar con el servidor cifrado.
+var cPlano = await Conectar(puerto);
+await cPlano.Enviar(new Hola { Nombre = "Plano", Version = "1.0" });
+var respPlano = await cPlano.LeerCualquiera(3000);
+Comprobar(respPlano == null, "un cliente sin TLS no recibe nada del servidor cifrado");
+cPlano.Cerrar();
+
+// (2) Un cliente TLS juega con normalidad: saludo, mundo y chat.
+var cTls = await ConectarTls(puerto);
+await cTls.Enviar(new Hola { Nombre = "Cifrada", Version = "1.0" });
+var bienTls = await cTls.LeerHasta<Bienvenido>(timeoutMs: 8000);
+Comprobar(bienTls != null, "el cliente TLS completa el saludo cifrado");
+await cTls.Enviar(new CrearMundo { Nombre = "Mundo cifrado", Abierto = true, Ancho = 96, Alto = 48, Profundo = 96 });
+await cTls.LeerHasta<MundoCreado>(timeoutMs: 8000);
+var unidoTls = (await LeerUnidoCompleto(cTls, 20000)).Unido;
+Comprobar(unidoTls != null, "sobre TLS se crea un mundo y se entra en el");
+await cTls.Enviar(new Chat { Texto = "hola cifrado" });
+var chatTls = await cTls.LeerHasta<Chat>(timeoutMs: 8000);
+Comprobar(chatTls?.Texto == "hola cifrado", "el chat viaja cifrado y vuelve entero");
+cTls.Cerrar();
+
+// (3) Certificado y trust-on-first-use (lo que usa el cliente para recordar la huella).
+var certA = Tls.CrearAutofirmado();
+var certB = Tls.CrearAutofirmado();
+Comprobar(Tls.Huella(certA) != Tls.Huella(certB), "cada certificado autofirmado tiene su propia huella");
+Comprobar(Tls.HuellaAceptable(null, Tls.Huella(certA)), "TLS: la primera huella se acepta (trust-on-first-use)");
+Comprobar(Tls.HuellaAceptable(Tls.Huella(certA), Tls.Huella(certA).ToLowerInvariant()), "TLS: la misma huella se acepta aunque cambie el formato");
+Comprobar(!Tls.HuellaAceptable(Tls.Huella(certA), Tls.Huella(certB)), "TLS: una huella distinta se rechaza (posible interceptacion)");
+var rutaCert = Path.Combine(Path.GetTempPath(), "mundovoxel-tls-" + Guid.NewGuid().ToString("N"), "servidor.pfx");
+var certGuardado = Tls.CargarOCrear(rutaCert);
+var certRecargado = Tls.CargarOCrear(rutaCert);
+Comprobar(File.Exists(rutaCert) && Tls.Huella(certGuardado) == Tls.Huella(certRecargado), "el certificado se guarda en disco y se recarga igual (no cambia en cada arranque)");
+try { Directory.Delete(Path.GetDirectoryName(rutaCert)!, true); } catch { }
+await servidorTls.DetenerAsync();
 
 // ---------- cierre ----------
 c1.Cerrar(); c2.Cerrar();
@@ -979,50 +1026,73 @@ static async Task<ClientePrueba> Conectar(int puerto)
     return new ClientePrueba(tcp);
 }
 
+/// <summary>Cliente de pruebas cifrado: negocia TLS aceptando el certificado
+/// autofirmado del servidor (en la app el cliente si comprueba la huella).</summary>
+static async Task<ClientePrueba> ConectarTls(int puerto)
+{
+    var tcp = new TcpClient();
+    await tcp.ConnectAsync("127.0.0.1", puerto);
+    var ssl = new SslStream(tcp.GetStream(), false, (_, _, _, _) => true);
+    await ssl.AuthenticateAsClientAsync("localhost");
+    return new ClientePrueba(tcp, ssl);
+}
+
 sealed class ClientePrueba
 {
     readonly TcpClient _tcp;
-    readonly NetworkStream _flujo;
-    public ClientePrueba(TcpClient tcp) { _tcp = tcp; _tcp.NoDelay = true; _flujo = tcp.GetStream(); }
+    readonly Stream _flujo;
+    public ClientePrueba(TcpClient tcp, Stream? flujo = null) { _tcp = tcp; _tcp.NoDelay = true; _flujo = flujo ?? tcp.GetStream(); }
     public Task Enviar(Mensaje m) { var d = Protocolo.Codificar(m); return _flujo.WriteAsync(d).AsTask(); }
-    public async Task<Mensaje?> LeerCualquiera(int timeoutMs)
+
+    /// <summary>Lee UNA trama completa esperando a que haya datos. Nunca cancela a
+    /// mitad de trama: cancelar ahi dejaria el flujo desincronizado y se perderian
+    /// mensajes (era el origen de fallos intermitentes del test).</summary>
+    async Task<Mensaje?> LeerTramaAsync(int timeoutMs)
     {
-        using var cts = new CancellationTokenSource(timeoutMs);
-        try { return await Frames.LeerAsync(_flujo, cts.Token); }
-        catch { return null; }
+        var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < fin)
+        {
+            try { if (_tcp.Available > 0) return await Frames.LeerAsync(_flujo, CancellationToken.None); }
+            catch { return null; }
+            await Task.Delay(10);
+        }
+        return null;
     }
+
+    public async Task<Mensaje?> LeerCualquiera(int timeoutMs) => await LeerTramaAsync(timeoutMs);
+
     public async Task<T?> LeerHasta<T>(int timeoutMs = 10000) where T : Mensaje
     {
-        using var cts = new CancellationTokenSource(timeoutMs);
-        try
+        var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < fin)
         {
-            while (true)
-            {
-                var m = await Frames.LeerAsync(_flujo, cts.Token);
-                if (m == null) return null;
-                if (m is T t) return t;
-            }
+            var m = await LeerTramaAsync(Math.Max(1, (int)(fin - DateTime.UtcNow).TotalMilliseconds));
+            if (m == null) return null;
+            if (m is T t) return t;
         }
-        catch { return null; }
+        return null;
     }
+
     /// <summary>Espera un BloqueCambio en la posicion indicada (ignora el ruido de
     /// cultivos/mobs de otras zonas del mundo, que con mundos grandes es mucho).</summary>
     public async Task<BloqueCambio?> LeerBloqueEn(int x, int y, int z, int timeoutMs = 10000)
     {
-        using var cts = new CancellationTokenSource(timeoutMs);
-        try
+        var fin = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < fin)
         {
-            while (true)
-            {
-                var m = await Frames.LeerAsync(_flujo, cts.Token);
-                if (m == null) return null;
-                if (m is BloqueCambio bc && bc.X == x && bc.Y == y && bc.Z == z) return bc;
-            }
+            var m = await LeerTramaAsync(Math.Max(1, (int)(fin - DateTime.UtcNow).TotalMilliseconds));
+            if (m == null) return null;
+            if (m is BloqueCambio bc && bc.X == x && bc.Y == y && bc.Z == z) return bc;
         }
-        catch { return null; }
+        return null;
     }
-    /// <summary>Lee el siguiente frame sin timeout: para lectores dedicados en
-    /// segundo plano (un cancel a mitad de frame desincronizaria el stream).</summary>
+
+    /// <summary>Descarta lo pendiente sin perder bytes: lee tramas completas hasta
+    /// que pasa msSinDatos sin que llegue nada.</summary>
+    public async Task DrenarAsync(int msSinDatos)
+    {
+        while (await LeerTramaAsync(msSinDatos) != null) { }
+    }
     public async Task<Mensaje?> LeerSinTimeout()
     {
         try { return await Frames.LeerAsync(_flujo, CancellationToken.None); }

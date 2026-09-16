@@ -1,6 +1,9 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Numerics;
 using System.Threading.Channels;
 
@@ -38,6 +41,15 @@ public sealed class GameServer : IAsyncDisposable
 
     public bool EnEjecucion { get; private set; }
 
+    /// <summary>Cifra las conexiones con TLS (opt-in). El certificado se carga o
+    /// se genera solo; los clientes que no negocien TLS son rechazados.</summary>
+    public bool TlsActivo { get; set; }
+
+    /// <summary>Ruta del certificado TLS (por defecto, junto a los mundos).</summary>
+    public string? RutaCertificado { get; set; }
+
+    X509Certificate2? _certificado;
+
     public void Iniciar()
     {
         try
@@ -51,6 +63,19 @@ public sealed class GameServer : IAsyncDisposable
             return;
         }
         EnEjecucion = true;
+        if (TlsActivo)
+        {
+            try
+            {
+                _certificado = Tls.CargarOCrear(RutaCertificado);
+                Log($"TLS activado: huella SHA-256 del certificado {Tls.Huella(_certificado)} (el cliente la recuerda la primera vez).");
+            }
+            catch (Exception ex)
+            {
+                TlsActivo = false;
+                Log($"No se pudo preparar el certificado TLS ({ex.Message}): el servidor sigue sin cifrar.");
+            }
+        }
         Log($"Servidor Â«{NombreServidor}Â» escuchando en el puerto {Puerto}. Mundos en memoria: {MaxMundos} mÃ¡x., {MaxJugadoresPorMundo} jugadores por mundo.");
         _ = AceptarCicloAsync(_cts.Token);
         _ = CicloPosicionesAsync(_cts.Token);
@@ -113,7 +138,7 @@ public sealed class GameServer : IAsyncDisposable
         public int Id;
         public string Nombre = "";
         public TcpClient Tcp = null!;
-        public NetworkStream Flujo = null!;
+        public Stream Flujo = null!;   // NetworkStream o SslStream si el servidor va cifrado
         /// <summary>Cola de mensajes de salida: el writer asincrono de la conexion
         /// los escribe al socket sin bloquear los hilos que llaman a Enviar
         /// (antes, un cliente que no leia llenaba el buffer TCP y congelaba el
@@ -204,6 +229,29 @@ public sealed class GameServer : IAsyncDisposable
         try
         {
             conn.Flujo = tcp.GetStream();
+            if (TlsActivo && _certificado != null)
+            {
+                // Handshake TLS antes de aceptar cualquier mensaje: un cliente sin
+                // TLS (o con otro protocolo) se queda aqui y se cierra.
+                var ssl = new SslStream(conn.Flujo, leaveInnerStreamOpen: false);
+                try
+                {
+                    await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+                    {
+                        ServerCertificate = _certificado,
+                        ClientCertificateRequired = false,
+                        EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                    }, ct);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Conexion rechazada: no negocio TLS ({ex.GetType().Name}).");
+                    try { ssl.Dispose(); } catch { }
+                    try { tcp.Close(); } catch { }
+                    return;
+                }
+                conn.Flujo = ssl;
+            }
             _conexiones[conn.Id] = conn;
             _ = EscribirCicloAsync(conn, ct);
             while (!ct.IsCancellationRequested)
@@ -215,6 +263,12 @@ public sealed class GameServer : IAsyncDisposable
             }
         }
         catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            // Trama ilegible o fallo inesperado: se registra el motivo real (antes
+            // se perdia en silencio y parecia un cierre normal del cliente).
+            Log($"Conexion de {(string.IsNullOrEmpty(conn.Nombre) ? "un anonimo" : conn.Nombre)} cortada: {ex.GetType().Name}: {ex.Message}");
+        }
         finally
         {
             Desconectar(conn);

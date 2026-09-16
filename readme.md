@@ -34,6 +34,7 @@ Un juego de bloques estilo *MinecraftJS* hecho en **.NET MAUI (C# / .NET 10)**, 
 - Mundos **públicos** (cualquiera entra) o **privados** (requieren **clave de 6 dígitos** o un **token de invitación** que comparte el creador).
 - Los **mundos se guardan en disco** (`%LOCALAPPDATA%\MundoVoxel\mundos`) y se **restauran al arrancar** el servidor: si un mundo se queda vacío, no se borra; su creador puede **borrarlo** (también se elimina su archivo) o **dejarlo para volver después**.
 - El servidor es una sola aplicación que aloja hasta 40 mundos × 12 jugadores por defecto (configurable).
+- **Cifrado opcional (TLS)**: el servidor puede cifrar toda la conexiÓn (certificado autofirmado que se genera solo la primera vez). En el menú del cliente se activa con la casilla **Servidor cifrado (TLS)**.
 
 ---
 
@@ -153,6 +154,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
 1. Un jugador (o un servidor dedicado) levanta `MundoVoxel.Server`.
 2. En el cliente: escribe tu **nombre**, la **IP** del servidor (o `127.0.0.1` para jugar solo) y pulsa **Conectar**.
    - Puedes **guardar el servidor como favorito** (alias + IP + puerto) en el mismo menu y conectarte con un clic; la lista queda en `%LOCALAPPDATA%\MundoVoxel\servidores.json`.
+   - Si el servidor va cifrado, activa **Servidor cifrado (TLS)** antes de conectar: el cliente recuerda la huella del certificado y avisa si cambia.
    - Si se te cae la conexión en plena partida, el cliente **reconecta automáticamente** (hasta 5 intentos con espera creciente) y vuelves a tu misma **posición con tu inventario**; puedes cancelar desde el panel de reconexión.
 3. En la lista de mundos: **Crear mundo** (público o privado con clave de 6 dígitos) o **Unirse** a uno existente.
    - Si el mundo es privado, te pedirá la clave de 6 dígitos o el token de invitación. El creador ve su token con el botón **Token** de la lista y el cliente lo copia al portapapeles.

@@ -6,6 +6,9 @@ public static class EstadoSesion
     public static string Nombre { get; set; } = "Jugador";
     public static string Ip { get; set; } = "127.0.0.1";
     public static int Puerto { get; set; } = 25575;
+    /// <summary>Si la conexion va cifrada con TLS (lo elige el jugador en el menu;
+    /// la reconexion automatica lo reutiliza).</summary>
+    public static bool Tls { get; set; }
     /// <summary>Mensaje pendiente para mostrar en el menú al volver (p. ej.
     /// reconexión agotada); se muestra una vez y se limpia.</summary>
     public static string MensajeMenu { get; set; } = "";
