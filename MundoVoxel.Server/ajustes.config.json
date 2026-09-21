@@ -22,5 +22,15 @@
   // jugador se mantienen cargadas. 1 = 3x3 = 192x192 columnas (por defecto).
   // Al alejarse, el servidor suelta las que salen del radio y el cliente las
   // descarga; si el jugador vuelve, se le mandan otra vez.
-  "RadioRegiones": 1
+  "RadioRegiones": 1,
+
+  // Cuentas por jugador (opcional). Con "CuentasObligatorias": true el servidor pide
+  // usuario y clave antes de dejar entrar: el nombre deja de poder suplantarse (el
+  // inventario y la propiedad de los mundos van por nombre). Con "RegistroAbierto":
+  // true, la primera vez que alguien entra con un nombre nuevo se registra solo.
+  // Las cuentas se guardan en "cuentas.json" (junto a este archivo); la clave nunca
+  // se guarda, solo su hash PBKDF2-SHA256 con sal.
+  "CuentasObligatorias": false,
+  "RegistroAbierto": false,
+  "CuentasArchivo": "cuentas.json"
 }

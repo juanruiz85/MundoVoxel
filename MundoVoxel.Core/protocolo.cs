@@ -65,6 +65,10 @@ public sealed class Hola : Mensaje
     public string Version { get; set; } = "1.0";
     /// <summary>Clave de acceso del servidor: solo se envia si el servidor la pide.</summary>
     public string? Clave { get; set; }
+    /// <summary>Usuario de la cuenta: solo se envia en servidores con cuentas obligatorias.</summary>
+    public string? Usuario { get; set; }
+    /// <summary>Clave de la cuenta (el servidor la pide junto al usuario).</summary>
+    public string? ClaveCuenta { get; set; }
 }
 public sealed class Bienvenido : Mensaje { public int IdJugador { get; set; } public string NombreServidor { get; set; } = ""; }
 

@@ -56,6 +56,24 @@ public sealed class GameServer : IAsyncDisposable
     /// (Hola) para entrar: sin ella no se le manda ni la lista de mundos.</summary>
     public string Clave { get; set; } = "";
 
+    /// <summary>Cuentas por jugador (opt-in, ajustes.config.json: "CuentasObligatorias").
+    /// Con true, el saludo (Hola) tiene que traer usuario y clave validos: el nombre
+    /// pasa a estar autenticado. Hace falta si el servidor esta en internet, porque
+    /// el inventario y la propiedad de los mundos van por nombre: sin cuentas,
+    /// cualquiera puede entrar con el nombre de otro.</summary>
+    public bool CuentasObligatorias { get; set; }
+
+    /// <summary>Con cuentas obligatorias, un nombre nuevo se registra al entrar
+    /// (ajustes.config.json: "RegistroAbierto"). Apagado, solo entran las cuentas que
+    /// ya estan en el archivo.</summary>
+    public bool RegistroAbierto { get; set; }
+
+    /// <summary>Cuentas conocidas (se cargan al iniciar desde RutaCuentas).</summary>
+    public Cuentas CuentasJugadores { get; private set; } = new();
+
+    /// <summary>Archivo de cuentas (por defecto, junto al de ajustes).</summary>
+    public string? RutaCuentas { get; set; }
+
     X509Certificate2? _certificado;
 
     public void Iniciar()
@@ -70,6 +88,14 @@ public sealed class GameServer : IAsyncDisposable
             // "RadioRegiones": el archivo de ajustes manda al arrancar (1 = 3x3
             // regiones alrededor del jugador); el servidor de verdad lo lee de ahi.
             RadioRegiones = Ajustes.Actual.RadioRegiones;
+            // Cuentas por jugador: "CuentasObligatorias" y "RegistroAbierto" encienden
+            // el archivo de ajustes; el valor puesto por codigo se respeta (asi las
+            // pruebas los pasan directos).
+            if (Ajustes.Actual.CuentasObligatorias) CuentasObligatorias = true;
+            if (Ajustes.Actual.RegistroAbierto) RegistroAbierto = true;
+            if (string.IsNullOrEmpty(RutaCuentas)) RutaCuentas = Path.Combine(AppContext.BaseDirectory, Ajustes.Actual.CuentasArchivo);
+            CuentasJugadores = Cuentas.Cargar(RutaCuentas);
+            if (CuentasJugadores.Total > 0) Log($"Cuentas cargadas: {CuentasJugadores.Total}.");
             _oyente.Start();
         }
         catch (SocketException ex)
@@ -174,6 +200,63 @@ public sealed class GameServer : IAsyncDisposable
         Log($"Conexion desde {c.Tcp.Client.RemoteEndPoint} rechazada: clave del servidor incorrecta (intento {c.IntentosPin}).");
         Enviar(c, new ErrorServidor { Codigo = "CLAVE_SERVIDOR", Mensaje = "Este servidor pide una clave de acceso." });
         return false;
+    }
+    /// <summary>Comprueba la cuenta del saludo (si el servidor las exige). Un nombre
+    /// libre con registro abierto da de alta la cuenta con la clave que trae: entrar
+    /// por primera vez es registrarse. Los fallos comparten el tope de intentos con
+    /// la clave del servidor y las de los mundos privados. El unico aviso explicito
+    /// es CLAVE_CORTA al darse de alta (hace falta para poder registrarse); todo lo
+    /// demas dice CREDENCIALES, para no delatar que nombres existen.</summary>
+    bool CuentaCorrecta(ConexionJugador c, string? usuario, string? clave)
+    {
+        if (!CuentasObligatorias) return true;
+        var ahora = DateTime.UtcNow;
+        if ((ahora - c.VentanaPin).TotalSeconds > 60) { c.VentanaPin = ahora; c.IntentosPin = 0; }
+        if (c.IntentosPin >= 5)
+        {
+            Enviar(c, new ErrorServidor { Codigo = "MUCHOS_INTENTOS", Mensaje = "Demasiados intentos de clave. Espera un minuto." });
+            return false;
+        }
+        var nombre = (usuario ?? "").Trim();
+        var secreto = clave ?? "";
+        if (!Cuentas.UsuarioValido(nombre)) return RechazarCuenta(c, "CREDENCIALES", "Usuario o clave incorrectos.");
+        if (!CuentasJugadores.Existe(nombre))
+        {
+            if (RegistroAbierto && secreto.Length >= Cuentas.ClaveMinima && secreto.Length <= Cuentas.ClaveMaxima
+                && CuentasJugadores.Registrar(nombre, secreto, out _))
+            {
+                GuardarCuentas();
+                c.Nombre = CuentasJugadores.NombreCanonico(nombre);
+                c.IntentosPin = 0;
+                Log($"{c.Nombre} se ha registrado (cuenta nueva).");
+                return true;
+            }
+            return RechazarCuenta(c, RegistroAbierto ? "CLAVE_CORTA" : "CREDENCIALES",
+                RegistroAbierto ? "La clave de la cuenta debe tener entre 6 y 128 caracteres." : "Usuario o clave incorrectos.");
+        }
+        if (!CuentasJugadores.Verificar(nombre, secreto))
+        {
+            Log($"Conexion desde {c.Tcp.Client.RemoteEndPoint} rechazada: cuenta con clave incorrecta (intento {c.IntentosPin + 1}).");
+            return RechazarCuenta(c, "CREDENCIALES", "Usuario o clave incorrectos.");
+        }
+        c.IntentosPin = 0;
+        c.Nombre = CuentasJugadores.NombreCanonico(nombre);
+        return true;
+    }
+
+    /// <summary>Cuenta el fallo, avisa al cliente y devuelve false (siempre).</summary>
+    bool RechazarCuenta(ConexionJugador c, string codigo, string mensaje)
+    {
+        c.IntentosPin++;
+        Enviar(c, new ErrorServidor { Codigo = codigo, Mensaje = mensaje });
+        return false;
+    }
+
+    void GuardarCuentas()
+    {
+        if (string.IsNullOrEmpty(RutaCuentas)) return;
+        try { CuentasJugadores.Guardar(RutaCuentas); }
+        catch (Exception ex) { Log($"No se pudieron guardar las cuentas: {ex.Message}"); }
     }
 
     sealed class ConexionJugador
@@ -351,8 +434,14 @@ public sealed class GameServer : IAsyncDisposable
                 // Autenticacion basica: con clave configurada, sin ella no se
                 // responde ni la lista de mundos (el cliente muestra el aviso).
                 if (!ClaveCorrecta(c, h.Clave)) break;
-                var nombre = (h.Nombre ?? "").Trim();
-                c.Nombre = nombre.Length == 0 ? "Jugador" + c.Id : nombre[..Math.Min(20, nombre.Length)];
+                // Con cuentas obligatorias el nombre sale de la cuenta (autenticado y
+                // con la grafia guardada); sin ellas el jugador elige su nombre.
+                if (!CuentaCorrecta(c, h.Usuario, h.ClaveCuenta)) break;
+                if (!CuentasObligatorias)
+                {
+                    var nombre = (h.Nombre ?? "").Trim();
+                    c.Nombre = nombre.Length == 0 ? "Jugador" + c.Id : nombre[..Math.Min(20, nombre.Length)];
+                }
                 Enviar(c, new Bienvenido { IdJugador = c.Id, NombreServidor = NombreServidor });
                 Enviar(c, ListaMundosActual());
                 Log($"{c.Nombre} se conectÃ³ ({c.Tcp.Client.RemoteEndPoint}).");

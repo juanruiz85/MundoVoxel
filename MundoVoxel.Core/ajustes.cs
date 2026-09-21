@@ -63,6 +63,13 @@ public static class Ajustes
         // mantiene cargadas el servidor (1 = 3x3 = 192x192 columnas). Al
         // alejarse, las que salen del radio se sueltan (MundoOlvida).
         public int RadioRegiones { get; set; } = 1;
+
+// Cuentas por jugador (opt-in). Con CuentasObligatorias el saludo tiene que traer
+// un usuario y una clave validos; con RegistroAbierto, un nombre nuevo se registra
+// al entrar. Las cuentas se guardan en CuentasArchivo (junto a los ajustes).
+public bool CuentasObligatorias { get; set; } = false;
+public bool RegistroAbierto { get; set; } = false;
+public string CuentasArchivo { get; set; } = "cuentas.json";
     }
 
     static Config _cfg = new();

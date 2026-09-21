@@ -65,6 +65,12 @@ public sealed class Cuentas
 
     public bool Existe(string usuario) => _porNombre.ContainsKey((usuario ?? "").Trim());
 
+    /// <summary>Nombre con la grafia guardada de la cuenta (o el mismo si no existe).
+    /// Sirve para que el jugador entre siempre con el mismo nombre: el inventario y
+    /// la propiedad de los mundos van por nombre.</summary>
+    public string NombreCanonico(string usuario) =>
+        _porNombre.TryGetValue((usuario ?? "").Trim(), out var registro) ? registro.Usuario : (usuario ?? "").Trim();
+
     /// <summary>Da de alta una cuenta. Falla con USUARIO_INVALIDO, CLAVE_CORTA o
     /// USUARIO_COGIDO si el nombre ya esta en uso (sin distinguir mayusculas).</summary>
     public bool Registrar(string usuario, string clave, out string error)

@@ -1,4 +1,4 @@
-using System.Net.Security;
+﻿using System.Net.Security;
 using System.Net.Sockets;
 using MundoVoxel.Core;
 
@@ -1169,6 +1169,59 @@ await cSin.Enviar(new Hola { Nombre = "SinClave", Version = "1.0" });
 Comprobar(await cSin.LeerHasta<Bienvenido>(5000) != null, "un servidor sin clave no cambia nada (saludo normal)");
 cSin.Cerrar();
 await servidorAbierto.DetenerAsync();
+// ---------- cuentas por jugador (paso 2: entrar con usuario y clave) ----------
+Console.WriteLine("Cuentas: usuario y clave en el saludo (alta, clave mala, sin registro).");
+{
+    var rutaCuentasPrueba = Path.Combine(Path.GetTempPath(), "mv-cuentas-suite-" + Guid.NewGuid().ToString("N") + ".json");
+    var servidorCuentas = new GameServer(puerto, "Servidor de prueba con cuentas", 4, 4)
+    {
+        RutaCuentas = rutaCuentasPrueba,
+        CuentasObligatorias = true,
+        RegistroAbierto = true,
+    };
+    servidorCuentas.Iniciar();
+    await Task.Delay(400);
+    Comprobar(servidorCuentas.EnEjecucion, "el servidor con cuentas obligatorias arranca");
+    var cAltaNueva = await Conectar(puerto);
+    await cAltaNueva.Enviar(new Hola { Usuario = "marta", ClaveCuenta = "clave1234" });
+    Comprobar(await cAltaNueva.LeerHasta<Bienvenido>(5000) != null, "con registro abierto, entrar con un nombre nuevo crea la cuenta");
+    Comprobar(await cAltaNueva.LeerHasta<ListaMundos>(5000) != null, "tras validar la cuenta llega la lista de mundos");
+    cAltaNueva.Cerrar();
+    var guardadasPrueba = Cuentas.Cargar(rutaCuentasPrueba);
+    Comprobar(guardadasPrueba.Total == 1 && guardadasPrueba.Existe("MARTA"), "la cuenta nueva queda guardada en cuentas.json");
+    var cClaveMala = await Conectar(puerto);
+    await cClaveMala.Enviar(new Hola { Usuario = "marta", ClaveCuenta = "malaclave" });
+    Comprobar(await cClaveMala.LeerCualquiera(4000) is ErrorServidor { Codigo: "CREDENCIALES" }, "con la clave equivocada no se entra");
+    cClaveMala.Cerrar();
+    var cClaveBuena = await Conectar(puerto);
+    await cClaveBuena.Enviar(new Hola { Usuario = "MARTA", ClaveCuenta = "clave1234" });
+    Comprobar(await cClaveBuena.LeerHasta<Bienvenido>(5000) != null, "con la clave correcta se entra (sin distinguir mayusculas)");
+    cClaveBuena.Cerrar();
+    var cAnonimo = await Conectar(puerto);
+    await cAnonimo.Enviar(new Hola { Nombre = "Anonimo" });
+    Comprobar(await cAnonimo.LeerCualquiera(4000) is ErrorServidor { Codigo: "CREDENCIALES" }, "sin usuario y clave no se entra");
+    cAnonimo.Cerrar();
+    var cClaveCorta = await Conectar(puerto);
+    await cClaveCorta.Enviar(new Hola { Usuario = "nuevo", ClaveCuenta = "123" });
+    Comprobar(await cClaveCorta.LeerCualquiera(4000) is ErrorServidor { Codigo: "CLAVE_CORTA" }, "al darse de alta, una clave corta se avisa");
+    cClaveCorta.Cerrar();
+    var cNombreCogido = await Conectar(puerto);
+    await cNombreCogido.Enviar(new Hola { Usuario = "Marta", ClaveCuenta = "otraclave2" });
+    Comprobar(await cNombreCogido.LeerCualquiera(4000) is ErrorServidor { Codigo: "CREDENCIALES" }, "un nombre ya cogido con otra clave no entra y no delata nada");
+    cNombreCogido.Cerrar();
+    servidorCuentas.RegistroAbierto = false;
+    var cSinRegistro = await Conectar(puerto);
+    await cSinRegistro.Enviar(new Hola { Usuario = "intruso", ClaveCuenta = "clave1234" });
+    Comprobar(await cSinRegistro.LeerCualquiera(4000) is ErrorServidor { Codigo: "CREDENCIALES" }, "sin registro abierto no se crean cuentas nuevas");
+    cSinRegistro.Cerrar();
+    var cRegistrada = await Conectar(puerto);
+    await cRegistrada.Enviar(new Hola { Usuario = "marta", ClaveCuenta = "clave1234" });
+    Comprobar(await cRegistrada.LeerHasta<Bienvenido>(5000) != null, "las cuentas que ya existen siguen entrando con el registro cerrado");
+    cRegistrada.Cerrar();
+    await servidorCuentas.DetenerAsync();
+    try { File.Delete(rutaCuentasPrueba); } catch { }
+}
+
 
 // ---------- cierre ----------
 c1.Cerrar(); c2.Cerrar();
