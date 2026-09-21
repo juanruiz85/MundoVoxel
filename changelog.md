@@ -2,6 +2,14 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.22] - 2026-09-21
+
+### A
+ñ
+adido
+
+- **Reconexión rápida (delta por regiones)**: si se cae la conexión y vuelves al mismo mundo, el cliente **conserva el terreno** que ya tenía y el servidor solo le reenvía las **regiones que cambiaron** mientras estaba fuera (campos nuevos `Unirse.TengoMundo`, `Unido.Delta` y `Unido.RegionesDelta`), en vez del mundo entero. El servidor apunta al salir de cada jugador cuándo se fue, hasta qué cambio vio el mundo y qué regiones tenía cargadas; si la ausencia pasa de 5 minutos (`MinutosDeltaRapido`), si cambió más de medio mundo o si no hay salida apuntada, se manda el mundo completo como antes. El cliente olvida la región antes de aplicar los bytes nuevos (una región repetida se ignora) y el resto del radio llega igual que al moverse. Pruebas: 8 comprobaciones de integración por socket (llega el delta con la región cambiada y el bloque nuevo, no se reenvía el mundo entero, sin salida apuntada llega el mundo completo y con la ventana pasada también).
+
 ## [0.11.21] - 2026-09-20
 
 ### Añadido

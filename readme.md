@@ -160,6 +160,7 @@ Los registros se ven en la consola / journal / visor de eventos del servicio.
    - Si el servidor va cifrado, activa **Servidor cifrado (TLS)** antes de conectar: el cliente recuerda la huella del certificado y avisa si cambia. Al guardar el servidor como **favorito** el modo se recuerda (la casilla se marca sola al entrar desde la lista; los favoritos cifrados se marcan con "(TLS)").
    - Si el servidor pide **cuenta**, escribe el **usuario** y su **clave** en los campos del menú: el cliente los recuerda y la reconexión automática los reutiliza.
    - Si se te cae la conexión en plena partida, el cliente **reconecta automáticamente** (hasta 5 intentos con espera creciente) y vuelves a tu misma **posición con tu inventario**; puedes cancelar desde el panel de reconexión.
+   - Al reconectar, el cliente **conserva el terreno** que ya tenia: el servidor solo le reenvia las **regiones que cambiaron** mientras estaba fuera (si la ausencia es corta).
 3. En la lista de mundos: **Crear mundo** (público o privado con clave de 6 dígitos) o **Unirse** a uno existente.
    - Si el mundo es privado, te pedirá la clave de 6 dígitos o el token de invitación. El creador ve su token con el botón **Token** de la lista y el cliente lo copia al portapapeles.
 4. Dentro del mundo: construye, rompe y chatea con los demás.

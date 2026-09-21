@@ -883,6 +883,87 @@ var invRe = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
 Comprobar(invRe != null && invRe.Slots.Count > 0, "reconexion: el inventario persistido se restaura");
 await Task.Delay(150);
 await c1.DrenarAsync(60); // drenar notificaciones del rejoin
+// ---------- reconexion rapida: delta por regiones ----------
+Console.WriteLine("Reconexion rapida: al volver solo se reenvian las regiones que cambiaron.");
+await c1.Enviar(new Salir());
+await Task.Delay(500); // que el servidor apunte la salida de Ana
+// Una celda de aire cerca del spawn de Ana, para que Bruno ponga madera.
+int dxDelta = 1;
+while (dxDelta < 12 && mundoPriv.Obtener((int)aparicionPriv.Ax + dxDelta, (int)aparicionPriv.Ay, (int)aparicionPriv.Az) != Bloques.Aire) dxDelta++;
+var celdaDelta = ((int)aparicionPriv.Ax + dxDelta, (int)aparicionPriv.Ay, (int)aparicionPriv.Az);
+await c2.Enviar(new ColocarBloque { X = celdaDelta.Item1, Y = celdaDelta.Item2, Z = celdaDelta.Item3, Bloque = Bloques.Madera });
+BloqueCambio? cambioBruno2 = null;
+var finBruno = DateTime.UtcNow.AddSeconds(8);
+while (DateTime.UtcNow < finBruno && cambioBruno2 == null)
+{
+    while (colaBruno.TryDequeue(out var mB))
+        if (mB is BloqueCambio bcB && bcB.X == celdaDelta.Item1 && bcB.Y == celdaDelta.Item2 && bcB.Z == celdaDelta.Item3) cambioBruno2 = bcB;
+    if (cambioBruno2 == null) await Task.Delay(100);
+}
+Comprobar(cambioBruno2 != null, "Bruno cambia un bloque mientras Ana esta fuera");
+// Ana vuelve diciendo que aun tiene el mundo: el servidor responde con el delta.
+await c1.Enviar(new Hola { Nombre = "Ana", Version = "1.0" });
+Comprobar(await c1.LeerHasta<Bienvenido>(8000) != null, "reconexion rapida: Ana vuelve a saludar");
+await c1.LeerHasta<ListaMundos>(8000);
+await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456", TengoMundo = true });
+var uDelta = await c1.LeerHasta<Unido>(8000);
+Comprobar(uDelta != null && uDelta.Delta, "reconexion rapida: el servidor anuncia el delta");
+int nDelta = uDelta?.RegionesDelta ?? 0;
+var regionesDelta = new List<MundoRegion>();
+for (int iDelta = 0; iDelta < nDelta; iDelta++)
+{
+    var mrD = await c1.LeerHasta<MundoRegion>(8000);
+    if (mrD != null) regionesDelta.Add(mrD);
+}
+Comprobar(nDelta > 0 && regionesDelta.Count == nDelta, "el delta trae las regiones que cambiaron");
+Comprobar(nDelta < mundoPriv.TotalRegiones, "reconexion rapida: no se reenvia el mundo entero");
+var (rxCelda, rzCelda) = Mundo.RegionDe(celdaDelta.Item1, celdaDelta.Item3);
+Comprobar(regionesDelta.Any(mrD => mrD.Rx == rxCelda && mrD.Rz == rzCelda), "el delta incluye la region del bloque nuevo");
+var remotoDelta = new MundoRemoto(uDelta!.Ancho, uDelta.Alto, uDelta.Profundo, uDelta.Semilla);
+foreach (var mrD in regionesDelta) remotoDelta.Aplicar(mrD.Rx, mrD.Rz, mrD.Datos);
+Comprobar(remotoDelta.Mundo.Obtener(celdaDelta.Item1, celdaDelta.Item2, celdaDelta.Item3) == Bloques.Madera, "el delta trae el bloque que puso Bruno");
+// Detras del delta siguen las regiones del radio que le faltaban y los olvidos de
+// las que ya no tiene cerca: se drena para no ensuciar las pruebas siguientes.
+var finDrenar = DateTime.UtcNow.AddSeconds(6);
+while (DateTime.UtcNow < finDrenar && await c1.LeerCualquiera(1500) != null) { }
+// Sin salida apuntada (nombre que no habia estado en el mundo): mundo entero.
+var cDeltaReciente = await Conectar(puerto);
+await cDeltaReciente.Enviar(new Hola { Nombre = "RecienLlegado", Version = "1.0" });
+Comprobar(await cDeltaReciente.LeerHasta<Bienvenido>(8000) != null, "un jugador nuevo se saluda para entrar al mundo");
+await cDeltaReciente.LeerHasta<ListaMundos>(8000);
+await cDeltaReciente.Enviar(new Unirse { Id = idPrivado, Pin = "123456", TengoMundo = true });
+var uSinRegistro = await cDeltaReciente.LeerHasta<Unido>(8000);
+Comprobar(uSinRegistro != null && !uSinRegistro.Delta, "sin salida apuntada no hay delta: se manda el mundo");
+var remotoSin = new MundoRemoto(uSinRegistro!.Ancho, uSinRegistro.Alto, uSinRegistro.Profundo, uSinRegistro.Semilla);
+var finSin = DateTime.UtcNow.AddSeconds(60);
+while (!remotoSin.Completo && DateTime.UtcNow < finSin)
+{
+    var mrS = await cDeltaReciente.LeerHasta<MundoRegion>(20000);
+    if (mrS == null) break;
+    remotoSin.Aplicar(mrS.Rx, mrS.Rz, mrS.Datos);
+}
+Comprobar(remotoSin.Completo, "y el mundo llega entero, region a region");
+cDeltaReciente.Cerrar();
+// Con la ventana del delta pasada (0 minutos) tampoco hay delta.
+servidor.MinutosDeltaRapido = 0;
+await c1.Enviar(new Salir());
+await Task.Delay(400);
+await c1.Enviar(new Hola { Nombre = "Ana", Version = "1.0" });
+await c1.LeerHasta<Bienvenido>(8000);
+await c1.LeerHasta<ListaMundos>(8000);
+await c1.Enviar(new Unirse { Id = idPrivado, Pin = "123456", TengoMundo = true });
+var uVentana = await c1.LeerHasta<Unido>(8000);
+Comprobar(uVentana != null && !uVentana.Delta, "con la ventana del delta pasada se manda el mundo entero");
+var remotoVentana = new MundoRemoto(uVentana!.Ancho, uVentana.Alto, uVentana.Profundo, uVentana.Semilla);
+var finVentana = DateTime.UtcNow.AddSeconds(60);
+while (!remotoVentana.Completo && DateTime.UtcNow < finVentana)
+{
+    var mrV = await c1.LeerHasta<MundoRegion>(20000);
+    if (mrV == null) break;
+    remotoVentana.Aplicar(mrV.Rx, mrV.Rz, mrV.Datos);
+}
+Comprobar(remotoVentana.Completo, "y el mundo entero se reensambla igual");
+servidor.MinutosDeltaRapido = 5;
 
 Console.WriteLine("Persistencia: el mundo vacio sigue existiendo y luego se borra.");
 await c1.Enviar(new Salir());

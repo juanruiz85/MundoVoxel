@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
@@ -122,7 +122,7 @@ public partial class PaginaJuego : ContentPage
             mundo.RegionRecibida = (x, z) => { var (rx, rz) = MundoRemoto.RegionDe(x, z); return remoto.Recibida(rx, rz); };
         }
         _vista.Renderizador.DistanciaChunks = Distancias[_nivelDistancia];
-        _vista.Renderizador.ConstruirMallas(mundo);
+        _vista.Renderizador.ConstruirMallas(mundo!);
         _vista.Jugador.Pos = new Vector3(datos.Ax, datos.Ay, datos.Az);
         _vista.Jugador.Yaw = 0;
         _vista.Jugador.Pitch = 0;
@@ -374,8 +374,11 @@ public partial class PaginaJuego : ContentPage
             // El resto del mundo sigue llegando dentro de la partida: cada region
             // nueva se dibuja al momento y, cuando ya esta todo, la colision deja
             // de tratar el terreno pendiente como solido.
-            case MundoRegion mr when _datos.Remoto is { Completo: false } remoto:
+            case MundoRegion mr when _datos.Remoto is { } remoto:
                 {
+                    // El servidor puede reenviar una region que el cliente ya tenia (delta de
+                    // reconexion): primero se olvida, o Aplicar la ignoraria por repetida.
+                    remoto.Olvidar(mr.Rx, mr.Rz);
                     remoto.Aplicar(mr.Rx, mr.Rz, mr.Datos);
                     var mundoRem = _vista.Mundo;
                     int ladoRegion = Mundo.LadoRegion;
@@ -1363,7 +1366,7 @@ public partial class PaginaJuego : ContentPage
             AgregarChat("- " + _idioma.O("error.desconectado"));
             // Reconexión automática: reintenta al mismo servidor y vuelve a
             // entrar al mismo mundo; si se agota, vuelve al menú con mensaje.
-            _reconexion.Iniciar(_datos.Id, _datos.PinUsado, _datos.TokenUsado);
+            _reconexion.Iniciar(_datos.Id, _datos.PinUsado, _datos.TokenUsado, tengoMundo: _vista.Mundo != null);
         });
     }
 
@@ -1391,15 +1394,29 @@ public partial class PaginaJuego : ContentPage
 
     void OnReconexionCancelada(string mensaje) => OnReconexionFallo(mensaje);
 
-    void OnReconectado(Unido u, Mundo mundo)
+    void OnReconectado(Unido u, Mundo? mundo)
     {
         try
         {
+            if (u.Delta)
+            {
+                // Reconexion rapida: el mundo sigue en memoria (el servidor no lo
+                // manda) y las regiones cambiadas llegan por el camino normal, que
+                // ya marca sus mallas sucias. Solo hay que reanudar el bucle.
+                _vista.Jugador.Pos = new Vector3(u.Ax, u.Ay, u.Az);
+                _vista.Jugador.Yaw = 0;
+                _vista.Jugador.Pitch = 0;
+                ActualizarLblBloque();
+                PanelReconexion.IsVisible = false;
+                _timer?.Start();
+                AgregarChat(_idioma.O("juego.reconectado_ok", u.Nombre));
+                return;
+            }
             // El servidor manda el mundo completo tras re-entrar (por regiones,
             // ya reensamblado): reconstruir el estado local y reanudar el bucle
             // (los mensajes siguientes ya llegan por el tick normal).
-            _vista.Mundo = mundo;
-            _vista.Renderizador.ConstruirMallas(mundo);
+            _vista.Mundo = mundo!;
+            _vista.Renderizador.ConstruirMallas(mundo!);
             _vista.Jugador.Pos = new Vector3(u.Ax, u.Ay, u.Az);
             _vista.Jugador.Yaw = 0;
             _vista.Jugador.Pitch = 0;

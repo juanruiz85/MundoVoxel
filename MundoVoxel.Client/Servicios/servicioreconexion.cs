@@ -1,4 +1,4 @@
-using MundoVoxel.Core;
+﻿using MundoVoxel.Core;
 
 namespace MundoVoxel.Client.Servicios;
 
@@ -28,7 +28,7 @@ public sealed class ServicioReconexion
     /// los manejadores pueden tocar la UI directamente).</summary>
     public event Action<int, int>? AlIniciar;      // (intento, tope): mostrar panel
     public event Action<int, int>? AlIntento;      // actualizar "intento X de Y"
-    public event Action<Unido, Mundo>? AlReconectado;     // volver a entrar al mundo
+    public event Action<Unido, Mundo?>? AlReconectado;    // volver a entrar (mundo null = reconexion rapida, conserva el suyo)
     public event Action<string>? AlFallo;          // agotado o mundo ya no existe: mensaje listo
     public event Action<string>? AlCancelar;       // el usuario canceló: mensaje listo
 
@@ -41,7 +41,7 @@ public sealed class ServicioReconexion
     /// <summary>Empieza el bucle de reconexión hacia el servidor de la sesión
     /// actual (EstadoSesion), recordando el mundo y su PIN. No hace nada si ya
     /// hay una reconexión en curso.</summary>
-    public void Iniciar(string mundoId, string? pin, string? tokenInvitacion = null)
+    public void Iniciar(string mundoId, string? pin, string? tokenInvitacion = null, bool tengoMundo = false)
     {
         lock (_cerrojo)
         {
@@ -51,7 +51,7 @@ public sealed class ServicioReconexion
         }
         var token = _cts.Token;
         LanzarEnPrincipal(() => AlIniciar?.Invoke(1, MaxIntentos));
-        _ = Task.Run(() => BucleAsync(mundoId, pin, tokenInvitacion, token));
+        _ = Task.Run(() => BucleAsync(mundoId, pin, tokenInvitacion, tengoMundo, token));
     }
 
     /// <summary>Cancela la reconexión en curso (botón Cancelar / tecla atrás).</summary>
@@ -61,7 +61,7 @@ public sealed class ServicioReconexion
         catch (ObjectDisposedException) { } // el bucle acabó justo antes: nada que cancelar
     }
 
-    async Task BucleAsync(string mundoId, string? pin, string? tokenInvitacion, CancellationToken token)
+    async Task BucleAsync(string mundoId, string? pin, string? tokenInvitacion, bool tengoMundo, CancellationToken token)
     {
         try
         {
@@ -107,13 +107,22 @@ public sealed class ServicioReconexion
 
                 // Reentrada por el mismo camino que PaginaMundos -> Unirse (con la
                 // clave o con el token de invitacion, segun como se entro).
-                _red.Enviar(new Unirse { Id = mundoId, Pin = pin, Token = tokenInvitacion });
+                _red.Enviar(new Unirse { Id = mundoId, Pin = pin, Token = tokenInvitacion, TengoMundo = tengoMundo });
                 var respuesta = await EsperarMensaje(TimeoutUnidoMs, token,
                     m => m is Unido or ErrorServidor);
                 if (token.IsCancellationRequested) { AlCancelarConexion(); return; }
                 if (respuesta is ErrorServidor er) { Fallo(TextoError(er)); return; }
                 if (respuesta is Unido unido)
                 {
+                    if (unido.Delta)
+                    {
+                        // Reconexion rapida: el cliente conserva su mundo y el servidor
+                        // solo manda las regiones que cambiaron mientras estaba fuera
+                        // (llegan por el camino normal de mensajes, sin bloquear aqui).
+                        Fin();
+                        LanzarEnPrincipal(() => AlReconectado?.Invoke(unido, null));
+                        return;
+                    }
                     var (mundo, errorRegiones) = await EsperarRegiones(unido, token);
                     if (token.IsCancellationRequested) { AlCancelarConexion(); return; }
                     if (errorRegiones != null) { Fallo(errorRegiones); return; }

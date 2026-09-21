@@ -139,6 +139,9 @@ public sealed class Unirse : Mensaje
     public string? Pin { get; set; }
     /// <summary>Alternativa a la clave: token de invitacion del mundo privado.</summary>
     public string? Token { get; set; }
+    /// <summary>El cliente aun tiene el mundo cargado y pide el delta de
+    /// reconexion (solo las regiones que cambiaron mientras estaba fuera).</summary>
+    public bool TengoMundo { get; set; }
 }
 
 /// <summary>Pide a un mundo privado propio su token de invitacion.</summary>
@@ -159,6 +162,12 @@ public sealed class Unido : Mensaje
     public int Profundo { get; set; }
     public int Semilla { get; set; }
     public float Ax { get; set; } public float Ay { get; set; } public float Az { get; set; }
+    /// <summary>El servidor no manda el mundo entero: el cliente conserva el que
+    /// ya tenia y detras llegan solo las regiones que cambiaron (reconexion
+    /// rapida). Con el mundo completo, va en false.</summary>
+    public bool Delta { get; set; }
+    /// <summary>Cuantas regiones del delta van detras de este Unido.</summary>
+    public int RegionesDelta { get; set; }
 }
 public sealed class ErrorServidor : Mensaje { public string Codigo { get; set; } = ""; public string Mensaje { get; set; } = ""; }
 

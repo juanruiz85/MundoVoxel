@@ -28,6 +28,10 @@ public sealed class GameServer : IAsyncDisposable
 
     /// <summary>Radio de carga en regiones: se mandan las (2*radio+1)^2 regiones alrededor del jugador y se sueltan las que se alejan.</summary>
     public int RadioRegiones { get; set; } = 1;
+
+    /// <summary>Minutos de ausencia durante los que una reconexion puede pedir el
+    /// delta por regiones en vez del mundo entero (0 = nunca).</summary>
+    public int MinutosDeltaRapido { get; set; } = 5;
     readonly object _cerrojo = new();
     int _siguienteId = 1;
 
@@ -335,6 +339,14 @@ public sealed class GameServer : IAsyncDisposable
         public readonly Dictionary<(int x, int y, int z), List<SlotInventario>> Cofres = new();
         /// <summary>Ultima posicion de cada jugador al salir (para volver donde estaba).</summary>
         public readonly Dictionary<string, (float X, float Y, float Z, float Ry)> Posiciones = new();
+        /// <summary>Numero de cambio del mundo: crece con cada bloque cambiado.</summary>
+        public long Cambios;
+        /// <summary>Ultimo cambio de cada region (para saber cuales reenviar en
+        /// una reconexion rapida).</summary>
+        public readonly Dictionary<(int Rx, int Rz), long> CambiosRegion = new();
+        /// <summary>Ultima salida de cada jugador: cuando, hasta que cambio vio el
+        /// mundo y que regiones tenia cargadas.</summary>
+        public readonly Dictionary<string, (DateTime Cuando, long Seq, HashSet<(int Rx, int Rz)> Regiones)> Salidas = new();
         public int Conteo => Jugadores.Count;
     }
 
@@ -414,6 +426,22 @@ public sealed class GameServer : IAsyncDisposable
             }
         }
         catch (Exception ex) { Log($"[writer] error de escritura para {c.Nombre}: {ex.Message}"); }
+    }
+
+    /// <summary>Apunta que una region del mundo ha cambiado (para el delta de
+    /// reconexion): no guarda el bloque, solo marca la region como sucia y avanza
+    /// el numero de cambio del mundo. Con radio > 0 marca tambien las vecinas
+    /// (un arbol o una explosion ocupan mas de una region).</summary>
+    static void AnotarCambio(MundoServidor mundo, int x, int z, int radio = 0)
+    {
+        mundo.Cambios++;
+        for (int dx = -radio; dx <= radio; dx++)
+            for (int dz = -radio; dz <= radio; dz++)
+            {
+                var (rx, rz) = Mundo.RegionDe(x + dx, z + dz);
+                if (rx >= 0 && rz >= 0 && rx < mundo.Mundo.RegionesX && rz < mundo.Mundo.RegionesZ)
+                    mundo.CambiosRegion[(rx, rz)] = mundo.Cambios;
+            }
     }
 
     void Desconectar(ConexionJugador c)
@@ -905,7 +933,7 @@ public sealed class GameServer : IAsyncDisposable
             GuardarMundos(); // persistir el mundo nuevo desde el primer momento
             Log($"{c.Nombre} creo el mundo [{nombre}] ({(cm.Abierto ? "publico" : "privado")}).");
             Enviar(c, new MundoCreado { Id = mundo.Id, Token = mundo.Token });
-            UnirseInterno(c, mundo);
+            UnirseInterno(c, mundo, false); // el creador entra al mundo entero
             NotificarListas();
         }
     }
@@ -974,12 +1002,12 @@ public sealed class GameServer : IAsyncDisposable
             }
             c.IntentosPin = 0;
             if (c.EnMundo) SalirDelMundo(c, notificar: true);
-            UnirseInterno(c, mundo);
+            UnirseInterno(c, mundo, u.TengoMundo); // delta si el cliente conserva el mundo
             NotificarListas();
         }
     }
 
-    void UnirseInterno(ConexionJugador c, MundoServidor mundo)
+    void UnirseInterno(ConexionJugador c, MundoServidor mundo, bool tengoMundo)
     {
         var aparicion = mundo.Mundo.ObtenerPuntoAparicion();
         float ry = 0;
@@ -999,12 +1027,33 @@ public sealed class GameServer : IAsyncDisposable
         c.Muerto = false;
         c.CausaMuerte = "";
         mundo.Jugadores[c.Id] = c;
-        // Al entrar, la lista de regiones cargadas empieza de cero (las del mundo anterior no valen aunque coincidan las coordenadas).
+        // Al entrar, la lista de regiones cargadas empieza de cero (las del mundo
+        // anterior no valen aunque coincidan las coordenadas).
         c.RegionesEnviadas.Clear();
+        // Delta de reconexion rapida: si el cliente dice que aun tiene el mundo y
+        // su salida es reciente, en vez del mundo entero se mandan solo las
+        // regiones que cambiaron mientras estaba fuera (el resto del radio llega
+        // igual que siempre y lo que se aleja se olvida).
+        List<(int Rx, int Rz, byte[] Datos)>? delta = null;
+        if (tengoMundo && mundo.Salidas.TryGetValue(c.Nombre, out var salida)
+            && (DateTime.UtcNow - salida.Cuando).TotalMinutes < MinutosDeltaRapido)
+        {
+            var cambiadas = new List<(int Rx, int Rz)>();
+            foreach (var (region, seq) in mundo.CambiosRegion)
+                if (seq > salida.Seq && salida.Regiones.Contains(region)) cambiadas.Add(region);
+            // Si ha cambiado media parte del mundo, sale mas a cuenta mandarlo entero.
+            if (cambiadas.Count > 0 && cambiadas.Count <= mundo.Mundo.TotalRegiones / 2)
+            {
+                c.RegionesEnviadas.UnionWith(salida.Regiones);
+                delta = new List<(int Rx, int Rz, byte[] Datos)>();
+                foreach (var region in cambiadas)
+                    delta.Add((region.Rx, region.Rz, mundo.Mundo.SerializarRegion(region.Rx, region.Rz)));
+            }
+        }
         // El mundo viaja por regiones (streaming por proximidad): primero la
         // cabecera con las dimensiones y la semilla, y despues cada region de
         // 64x64 columnas por separado. Asi se pueden mandar solo las cercanas
-        // al jugador cuando se mueva, sin repetir la cabecera.
+        // al jugador cuando se mueve, sin repetir la cabecera.
         Enviar(c, new Unido
         {
             Id = mundo.Id,
@@ -1016,13 +1065,27 @@ public sealed class GameServer : IAsyncDisposable
             Profundo = mundo.Mundo.Profundo,
             Semilla = mundo.Mundo.Semilla,
             Ax = aparicion.X, Ay = aparicion.Y, Az = aparicion.Z,
+            Delta = delta != null,
+            RegionesDelta = delta?.Count ?? 0,
         });
-        // Al entrar se manda el mundo entero, de la region mas cercana a la mas
-        // lejana: lo primero que llega es el terreno de debajo de los pies, que
-        // es lo que necesita el cliente para entrar al mundo sin esperar al
-        // resto. A partir de ahi, segun se mueve solo recibe las regiones del
-        // radio de carga y se le avisa de las que deja atras (streaming).
-        EnviarRegiones(c, mundo, (int)aparicion.X, (int)aparicion.Z, todo: true);
+        if (delta != null)
+        {
+            // Reconexion rapida: el cliente conserva el mundo, recibe de vuelta las
+            // regiones que cambiaron y despues el resto del radio (lo que ya no
+            // tiene cerca se le olvida, igual que cuando se mueve).
+            foreach (var (rx, rz, datos) in delta)
+                Enviar(c, new MundoRegion { Rx = rx, Rz = rz, Datos = datos });
+            EnviarRegiones(c, mundo, (int)aparicion.X, (int)aparicion.Z);
+        }
+        else
+        {
+            // Al entrar se manda el mundo entero, de la region mas cercana a la mas
+            // lejana: lo primero que llega es el terreno de debajo de los pies, que
+            // es lo que necesita el cliente para entrar al mundo sin esperar al
+            // resto. A partir de ahi, segun se mueve solo recibe las regiones del
+            // radio de carga y se le avisa de las que deja atras (streaming).
+            EnviarRegiones(c, mundo, (int)aparicion.X, (int)aparicion.Z, todo: true);
+        }
         // Si el jugador ya tuvo inventario en este mundo (persistido), restaurarlo;
         // si no, dar el kit de inicio la primera vez que entra.
         if (c.Inventario.Count == 0 && mundo.Inventarios.TryGetValue(c.Nombre, out var guardado) && guardado.Count > 0)
@@ -1063,6 +1126,9 @@ public sealed class GameServer : IAsyncDisposable
                 mundo.Inventarios[c.Nombre] = c.Inventario.ToList();
                 // Y su ultima posicion (si murio, mejor reaparecer en el spawn)
                 if (!c.Muerto) mundo.Posiciones[c.Nombre] = (c.Pos.X, c.Pos.Y, c.Pos.Z, c.Ry);
+                // Delta de reconexion: cuando salio, hasta que cambio vio el mundo
+                // y que regiones tenia cargadas (para reenviarle solo lo cambiado).
+                mundo.Salidas[c.Nombre] = (DateTime.UtcNow, mundo.Cambios, new HashSet<(int Rx, int Rz)>(c.RegionesEnviadas));
                 mundo.Jugadores.Remove(c.Id);
                 if (notificar) Broadcast(id, new JugadorSalio { Id = c.Id, Nombre = c.Nombre });
                 // El mundo se mantiene en memoria aunque quede vacio: se puede volver a entrar despues.
@@ -1138,6 +1204,7 @@ public sealed class GameServer : IAsyncDisposable
             else mundo.GolpesRomper.Remove((rb.X, rb.Y, rb.Z));
 
             m.Poner(rb.X, rb.Y, rb.Z, Bloques.Aire);
+            AnotarCambio(mundo, rb.X, rb.Z);
 
             // Al romper un cofre, su contenido cae al suelo como drops
             if (actual == Bloques.Cofre && mundo.Cofres.Remove((rb.X, rb.Y, rb.Z), out var contenido))
@@ -1188,6 +1255,7 @@ public sealed class GameServer : IAsyncDisposable
             // (antes los bloques eran ilimitados y no se descontaban).
             if (Contar(c, cb.Bloque) <= 0) return;
             m.Poner(cb.X, cb.Y, cb.Z, cb.Bloque);
+            AnotarCambio(mundo, cb.X, cb.Z);
             Quitar(c, cb.Bloque, 1);
             Enviar(c, InventarioActual(c));
             Broadcast(mundo.Id, new BloqueCambio { X = cb.X, Y = cb.Y, Z = cb.Z, Bloque = cb.Bloque });
@@ -1263,6 +1331,7 @@ public sealed class GameServer : IAsyncDisposable
             if (Objetos.EsAzada(mano) && (bloque == Bloques.Tierra || bloque == Bloques.Cesped))
             {
                 m.Poner(ub.X, ub.Y, ub.Z, Bloques.TierraLabrada);
+                AnotarCambio(mundo, ub.X, ub.Z);
                 Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y, Z = ub.Z, Bloque = Bloques.TierraLabrada });
                 return;
             }
@@ -1273,6 +1342,7 @@ public sealed class GameServer : IAsyncDisposable
                 if (!Quitar(c, (ushort)ItemId.SemillasTrigo, 1)) return;
                 Enviar(c, InventarioActual(c));
                 m.Poner(ub.X, ub.Y + 1, ub.Z, Bloques.Trigo0);
+                AnotarCambio(mundo, ub.X, ub.Z);
                 Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y + 1, Z = ub.Z, Bloque = Bloques.Trigo0 });
                 return;
             }
@@ -1283,6 +1353,7 @@ public sealed class GameServer : IAsyncDisposable
                 if (!Quitar(c, Bloques.Planton, 1)) return;
                 Enviar(c, InventarioActual(c));
                 m.Poner(ub.X, ub.Y + 1, ub.Z, Bloques.Planton);
+                AnotarCambio(mundo, ub.X, ub.Z);
                 Broadcast(mundo.Id, new BloqueCambio { X = ub.X, Y = ub.Y + 1, Z = ub.Z, Bloque = Bloques.Planton });
                 return;
             }
@@ -1487,6 +1558,7 @@ public sealed class GameServer : IAsyncDisposable
                         if (rnd.NextDouble() < prob)
                         {
                             m.Poner(x, y, z, (ushort)(b + 1));
+                            AnotarCambio(mundo, x, z);
                             if (HayJugadorCerca(mundo, x, y, z, 64))
                                 Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = (ushort)(b + 1) });
                         }
@@ -1496,6 +1568,7 @@ public sealed class GameServer : IAsyncDisposable
                              rnd.NextDouble() < (HayAguaCerca(m, x, y, z, 3) ? 0.6 : 0.25))
                     {
                         Mundo.PonerArbol(m, x, y, z, rnd);
+                        AnotarCambio(mundo, x, z, 3); // un arbol ocupa varias regiones
                         if (HayJugadorCerca(mundo, x, y, z, 64))
                             Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Madera });
                     }
@@ -1568,11 +1641,13 @@ public sealed class GameServer : IAsyncDisposable
                         // explotan con ella en vez de quedar como bloque.
                         mundo.Tnts.RemoveAll(t2 => t2.x == x && t2.y == y && t2.z == z);
                         m.Poner(x, y, z, Bloques.Aire);
+                        AnotarCambio(mundo, x, z);
                         Broadcast(mundo.Id, new BloqueCambio { X = x, Y = y, Z = z, Bloque = Bloques.Aire });
                         continue;
                     }
                     if (hayAgua) continue;
                     m.Poner(x, y, z, Bloques.Aire);
+                        AnotarCambio(mundo, x, z);
                     if (rnd.NextDouble() < 0.3)
                     {
                         foreach (var (mat, cant) in Objetos.DropAlRomper(b, true, rnd))
@@ -1615,6 +1690,7 @@ public sealed class GameServer : IAsyncDisposable
         int cx = x + 1, cz = z;
         if (!m.Dentro(cx, sy, cz) || m.Obtener(cx, sy, cz) == Bloques.Agua) { cx = x; cz = z + 1; }
         m.Poner(cx, sy, cz, Bloques.Cofre);
+        AnotarCambio(mundo, cx, cz);
         var contenido = new List<SlotInventario>
         {
             new((ushort)ItemId.PicoPiedra, 1),
@@ -1635,6 +1711,7 @@ public sealed class GameServer : IAsyncDisposable
             int ay = m.Superficie(ax, az);
             if (m.Dentro(ax, ay, az) && m.Obtener(ax, ay, az) == Bloques.Aire)
                 m.Poner(ax, ay, az, Bloques.Antorcha);
+            AnotarCambio(mundo, ax, az);
         }
     }
 
