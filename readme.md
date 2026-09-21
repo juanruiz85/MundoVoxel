@@ -4,7 +4,7 @@
 
 ## 📥 Descargas
 
-Las versiones funcionales se publican automáticamente en [GitHub Releases](https://github.com/juanruiz85/MundoVoxel/releases) con los binarios listos: **servidor** Windows y Linux (autocontenidos), **cliente Windows** y **APK de Android**.
+Las versiones funcionales se publican automáticamente en [GitHub Releases](https://github.com/juanruiz85/MundoVoxel/releases) con los binarios listos: **servidor** Windows y Linux (autocontenidos), **cliente Windows** (carpeta suelta y **MSIX**) y **APK de Android**. Del MSIX se adjunta también el certificado de desarrollo: hay que confiar en él (o activar el modo para desarrolladores) antes de instalarlo, como se cuenta en `docs/releases.md`.
 
 Para cortar una versión nueva: actualiza `changelog.md`, haz el commit, crea el tag y publícalo — el workflow `release.yml` construye todo y crea el release con las notas de esa versión:
 

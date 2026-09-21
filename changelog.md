@@ -2,11 +2,23 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.23] - 2026-09-21
+
+### Añadido
+
+- **MSIX de Windows en el release**: además del zip, el workflow construye un paquete **MSIX** (`-p:WindowsPackageType=MSIX`) con su manifiesto (`Platforms/Windows/Package.appxmanifest`) y sus iconos. Va firmado siempre: con el certificado de los secretos si están (`MSIX_CERT_B64` / `MSIX_CERT_PASS`), y si no con uno autofirmado de desarrollo cuyo `.cer` se publica al lado (hay que confiar en él antes de abrir el paquete; se explica en `docs/releases.md`).
+- **Firma del APK con keystore propio (opcional)**: si están los secretos `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASS`, el APK de release se firma con esa clave; si no están, se sigue firmando con la de depuración y el workflow lo avisa.
+
+### Cambiado
+
+- **CI con filtros de ruta**: los push que solo tocan documentación (`**.md`, `docs/**`, `.gitignore`) ya no disparan la suite ni los builds (se ahorran ~9 minutos por commit de textos). Los cambios de código, workflows o configuración siguen pasando por todo.
+
+### Corregido
+
+- **Saltos de línea espurios en los textos** (`MundoVoxel.Client/lang/es.lang`, `docs/arquitectura.md`, `changelog.md` y `docs/guia-de-texturas.md`): había palabras acentuadas partidas con un salto de línea (`Dejar vac` / `í` / `o si el servidor...`), que en el fichero de idioma dejaban el texto de la interfaz partido en pantalla. Se han vuelto a unir las 10 palabras afectadas.
 ## [0.11.22] - 2026-09-21
 
-### A
-ñ
-adido
+### Añadido
 
 - **Reconexión rápida (delta por regiones)**: si se cae la conexión y vuelves al mismo mundo, el cliente **conserva el terreno** que ya tenía y el servidor solo le reenvía las **regiones que cambiaron** mientras estaba fuera (campos nuevos `Unirse.TengoMundo`, `Unido.Delta` y `Unido.RegionesDelta`), en vez del mundo entero. El servidor apunta al salir de cada jugador cuándo se fue, hasta qué cambio vio el mundo y qué regiones tenía cargadas; si la ausencia pasa de 5 minutos (`MinutosDeltaRapido`), si cambió más de medio mundo o si no hay salida apuntada, se manda el mundo completo como antes. El cliente olvida la región antes de aplicar los bytes nuevos (una región repetida se ignora) y el resto del radio llega igual que al moverse. Pruebas: 8 comprobaciones de integración por socket (llega el delta con la región cambiada y el bloque nuevo, no se reenvía el mundo entero, sin salida apuntada llega el mundo completo y con la ventana pasada también).
 

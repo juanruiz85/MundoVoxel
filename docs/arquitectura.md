@@ -60,21 +60,9 @@
 - `Frames.LeerAsync` trabaja sobre `Stream`, así que el resto del protocolo es idéntico con o sin TLS.
 
 ### Clave de acceso (opcional)
-- `GameServer.Clave` (o `"ClaveServidor": "..."` en `ajustes.config.json`): al recibir `Hola`, si hay clave configurada se comprueba **antes** de responder `Bienvenido`/`ListaMundos`; si no coincide se manda `ErrorServidor` con el c
-ó
-digo `CLAVE_SERVIDOR` y la conexi
-ó
-n queda sin identificar.
-- La comparaci
-ó
-n es en tiempo constante y comparte el tope de intentos con las claves de mundo (`IntentosPin`: 5 fallos por minuto y conexi
-ó
-n).
-- El cliente guarda la clave en `Preferences` (`clave_servidor`), la manda en `Hola` y la reutiliza en la reconexi
-ó
-n autom
-á
-tica. "Jugar solo" nunca pide clave.
+- `GameServer.Clave` (o `"ClaveServidor": "..."` en `ajustes.config.json`): al recibir `Hola`, si hay clave configurada se comprueba **antes** de responder `Bienvenido`/`ListaMundos`; si no coincide se manda `ErrorServidor` con el código `CLAVE_SERVIDOR` y la conexión queda sin identificar.
+- La comparación es en tiempo constante y comparte el tope de intentos con las claves de mundo (`IntentosPin`: 5 fallos por minuto y conexión).
+- El cliente guarda la clave en `Preferences` (`clave_servidor`), la manda en `Hola` y la reutiliza en la reconexión automática. "Jugar solo" nunca pide clave.
 
 ### Regiones del mundo (streaming por proximidad, en curso)
 

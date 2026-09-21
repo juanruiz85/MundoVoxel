@@ -1,7 +1,7 @@
 ﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
-Ultima actualizacion: 2026-09-21 (streaming por proximidad y cuentas por jugador, en curso).
+Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows y filtros de CI).
 
 ## Hecho recientemente (para contexto)
 
@@ -32,9 +32,10 @@ Ultima actualizacion: 2026-09-21 (streaming por proximidad y cuentas por jugador
 - [x] v0.11.6: tope de memoria al deserializar mundos cargados (dimensiones validadas; completa el tope de descompresion).
 
 ### Infraestructura
-- [ ] MSIX/instalador de Windows en el workflow de release (hoy solo zip).
-- [ ] Firma del APK con keystore propio de release (hoy usa la clave de debug).
+- [x] **MSIX de Windows** (v0.11.23): hecho. El release adjunta, además del zip, un paquete MSIX (manifiesto en `Platforms/Windows/Package.appxmanifest` + iconos), firmado con el certificado de los secretos o, si no los hay, con uno autofirmado de desarrollo y su `.cer` al lado. El publish normal sigue siendo la carpeta suelta. Falta probar la instalación a mano en otro Windows (ver `docs/releases.md`).
+- [ ] Firma del APK con keystore propio de release: el workflow ya la usa si están los secretos (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASS`) y avisa si no. Faltan por crear el keystore y los secretos (ver `docs/releases.md`).
 - [x] v0.11.9: unidad systemd + INSTALL.txt dentro del tar.gz del servidor Linux . (pendiente menor: firma GPG del repositorio apt, no aplica sin repo propio).
+- [x] **CI: filtros de ruta** (v0.11.23): hecho. Los push que solo tocan documentación (`**.md`, `docs/**`, `.gitignore`) ya no disparan la suite ni los builds (~9 minutos ahorrados por commit de textos).
 - [ ] CI: acelerar el workload MAUI (el cache completo de packs se cuelga; probar cachear solo sdk-manifests/metadata o una imagen con el workload).
 
 ### Cliente

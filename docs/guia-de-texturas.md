@@ -1,4 +1,4 @@
-# Guía de texturas e iconos — MundoVoxel
+﻿# Guía de texturas e iconos — MundoVoxel
 
 MundoVoxel usa un **renderizador por software** (sin GPU): no hay archivos de
 imagen (PNG/JPG) para las texturas. Todo lo que se ve se genera **por código**
@@ -119,8 +119,7 @@ cantidad debajo (`ContentLayout = ImagePosition.Top`).
 ## 5. Colores de los ítems (referencia)
 
 `Objetos.Color(material)` devuelve el color "canónico" de cada ítem/bloque
-(los drops antiguos y el HUD lo usaban como color plano). Hoy sigue siendo
-útil como color de fallback para materiales sin diseño específico.
+(los drops antiguos y el HUD lo usaban como color plano). Hoy sigue siendo útil como color de fallback para materiales sin diseño específico.
 
 ## 6. Limitaciones conocidas
 
