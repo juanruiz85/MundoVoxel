@@ -1,7 +1,7 @@
 ﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
-Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows y mejoras de CI).
+Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows, mejoras de CI y pruebas de mobs deterministas).
 
 ## Hecho recientemente (para contexto)
 
@@ -14,6 +14,7 @@ Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows y mejoras
 - [x] v0.11.4: posición del jugador persistida (al reconectar vuelves donde estabas; sin cambios de protocolo)
 - [x] CI (GitHub Actions: suite en Linux + builds MAUI) y releases automaticos por tags (`release.yml`)
 - [x] Seguridad: anti-autoclick, tope de intentos de clave, mineria por golpes, tope de descompresion (ver docs/auditoria-seguridad.md)
+- [x] Pruebas de mobs deterministas (v0.11.23): el ataque de un mob hostil y los drops ya no dependen del azar ni se omiten en CI (mundo nocturno con semilla fija para el ataque; la posición del mob se refresca antes de cada golpe para el drop). Quedan omitidas en CI solo las dos comprobaciones de variedad de tipos, que dependen de la repoblación aleatoria del mundo público.
 
 ## Pendientes (orden sugerido)
 

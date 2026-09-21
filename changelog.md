@@ -16,6 +16,8 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 - **El MSIX firmado no se habría podido generar**: al probar el paso en local, el empaquetador fallaba con `APPX0105` ("no puede importar el fichero de clave") al pasarle el `.pfx`. Ahora el certificado (el de los secretos o el autofirmado de desarrollo) se importa en el almacén del usuario y la firma se hace por huella; además, el workflow mira dentro del paquete que existe `AppxSignature.p7x` y falla si no, para que un MSIX sin firmar no llegue nunca al release.
 
+- **Las pruebas de mobs ya no se omiten en CI**: el ataque de un mob hostil y los drops (con su recogida) dependían del azar --que apareciera un zombi por la noche y que el mob siguiera a menos de 5 bloques del jugador--, así que se saltaban en CI y se quedaban sin cobertura. Ahora el ataque se prueba en un mundo pequeño y nocturno con semilla fija (la generación inicial de mobs es determinista) y los drops refrescan la posición del mob antes de cada golpe. Suite local: 233 correctas, 0 fallos.
+
 ### Corregido
 
 - **Saltos de línea espurios en los textos** (`MundoVoxel.Client/lang/es.lang`, `docs/arquitectura.md`, `changelog.md` y `docs/guia-de-texturas.md`): había palabras acentuadas partidas con un salto de línea (`Dejar vac` / `í` / `o si el servidor...`), que en el fichero de idioma dejaban el texto de la interfaz partido en pantalla. Se han vuelto a unir las 10 palabras afectadas.
