@@ -8,7 +8,6 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 - **MSIX de Windows en el release**: además del zip, el workflow construye un paquete **MSIX** (`-p:WindowsPackageType=MSIX`) con su manifiesto (`Platforms/Windows/Package.appxmanifest`) y sus iconos. Va firmado siempre: con el certificado de los secretos si están (`MSIX_CERT_B64` / `MSIX_CERT_PASS`), y si no con uno autofirmado de desarrollo cuyo `.cer` se publica al lado (hay que confiar en él antes de abrir el paquete; se explica en `docs/releases.md`).
 - **Firma del APK con keystore propio (opcional)**: si están los secretos `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASS`, el APK de release se firma con esa clave; si no están, se sigue firmando con la de depuración y el workflow lo avisa.
-
 - La ventana del delta (**cuánto tiempo se admite**) se puede ajustar en `ajustes.config.json` con `"MinutosDeltaRapido": 5` (0 = desactivado: siempre se manda el mundo entero), igual que `"RadioRegiones"`.
 
 ### Cambiado
@@ -18,6 +17,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 ### Corregido
 
 - **Saltos de línea espurios en los textos** (`MundoVoxel.Client/lang/es.lang`, `docs/arquitectura.md`, `changelog.md` y `docs/guia-de-texturas.md`): había palabras acentuadas partidas con un salto de línea (`Dejar vac` / `í` / `o si el servidor...`), que en el fichero de idioma dejaban el texto de la interfaz partido en pantalla. Se han vuelto a unir las 10 palabras afectadas.
+
 ## [0.11.22] - 2026-09-21
 
 ### Añadido
