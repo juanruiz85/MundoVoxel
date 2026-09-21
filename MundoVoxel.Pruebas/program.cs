@@ -1354,6 +1354,8 @@ Console.WriteLine("Mobs: el hostil que ataca al jugador (mundo nocturno con semi
         }
     Comprobar(mbSalud != null && mbSalud.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
 
+    // Regla de estas pruebas: lo que se mide es la generacion inicial (semilla fija),
+    // nunca la repoblacion, que usa azar compartido.
     // La variedad se comprueba sobre mundos con semilla fija: su generacion inicial
     // es determinista. En el mundo publico la repoblacion es aleatoria, y una sola
     // foto puede pillar menos de 3 tipos por pura casualidad. El mundo diurno va con
