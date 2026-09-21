@@ -74,7 +74,9 @@ jobs:
         run: dotnet workload install maui
       - name: Publicar cliente Windows
         run: |
-          dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -o pub/cliente 2>&1 | Tee-Object -FilePath publish.log
+          $ver = $env:GITHUB_REF_NAME -replace "^v",""
+          $extra = if ($ver -match '^\d+\.\d+\.\d+$') { @("-p:Version=$ver","-p:ApplicationDisplayVersion=$ver.0") } else { @() }
+          dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -o pub/cliente @extra 2>&1 | Tee-Object -FilePath publish.log
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Errores de publicacion
         if: failure()
@@ -122,9 +124,19 @@ jobs:
         shell: pwsh
         run: |
           $ver = $env:GITHUB_REF_NAME -replace "^v",""
+          if ($ver -match '^\d+\.\d+\.\d+$') {
+            # La version del paquete MSIX la fija el manifiesto, no ApplicationDisplayVersion:
+            # sin esto todas las releases compartirian 1.0.0.0 y Windows no actualizaria en sitio.
+            $manifiesto = "MundoVoxel.Client/Platforms/Windows/Package.appxmanifest"
+            $textoManifiesto = [IO.File]::ReadAllText($manifiesto)
+            $textoManifiesto = [Text.RegularExpressions.Regex]::Replace($textoManifiesto, '(?s)(<Identity[^>]*?Version=")[^"]+(")', '${1}' + $ver + '.0${2}')
+            [IO.File]::WriteAllText($manifiesto, $textoManifiesto)
+            Write-Output "MSIX: version del paquete $ver.0 (tomada del tag)"
+          }
+          $extraMsix = if ($ver -match '^\d+\.\d+\.\d+$') { @("-p:ApplicationDisplayVersion=$ver.0") } else { @() }
           dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -o pub/msix `
             -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true `
-            -p:ApplicationDisplayVersion="$ver.0" `
+            @extraMsix `
             -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="$env:MSIX_THUMB" 2>&1 | Tee-Object -FilePath msix.log
           if ($LASTEXITCODE -ne 0) { exit 1 }
           $pkg = Get-ChildItem -Path pub/msix, MundoVoxel.Client/bin/Release -Recurse -Filter *.msix -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -170,6 +182,13 @@ jobs:
           # Sin el keystore en secretos se firma con la clave de depuracion de siempre;
           # con el, el APK de release va firmado con la clave propia.
           $args = @("publish","MundoVoxel.Client","-f","net10.0-android","-c","Release","-o","pub/apk")
+          $verApk = $env:GITHUB_REF_NAME -replace '^v',''
+          if ($verApk -match '^(\d+)\.(\d+)\.(\d+)$') {
+            # El versionCode tiene que subir en cada release o Android no deja actualizar en sitio.
+            $codigoApk = [int]$Matches[1] * 10000 + [int]$Matches[2] * 100 + [int]$Matches[3]
+            $args += @("-p:ApplicationDisplayVersion=$verApk", "-p:ApplicationVersion=$codigoApk")
+            Write-Output "APK: version $verApk (codigo $codigoApk)"
+          }
           if ($env:ANDROID_KEYSTORE_B64) {
             $ks = Join-Path $env:RUNNER_TEMP "release.keystore"
             [IO.File]::WriteAllBytes($ks, [Convert]::FromBase64String($env:ANDROID_KEYSTORE_B64))

@@ -18,6 +18,9 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 - **Las pruebas de mobs ya no se omiten en CI**: el ataque de un mob hostil y los drops (con su recogida) dependían del azar --que apareciera un zombi por la noche y que el mob siguiera a menos de 5 bloques del jugador--, así que se saltaban en CI y se quedaban sin cobertura. Ahora el ataque se prueba en un mundo pequeño y nocturno con semilla fija (la generación inicial de mobs es determinista) y los drops refrescan la posición del mob antes de cada golpe. Suite local: 233 correctas, 0 fallos.
 
+- **La versión de la release sale del tag**: el MSIX toma su `Version` del manifiesto, que el workflow ajusta con el tag (`0.11.23` -> `0.11.23.0`), y el APK toma el `versionCode` del tag (`0.11.23` -> `1123`). Antes el MSIX quedaba clavado en `1.0.0.0` y el APK en el código `1`, así que Windows y Android no habrían dejado actualizar en sitio.
+- **Ninguna prueba se omite ya en CI**: las dos comprobaciones de variedad de tipos de mob se hacen ahora sobre la generación inicial (determinista) de dos mundos con semilla fija --uno nocturno, con hostiles, y otro diurno, solo con pasivos y con el reloj congelado-- y la limpieza de inventarios corre también en CI. La suite se comporta igual en local y en CI: 237 correctas, 0 fallos.
+
 ### Corregido
 
 - **Saltos de línea espurios en los textos** (`MundoVoxel.Client/lang/es.lang`, `docs/arquitectura.md`, `changelog.md` y `docs/guia-de-texturas.md`): había palabras acentuadas partidas con un salto de línea (`Dejar vac` / `í` / `o si el servidor...`), que en el fichero de idioma dejaban el texto de la interfaz partido en pantalla. Se han vuelto a unir las 10 palabras afectadas.

@@ -35,6 +35,15 @@ Alternativa: activar el **modo para desarrolladores** de Windows y abrirlo desde
 
 Si algún día hay un certificado de firma de código de verdad, se sube a los secretos y el workflow lo usa sin tocar el YAML.
 
+### Instalar el MSIX
+
+El MSIX va firmado, pero con un certificado autofirmado de desarrollo Windows solo lo instala si confía en él. No basta con el almacén del usuario: AppX valida contra los almacenes **del equipo**, así que hay que confiar el `.cer` desde una consola **como administrador**:
+
+```powershell
+Import-Certificate -FilePath .\MundoVoxel.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+```
+
+Sin ese paso, `Add-AppxPackage` falla con `0x80073CF0` / `0x800B0100` (sin firmar) o con `0x800B0109` (raíz no confiable). Para que el paquete se instale sin tocar nada, hay que firmarlo con un certificado de firma de código real: el PFX en base64 en `MSIX_CERT_B64` y su clave en `MSIX_CERT_PASS`. La versión del paquete se toma del tag (`v0.11.23` -> `0.11.23.0`) y el `versionCode` del APK también (`v0.11.23` -> `1123`), de modo que las releases se pueden actualizar en sitio.
 ## Secretos (opcionales)
 
 | Secreto | Qué es |
