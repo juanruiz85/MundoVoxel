@@ -15,6 +15,14 @@ menu.conectar=Conectar a un servidor
 menu.servidor_cifrado=Servidor cifrado (TLS)
 menu.clave_servidor=Clave del servidor (si la pide)
 menu.clave_servidor_opcional=Dejar vacío si el servidor no pide clave
+menu.usuario_cuenta=Usuario y clave de la cuenta (si el servidor los pide)
+menu.usuario_cuenta_opcional=Dejar vac
+í
+o si el servidor no pide cuenta
+menu.clave_cuenta=Clave de la cuenta
+menu.clave_cuenta_opcional=Dejar vac
+í
+o si el servidor no pide cuenta
 menu.huella_nueva=Certificado TLS guardado para este servidor (huella {0}).
 menu.huella_cambiada=El certificado de este servidor CAMBIÓ (huella {0}). ConexiÓn rechazada: puede ser una intercepciÓn.
 menu.conectando=Conectando…
@@ -84,6 +92,9 @@ error.no_dueno=Solo el creador del mundo puede hacer esta acción.
 error.mundo_publico=El mundo es público: cualquiera puede entrar.
 error.pin_invalido=La clave debe tener exactamente 6 dígitos.
 error.limite_mundos=El servidor llegó al límite de mundos.
+error.credenciales=Usuario o clave incorrectos.
+error.clave_corta=La clave de la cuenta debe tener entre 6 y 128 caracteres.
+error.muchos_intentos=Demasiados intentos. Espera un minuto y vuelve a probar.
 error.mundo_borrado=El mundo fue borrado por su creador.
 error.nombre_vacio=El nombre del mundo no puede estar vacío.
 error.desconectado=Te desconectaste del servidor.

@@ -14,6 +14,11 @@ public static class EstadoSesion
     /// <summary>Clave de acceso del servidor (solo si el servidor la pide; la
     /// reconexion automatica la reutiliza).</summary>
     public static string Clave { get; set; } = "";
+    /// <summary>Usuario de la cuenta (solo en servidores con cuentas obligatorias; la
+    /// reconexion automatica lo reutiliza).</summary>
+    public static string Usuario { get; set; } = "";
+    /// <summary>Clave de la cuenta (junto al usuario).</summary>
+    public static string ClaveCuenta { get; set; } = "";
     /// <summary>Mensaje pendiente para mostrar en el menú al volver (p. ej.
     /// reconexión agotada); se muestra una vez y se limpia.</summary>
     public static string MensajeMenu { get; set; } = "";

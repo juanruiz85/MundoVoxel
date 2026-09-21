@@ -1218,6 +1218,14 @@ Console.WriteLine("Cuentas: usuario y clave en el saludo (alta, clave mala, sin 
     await cRegistrada.Enviar(new Hola { Usuario = "marta", ClaveCuenta = "clave1234" });
     Comprobar(await cRegistrada.LeerHasta<Bienvenido>(5000) != null, "las cuentas que ya existen siguen entrando con el registro cerrado");
     cRegistrada.Cerrar();
+    var cNombreFalso = await Conectar(puerto);
+    await cNombreFalso.Enviar(new Hola { Nombre = "OtroJugador", Usuario = "marta", ClaveCuenta = "clave1234" });
+    Comprobar(await cNombreFalso.LeerHasta<Bienvenido>(5000) != null, "con cuenta, el nombre escrito en el cliente no impide entrar");
+    await cNombreFalso.Enviar(new CrearMundo { Nombre = "Mundo de cuenta", Abierto = true, Ancho = 64, Alto = 32, Profundo = 64 });
+    Comprobar(await cNombreFalso.LeerHasta<MundoCreado>(8000) != null, "la cuenta puede crear mundos como siempre");
+    var listaCuenta = await cNombreFalso.LeerHasta<ListaMundos>(5000);
+    Comprobar(listaCuenta != null && listaCuenta.Mundos.Any(m => m.Nombre == "Mundo de cuenta" && m.Dueno == "marta"), "el mundo queda a nombre de la cuenta, no del nombre escrito en el cliente");
+    cNombreFalso.Cerrar();
     await servidorCuentas.DetenerAsync();
     try { File.Delete(rutaCuentasPrueba); } catch { }
 }

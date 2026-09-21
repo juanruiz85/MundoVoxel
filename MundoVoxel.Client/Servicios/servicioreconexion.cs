@@ -89,6 +89,8 @@ public sealed class ServicioReconexion
                     Nombre = EstadoSesion.Nombre,
                     Version = "1.0",
                     Clave = EstadoSesion.Clave.Length > 0 ? EstadoSesion.Clave : null,
+                    Usuario = EstadoSesion.Usuario.Length > 0 ? EstadoSesion.Usuario : null,
+                    ClaveCuenta = EstadoSesion.ClaveCuenta.Length > 0 ? EstadoSesion.ClaveCuenta : null,
                 });
                 var lista = await EsperarMensaje(TimeoutListaMs, token,
                     m => m is ListaMundos or ErrorServidor);

@@ -34,6 +34,14 @@ public partial class PaginaMenu : ContentPage
         LblClave.Text = idioma.O("menu.clave_servidor");
         EntClave.Placeholder = idioma.O("menu.clave_servidor_opcional");
         EntClave.Text = Preferences.Get("clave_servidor", "");
+        // Cuenta del jugador (solo en servidores con cuentas: el nombre queda
+        // autenticado). Se recuerda igual que la clave del servidor.
+        LblUsuario.Text = idioma.O("menu.usuario_cuenta");
+        EntUsuario.Placeholder = idioma.O("menu.usuario_cuenta_opcional");
+        EntUsuario.Text = Preferences.Get("usuario_cuenta", "");
+        LblClaveCuenta.Text = idioma.O("menu.clave_cuenta");
+        EntClaveCuenta.Placeholder = idioma.O("menu.clave_cuenta_opcional");
+        EntClaveCuenta.Text = Preferences.Get("clave_cuenta", "");
         // Certificado TLS recordado por el cliente (trust-on-first-use)
         _red.AlHuellaNueva += h => MainThread.BeginInvokeOnMainThread(() =>
             MostrarEstado(idioma.O("menu.huella_nueva", h)));
@@ -73,7 +81,8 @@ public partial class PaginaMenu : ContentPage
     }
 
     void OnConectar(object? sender, EventArgs e) =>
-        ConectarYAvanzar(EntIp.Text?.Trim() ?? "", SwTls.IsToggled, EntClave.Text?.Trim() ?? "");
+        ConectarYAvanzar(EntIp.Text?.Trim() ?? "", SwTls.IsToggled, EntClave.Text?.Trim() ?? "",
+            EntUsuario.Text?.Trim() ?? "", EntClaveCuenta.Text?.Trim() ?? "");
 
     // ------------------------------------------------------- servidores favoritos
 
@@ -207,7 +216,8 @@ public partial class PaginaMenu : ContentPage
         EntIp.Text = favorito.Ip;
         EntPuerto.Text = favorito.Puerto.ToString();
         SwTls.IsToggled = favorito.Cifrado; // el favorito recuerda si su servidor va cifrado
-        ConectarYAvanzar(favorito.Ip, favorito.Cifrado, EntClave.Text?.Trim() ?? "");
+        ConectarYAvanzar(favorito.Ip, favorito.Cifrado, EntClave.Text?.Trim() ?? "",
+            EntUsuario.Text?.Trim() ?? "", EntClaveCuenta.Text?.Trim() ?? "");
     }
 
     /// <summary>Traduce un error del servidor: clave de idioma si existe; si no,
@@ -232,7 +242,7 @@ public partial class PaginaMenu : ContentPage
         LblEstado.IsVisible = true;
     }
 
-    async void ConectarYAvanzar(string ip, bool cifrado, string clave = "")
+    async void ConectarYAvanzar(string ip, bool cifrado, string clave = "", string usuario = "", string claveCuenta = "")
     {
         var nombre = EntNombre.Text?.Trim() ?? "";
         if (nombre.Length == 0)
@@ -262,6 +272,12 @@ public partial class PaginaMenu : ContentPage
         // que ya estaba guardada al jugar solo.
         EstadoSesion.Clave = clave;
         if (clave.Length > 0) Preferences.Set("clave_servidor", clave);
+        // Cuenta del jugador: la reconexion automatica la reutiliza. Solo se guarda
+        // si hay algo, para no borrar la que ya estaba al jugar solo.
+        EstadoSesion.Usuario = usuario;
+        EstadoSesion.ClaveCuenta = claveCuenta;
+        if (usuario.Length > 0) Preferences.Set("usuario_cuenta", usuario);
+        if (claveCuenta.Length > 0) Preferences.Set("clave_cuenta", claveCuenta);
 
         LblEstado.Text = _idioma.O("menu.conectando");
         LblEstado.IsVisible = true;
@@ -279,7 +295,14 @@ public partial class PaginaMenu : ContentPage
             _conectando = false;
             return;
         }
-        _red.Enviar(new Hola { Nombre = nombre, Version = "1.0", Clave = clave.Length > 0 ? clave : null });
+        _red.Enviar(new Hola
+        {
+            Nombre = nombre,
+            Version = "1.0",
+            Clave = clave.Length > 0 ? clave : null,
+            Usuario = usuario.Length > 0 ? usuario : null,
+            ClaveCuenta = claveCuenta.Length > 0 ? claveCuenta : null,
+        });
     }
 
     void OnConectado()
