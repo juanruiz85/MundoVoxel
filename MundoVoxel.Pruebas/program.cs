@@ -366,30 +366,23 @@ Comprobar(objetivo != null, "hay un mob pasivo en el mundo");
 
 if (objetivo != null)
 {
-    // Teletransportar a Ana junto al mob (el servidor actualiza Pos con el mensaje Posicion)
-    await c1.Enviar(new Posicion { Px = objetivo.Px, Py = objetivo.Py, Pz = objetivo.Pz, Ry = 0, Pitch = 0 });
-    await Task.Delay(150);
-
-    bool enCIaqui = Environment.GetEnvironmentVariable("CI") == "true";
-    bool tieneCarne = false;
+    // El servidor ignora los golpes a mas de 5 bloques del mob y el mob anda,
+    // asi que se refresca su posicion antes de cada golpe (antes se teletransportaba
+    // una sola vez y se golpeaba a ciegas: de ahi los fallos intermitentes).
     Inventario? invDrop = null;
-    if (enCIaqui)
+    for (int golpeDrop = 0; golpeDrop < 6; golpeDrop++)
     {
-        // En CI se omiten los drops de mobs: dependen de que el mob siga donde
-        // decia el broadcast (en runners lentos se mueve y a noche hay hostiles
-        // acechando). Se cubren en corridas locales.
-        Console.WriteLine("  [skip ci] drops de mob omitidos; se cubren en corridas locales.");
+        var objetivoFresco = (await c1.LeerHasta<Mobs>(timeoutMs: 4000))?.Lista.FirstOrDefault(m => m.Id == objetivo.Id);
+        if (objetivoFresco == null) break; // el mob ya no esta: murio
+        await c1.Enviar(new Posicion { Px = objetivoFresco.Px, Py = objetivoFresco.Py, Pz = objetivoFresco.Pz, Ry = 0, Pitch = 0 });
+        await c1.Enviar(new GolpearMob { Id = objetivo.Id });
+        await Task.Delay(400); // cooldown anti-autoclick del servidor (250 ms)
     }
-    else
-    {
-        for (int i = 0; i < 5; i++) { await c1.Enviar(new GolpearMob { Id = objetivo.Id }); await Task.Delay(300); } // cooldown anti-autoclick del servidor
-        await Task.Delay(900); // esperar drop + auto-recogida
-
-        invDrop = await c1.LeerHasta<Inventario>(timeoutMs: 8000);
-        tieneCarne = invDrop != null && invDrop.Slots.Any(s =>
-            s.Material == (ushort)ItemId.CarneCrudaCerdo || s.Material == (ushort)ItemId.CarneCrudaVaca || s.Material == (ushort)ItemId.CarneCrudaOveja);
-        Comprobar(tieneCarne, "matar mob -> drop recogido -> carne cruda en inventario");
-    }
+    await Task.Delay(900); // esperar drop + auto-recogida
+    invDrop = await c1.LeerHasta<Inventario>(timeoutMs: 8000) ?? invDrop;
+    bool tieneCarne = invDrop != null && invDrop.Slots.Any(s =>
+        s.Material == (ushort)ItemId.CarneCrudaCerdo || s.Material == (ushort)ItemId.CarneCrudaVaca || s.Material == (ushort)ItemId.CarneCrudaOveja);
+    Comprobar(tieneCarne, "matar mob -> drop recogido -> carne cruda en inventario");
 
     // Cocinar: volver al spawn y cocinar la carne (si la hay)
     if (tieneCarne)
@@ -471,59 +464,21 @@ if (invLingote == null)
     Console.WriteLine($"[diag] fundir fallo: siguiente msg = {(errFund?.GetType().Name ?? "ninguno")} {(errFund is ErrorServidor e2 ? e2.Codigo + " " + e2.Mensaje : "")}");
 }
 
-// Un mob hostil ataca al jugador si esta cerca (se prueba de noche, antes de que
-// los hostiles se quemen al amanecer). Se usa un ZOMBI (Tipo 3) porque golpea en
-// bucle. Tras comprobar el ataque se mata al zombi y se cura a Ana con el modo
-// espectador (el test de muerte + respawn se hace al final de la suite).
-// Noche de nuevo: los hostiles solo aparecen y atacan de noche.
-await c1.Enviar(new FijarHora { Hora = 0f });
-await Task.Delay(600);
-// Espera acotada a que aparezca un zombi: al pasar de dia a medianoche los
-// hostiles necesitan unos ticks para aparecer (la poblacion ya puede estar
-// llena de pasivos), sobre todo en runners lentos.
-MobEstado? hostil = null;
-for (int r = 0; r < 3 && hostil == null; r++)
-{
-    var mh = await c1.LeerHasta<Mobs>(timeoutMs: 10000);
-    if (mh == null) break;
-    hostil = mh.Lista.FirstOrDefault(m => m.Tipo == 3); // zombi
-}
-// La aparicion de hostiles es probabilistica por tick: en runners de CI lentos
-// puede no haber zombi en la ventana de espera. En CI se omite (y se indica);
-// en corridas locales se ejecuta siempre.
+// El ataque de un mob hostil se prueba de forma determinista al final de la
+// suite (bloque "Mobs: el hostil que ataca al jugador"): alli se crea un mundo
+// nocturno con semilla fija, donde los hostiles se siembran siempre. Antes se
+// probaba aqui esperando a que apareciese un zombi tras anochecer, pero la
+// aparicion es probabilistica por tick: fallaba a veces en local y se omitia en
+// CI (que se quedaba sin ninguna cobertura del ataque).
+//
+// Lo que queda aqui es la limpieza de Ana despues de los golpes de los tests
+// anteriores: curarla con el modo espectador, devolverla al spawn y barrer los
+// hostiles que pudieran haber aparecido cerca. En CI se omite (es una tanda de
+// golpes que alarga la suite sin aportar cobertura nueva).
 bool enCI = Environment.GetEnvironmentVariable("CI") == "true";
-if (enCI) Console.WriteLine("[skip ci] prueba de hostiles omitida: depende de la aparicion probabilistica de mobs; se cubre en corridas locales.");
+if (enCI) Console.WriteLine("[skip ci] curacion de Ana y barrido de hostiles omitidos (el ataque se prueba en el bloque de mobs).");
 else
 {
-if (hostil != null)
-{
-    // Acercarse al zombi con su posicion MAS RECIENTE (en runners lentos camina
-    // entre el broadcast y el golpe) y reintentar hasta ver el danio.
-    JugadorSalud? saludMsg = null;
-    for (int intento = 0; intento < 8 && saludMsg == null; intento++)
-    {
-        var mhFresco = await c1.LeerHasta<Mobs>(timeoutMs: 10000);
-        var zombiFresco = mhFresco?.Lista.FirstOrDefault(m => m.Id == hostil.Id);
-        if (zombiFresco == null) break; // ya no existe: no hay nada que probar
-        await c1.Enviar(new Posicion { Px = zombiFresco.Px, Py = zombiFresco.Py, Pz = zombiFresco.Pz, Ry = 0, Pitch = 0 });
-        await Task.Delay(700);
-        saludMsg = await c1.LeerHasta<JugadorSalud>(timeoutMs: 5000);
-    }
-    Comprobar(saludMsg != null && saludMsg.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
-    // Matar al zombi de verdad: 20 de salud, cada golpe hace 5+espada; se
-    // golpea en bucle hasta que desaparezca del mensaje Mobs.
-    // Matar al zombi de verdad: 20 de salud, cada golpe hace 5+espada; se
-    // golpea en bucle hasta que desaparezca del mensaje Mobs.
-    for (int g = 0; g < 8; g++) { await c1.Enviar(new GolpearMob { Id = hostil.Id }); await Task.Delay(300); }
-    await Task.Delay(300);
-    bool zombiMuerto = true;
-    var msVerif = await c1.LeerHasta<Mobs>(timeoutMs: 3000);
-    if (msVerif != null && msVerif.Lista.Any(m => m.Id == hostil.Id)) zombiMuerto = false;
-    if (!zombiMuerto)
-        for (int g = 0; g < 8; g++) { await c1.Enviar(new GolpearMob { Id = hostil.Id }); await Task.Delay(300); }
-    await Task.Delay(300);
-}
-else Comprobar(false, "un mob hostil ataca al jugador cercano (la vida baja)");
 // Curar a Ana (el modo espectador restaura la vida) y volver al spawn
 await c1.Enviar(new ModoEspectador { Activo = true });
 await Task.Delay(200);
@@ -551,7 +506,7 @@ for (int g = 0; g < 8; g++)
 await Task.Delay(400);
 for (int d = 0; d < 4; d++)
     _ = await c1.LeerHasta<Inventario>(timeoutMs: 300);
-} // fin del bloque de hostiles (omitido en CI)
+} // fin de la limpieza (curacion de Ana y barrido de hostiles)
 
 // Poner el mundo de dia: los hostiles restantes se queman con el sol y dejan
 // de acosar a Ana durante el resto de la suite (el trigo tarda en madurar).
@@ -1367,6 +1322,52 @@ Console.WriteLine("Cuentas: usuario y clave en el saludo (alta, clave mala, sin 
     try { File.Delete(rutaCuentasPrueba); } catch { }
 }
 
+
+// ---------- mobs hostiles: el ataque, de forma determinista ----------
+// La generacion inicial de mobs (GenerarMobs) usa un generador sembrado con la
+// semilla del mundo. Con un mundo pequeno, de noche y semilla fija, la lista de
+// mobs es la misma en cada corrida: siempre hay hostiles, asi que la prueba vale
+// tambien en CI (antes se omitia alli por depender del azar).
+Console.WriteLine("Mobs: el hostil que ataca al jugador (mundo nocturno con semilla fija).");
+{
+    var mbServidor = new GameServer(puerto, "Servidor de prueba de mobs", 4, 4);
+    mbServidor.Iniciar();
+    await Task.Delay(400);
+    var mbCliente = await Conectar(puerto);
+    await mbCliente.Enviar(new Hola { Nombre = "Cazador", Version = "1.0" });
+    Comprobar(await mbCliente.LeerHasta<Bienvenido>(5000) != null, "mobs: el cazador entra en el servidor");
+    await mbCliente.Enviar(new CrearMundo { Nombre = "Noche cerrada", Abierto = true, Semilla = 20260921, HoraInicial = 0f, CantidadMobs = 12, Ancho = 96, Alto = 48, Profundo = 96 });
+    Comprobar(await mbCliente.LeerHasta<MundoCreado>(8000) != null, "mobs: se crea el mundo nocturno");
+    var (mbUnido, _, _) = await LeerUnidoCompleto(mbCliente, 20000);
+    Comprobar(mbUnido != null, "mobs: se entra en el mundo nocturno");
+
+    // La lista sembrada tiene que traer hostiles: zombi (3), creeper (4) o esqueleto (5).
+    MobEstado? mbHostil = null;
+    for (int mbRonda = 0; mbRonda < 4 && mbHostil == null; mbRonda++)
+    {
+        var mbMsg = await mbCliente.LeerHasta<Mobs>(timeoutMs: 8000);
+        if (mbMsg == null) break;
+        mbHostil = mbMsg.Lista.FirstOrDefault(m => m.Tipo is 3 or 4 or 5);
+    }
+    Comprobar(mbHostil != null, "mobs: el mundo nocturno se siembra con hostiles (semilla fija)");
+
+    // Pegarse al hostil (con su posicion mas reciente) hasta que la vida baje.
+    JugadorSalud? mbSalud = null;
+    if (mbHostil != null)
+        for (int mbIntento = 0; mbIntento < 6 && mbSalud == null; mbIntento++)
+        {
+            var mbFresco = await mbCliente.LeerHasta<Mobs>(timeoutMs: 6000);
+            var mbCerca = mbFresco?.Lista.FirstOrDefault(m => m.Id == mbHostil.Id);
+            if (mbCerca == null) break; // ya no existe: no hay nada que probar
+            await mbCliente.Enviar(new Posicion { Px = mbCerca.Px, Py = mbCerca.Py, Pz = mbCerca.Pz, Ry = 0, Pitch = 0 });
+            await Task.Delay(600);
+            mbSalud = await mbCliente.LeerHasta<JugadorSalud>(timeoutMs: 4000);
+        }
+    Comprobar(mbSalud != null && mbSalud.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
+
+    mbCliente.Cerrar();
+    await mbServidor.DetenerAsync();
+}
 
 // ---------- cierre ----------
 c1.Cerrar(); c2.Cerrar();
