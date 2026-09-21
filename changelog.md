@@ -13,7 +13,7 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 ### Cambiado
 
-- **CI con filtros de ruta**: los push que solo tocan documentación (`**.md`, `docs/**`, `.gitignore`) ya no disparan la suite ni los builds (se ahorran ~9 minutos por commit de textos). Los cambios de código, workflows o configuración siguen pasando por todo.
+- **CI más rápida**: los paquetes NuGet se cachean entre ejecuciones (clave = hash de los .csproj), un push nuevo cancela el CI que estuviera corriendo del mismo ref (el run anterior pasa a `cancelled`) y los push que solo tocan documentación (`**.md`, `docs/**`, `.gitignore`) ya no disparan nada. Los cambios de código, workflows o configuración siguen pasando por la suite y los builds completos.
 
 ### Corregido
 

@@ -1,7 +1,7 @@
 ﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
-Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows y filtros de CI).
+Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows y mejoras de CI).
 
 ## Hecho recientemente (para contexto)
 
@@ -36,7 +36,7 @@ Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows y filtros
 - [ ] Firma del APK con keystore propio de release: el workflow ya la usa si están los secretos (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASS`) y avisa si no. Faltan por crear el keystore y los secretos (ver `docs/releases.md`).
 - [x] v0.11.9: unidad systemd + INSTALL.txt dentro del tar.gz del servidor Linux . (pendiente menor: firma GPG del repositorio apt, no aplica sin repo propio).
 - [x] **CI: filtros de ruta** (v0.11.23): hecho. Los push que solo tocan documentación (`**.md`, `docs/**`, `.gitignore`) ya no disparan la suite ni los builds (~9 minutos ahorrados por commit de textos).
-- [ ] CI: acelerar el workload MAUI (el cache completo de packs se cuelga; probar cachear solo sdk-manifests/metadata o una imagen con el workload).
+- [x] **CI: acelerar los builds** (v0.11.23): hecho lo razonable. Los paquetes NuGet se cachean (clave = hash de los .csproj), un push nuevo cancela el CI que estuviera corriendo del mismo ref y los push de solo documentación no disparan nada. Medido: job de MAUI 8,4 min con la caché en caliente frente a una mediana de 9,2 (rango 6,9-11,9, o sea que la mejora queda dentro del ruido) y la suite 5,3 min como siempre; la primera ejecución con la caché en frío costó 10,4 min (pagando la subida). Descartado cachear los packs del workload: la vez que se probó se colgó y el ahorro no compensa el riesgo.
 
 ### Cliente
 - [ ] Probar manualmente la reconexión automática en Android (el test de protocolo cubre el flujo; falta el tactil real).
