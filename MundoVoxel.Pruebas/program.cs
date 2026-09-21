@@ -473,12 +473,8 @@ if (invLingote == null)
 //
 // Lo que queda aqui es la limpieza de Ana despues de los golpes de los tests
 // anteriores: curarla con el modo espectador, devolverla al spawn y barrer los
-// hostiles que pudieran haber aparecido cerca. En CI se omite (es una tanda de
-// golpes que alarga la suite sin aportar cobertura nueva).
-bool enCI = Environment.GetEnvironmentVariable("CI") == "true";
-if (enCI) Console.WriteLine("[skip ci] curacion de Ana y barrido de hostiles omitidos (el ataque se prueba en el bloque de mobs).");
-else
-{
+// hostiles que pudieran haber aparecido cerca. Corre tambien en CI: asi la suite se
+// comporta igual en local y en CI, y deja los inventarios limpios para lo que sigue.
 // Curar a Ana (el modo espectador restaura la vida) y volver al spawn
 await c1.Enviar(new ModoEspectador { Activo = true });
 await Task.Delay(200);
@@ -506,7 +502,6 @@ for (int g = 0; g < 8; g++)
 await Task.Delay(400);
 for (int d = 0; d < 4; d++)
     _ = await c1.LeerHasta<Inventario>(timeoutMs: 300);
-} // fin de la limpieza (curacion de Ana y barrido de hostiles)
 
 // Poner el mundo de dia: los hostiles restantes se queman con el sol y dejan
 // de acosar a Ana durante el resto de la suite (el trigo tarda en madurar).
