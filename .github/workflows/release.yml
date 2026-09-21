@@ -98,11 +98,15 @@ jobs:
         run: |
           # Si hay un certificado propio en secretos se usa ese; si no, uno autofirmado
           # de desarrollo (el MSIX va firmado igual, pero el usuario tiene que confiar en el .cer).
+          # El certificado se importa al almacen del usuario y se firma por huella: pasando
+          # el .pfx directamente, el empaquetador falla con APPX0105 (no puede importar la clave).
           $pass = "mundovoxel"
           $pfx = Join-Path $env:RUNNER_TEMP "mundovoxel.pfx"
           if ($env:MSIX_CERT_B64) {
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:MSIX_CERT_B64))
             $pass = $env:MSIX_CERT_PASS
+            $sec = if ($pass) { ConvertTo-SecureString -String $pass -AsPlainText -Force } else { New-Object System.Security.SecureString }
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $sec
             Write-Output "MSIX: se firma con el certificado de los secretos"
           } else {
             $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=MundoVoxel" -KeyUsage DigitalSignature -FriendlyName "MundoVoxel (desarrollo)" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3","2.5.29.19={text}")
@@ -111,6 +115,7 @@ jobs:
             Export-Certificate -Cert $cert -FilePath "MundoVoxel.cer" | Out-Null
             Write-Output "::warning::MSIX firmado con un certificado autofirmado de desarrollo; se adjunta MundoVoxel.cer para confiar en el"
           }
+          "MSIX_THUMB=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "PFX=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "PFXPASS=$pass" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Publicar cliente Windows como MSIX
@@ -120,10 +125,14 @@ jobs:
           dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -o pub/msix `
             -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true `
             -p:ApplicationDisplayVersion="$ver.0" `
-            -p:AppxPackageSigningEnabled=true -p:PackageCertificateKeyFile="$env:PFX" -p:PackageCertificatePassword="$env:PFXPASS" 2>&1 | Tee-Object -FilePath msix.log
+            -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="$env:MSIX_THUMB" 2>&1 | Tee-Object -FilePath msix.log
           if ($LASTEXITCODE -ne 0) { exit 1 }
           $pkg = Get-ChildItem -Path pub/msix, MundoVoxel.Client/bin/Release -Recurse -Filter *.msix -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $pkg) { throw "No se genero el MSIX" }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $z = [IO.Compression.ZipFile]::OpenRead($pkg.FullName)
+          try { $firmado = ($z.Entries | Where-Object { $_.FullName -eq "AppxSignature.p7x" }).Count -gt 0 } finally { $z.Dispose() }
+          if (-not $firmado) { throw "El MSIX no lleva firma (falta AppxSignature.p7x)" }
           Copy-Item $pkg.FullName "MundoVoxel-$ver.msix"
           Write-Output "MSIX: $($pkg.Name)"
       - name: Errores del MSIX

@@ -14,6 +14,8 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 
 - **CI más rápida**: los paquetes NuGet se cachean entre ejecuciones (clave = hash de los .csproj), un push nuevo cancela el CI que estuviera corriendo del mismo ref (el run anterior pasa a `cancelled`) y los push que solo tocan documentación (`**.md`, `docs/**`, `.gitignore`) ya no disparan nada. Los cambios de código, workflows o configuración siguen pasando por la suite y los builds completos.
 
+- **El MSIX firmado no se habría podido generar**: al probar el paso en local, el empaquetador fallaba con `APPX0105` ("no puede importar el fichero de clave") al pasarle el `.pfx`. Ahora el certificado (el de los secretos o el autofirmado de desarrollo) se importa en el almacén del usuario y la firma se hace por huella; además, el workflow mira dentro del paquete que existe `AppxSignature.p7x` y falla si no, para que un MSIX sin firmar no llegue nunca al release.
+
 ### Corregido
 
 - **Saltos de línea espurios en los textos** (`MundoVoxel.Client/lang/es.lang`, `docs/arquitectura.md`, `changelog.md` y `docs/guia-de-texturas.md`): había palabras acentuadas partidas con un salto de línea (`Dejar vac` / `í` / `o si el servidor...`), que en el fichero de idioma dejaban el texto de la interfaz partido en pantalla. Se han vuelto a unir las 10 palabras afectadas.
