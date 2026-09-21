@@ -63,6 +63,9 @@ public static class Ajustes
         // mantiene cargadas el servidor (1 = 3x3 = 192x192 columnas). Al
         // alejarse, las que salen del radio se sueltan (MundoOlvida).
         public int RadioRegiones { get; set; } = 1;
+        // Reconexion rapida: minutos durante los que se admite un delta al volver
+        // a un mundo que se dejo hace poco (0 = nunca: siempre el mundo entero).
+        public int MinutosDeltaRapido { get; set; } = 5;
 
 // Cuentas por jugador (opt-in). Con CuentasObligatorias el saludo tiene que traer
 // un usuario y una clave validos; con RegistroAbierto, un nombre nuevo se registra

@@ -24,6 +24,11 @@
   // descarga; si el jugador vuelve, se le mandan otra vez.
   "RadioRegiones": 1,
 
+  // Reconexion rapida: al volver a un mundo que se dejo hace poco, el servidor
+  // manda solo las regiones que cambiaron en vez del mundo entero. Minutos
+  // durante los que vale ese atajo (0 = desactivado: siempre el mundo entero).
+  "MinutosDeltaRapido": 5,
+
   // Cuentas por jugador (opcional). Con "CuentasObligatorias": true el servidor pide
   // usuario y clave antes de dejar entrar: el nombre deja de poder suplantarse (el
   // inventario y la propiedad de los mundos van por nombre). Con "RegistroAbierto":

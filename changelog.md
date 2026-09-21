@@ -9,6 +9,8 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - **MSIX de Windows en el release**: además del zip, el workflow construye un paquete **MSIX** (`-p:WindowsPackageType=MSIX`) con su manifiesto (`Platforms/Windows/Package.appxmanifest`) y sus iconos. Va firmado siempre: con el certificado de los secretos si están (`MSIX_CERT_B64` / `MSIX_CERT_PASS`), y si no con uno autofirmado de desarrollo cuyo `.cer` se publica al lado (hay que confiar en él antes de abrir el paquete; se explica en `docs/releases.md`).
 - **Firma del APK con keystore propio (opcional)**: si están los secretos `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASS`, el APK de release se firma con esa clave; si no están, se sigue firmando con la de depuración y el workflow lo avisa.
 
+- La ventana del delta (**cuánto tiempo se admite**) se puede ajustar en `ajustes.config.json` con `"MinutosDeltaRapido": 5` (0 = desactivado: siempre se manda el mundo entero), igual que `"RadioRegiones"`.
+
 ### Cambiado
 
 - **CI con filtros de ruta**: los push que solo tocan documentación (`**.md`, `docs/**`, `.gitignore`) ya no disparan la suite ni los builds (se ahorran ~9 minutos por commit de textos). Los cambios de código, workflows o configuración siguen pasando por todo.

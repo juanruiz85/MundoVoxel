@@ -92,6 +92,8 @@ public sealed class GameServer : IAsyncDisposable
             // "RadioRegiones": el archivo de ajustes manda al arrancar (1 = 3x3
             // regiones alrededor del jugador); el servidor de verdad lo lee de ahi.
             RadioRegiones = Ajustes.Actual.RadioRegiones;
+            // "MinutosDeltaRapido": ventana del delta de reconexion (0 = nunca).
+            MinutosDeltaRapido = Ajustes.Actual.MinutosDeltaRapido;
             // Cuentas por jugador: "CuentasObligatorias" y "RegistroAbierto" encienden
             // el archivo de ajustes; el valor puesto por codigo se respeta (asi las
             // pruebas los pasan directos).
