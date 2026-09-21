@@ -36,7 +36,7 @@ PRUEBAS SUPERADAS
 ```
 
 > Es una prueba con red local real (TCP en 127.0.0.1), así que tarda un poco
-> (varios minutos: ronda los 20 en un portátil normal, más si el trigo tarda en madurar). No cierres la ventana antes de
+> (unos 5-6 minutos en Release; compilada en Debug cuesta bastante más, alrededor de 20 en un portátil). No cierres la ventana antes de
 > ver el resultado. La suite es repetible: debe salir verde en corridas
 > consecutivas. Si alguna vez falla el trigo o un crafteo, espera y vuelve a
 > ejecutar (la carga del servidor con 2 mundos grandes puede atrasar respuestas;
