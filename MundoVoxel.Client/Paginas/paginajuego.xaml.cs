@@ -373,9 +373,14 @@ public partial class PaginaJuego : ContentPage
                     remoto.Aplicar(mr.Rx, mr.Rz, mr.Datos);
                     var mundoRem = _vista.Mundo;
                     int ladoRegion = Mundo.LadoRegion;
-                    for (int x = mr.Rx * ladoRegion; x < Math.Min((mr.Rx + 1) * ladoRegion, mundoRem.Ancho); x += ChunkMalla.Tam)
-                        for (int z = mr.Rz * ladoRegion; z < Math.Min((mr.Rz + 1) * ladoRegion, mundoRem.Profundo); z += ChunkMalla.Tam)
-                            _vista.Renderizador.ReconstruirAlrededor(mundoRem, x, 0, z, false);
+                    // Redibujar la region de golpe daba un tiron (y cada paso
+                    // reconstruia tambien las mallas vecinas): se apunta y el
+                    // bucle de dibujo lo reparte entre frames.
+                    _vista.Renderizador.Sucias.MarcarRectangulo(
+                        mr.Rx * ladoRegion, mr.Rz * ladoRegion,
+                        Math.Min((mr.Rx + 1) * ladoRegion, mundoRem.Ancho) - 1,
+                        Math.Min((mr.Rz + 1) * ladoRegion, mundoRem.Profundo) - 1,
+                        ChunkMalla.Tam, mundoRem.Ancho, mundoRem.Profundo);
                     // El mundo puede volver a quedar incompleto si el servidor
                     // suelta las regiones que quedan lejos, asi que la colision
                     // sigue tratando como solido lo que aun no ha llegado.
@@ -390,9 +395,13 @@ public partial class PaginaJuego : ContentPage
                     remotoOlv.Olvidar(mo.Rx, mo.Rz);
                     var mundoOlv = _vista.Mundo;
                     int ladoOlv = Mundo.LadoRegion;
-                    for (int x = mo.Rx * ladoOlv; x < Math.Min((mo.Rx + 1) * ladoOlv, mundoOlv.Ancho); x += ChunkMalla.Tam)
-                        for (int z = mo.Rz * ladoOlv; z < Math.Min((mo.Rz + 1) * ladoOlv, mundoOlv.Profundo); z += ChunkMalla.Tam)
-                            _vista.Renderizador.ReconstruirAlrededor(mundoOlv, x, 0, z, false);
+                    // Lo mismo al descargar: las mallas vacias se van reconstruyendo
+                    // en los siguientes frames en vez de todas de golpe.
+                    _vista.Renderizador.Sucias.MarcarRectangulo(
+                        mo.Rx * ladoOlv, mo.Rz * ladoOlv,
+                        Math.Min((mo.Rx + 1) * ladoOlv, mundoOlv.Ancho) - 1,
+                        Math.Min((mo.Rz + 1) * ladoOlv, mundoOlv.Profundo) - 1,
+                        ChunkMalla.Tam, mundoOlv.Ancho, mundoOlv.Profundo);
                     break;
                 }
 

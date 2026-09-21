@@ -96,9 +96,22 @@ public sealed class RenderizadorVoxel
         public bool Emisivo;    // ignora sombra/niebla (llama de antorcha)
     }
 
+    /// <summary>Mallas pendientes de reconstruir (streaming por proximidad): el
+    /// bucle de dibujo reconstruye unas pocas por frame para no dar tirones.</summary>
+    public MallasSucias Sucias { get; } = new();
+
+    /// <summary>Reconstruye las mallas que el streaming dejo pendientes (unas pocas
+    /// por frame). Se llama desde el bucle de dibujo.</summary>
+    public void ReconstruirSucias(Mundo mundo, int maxPorFrame = 3)
+    {
+        foreach (var (cx, cz) in Sucias.Sacar(maxPorFrame))
+            if (_mallas.TryGetValue((cx, cz), out var m)) m.Reconstruir(mundo);
+    }
+
     public void ConstruirMallas(Mundo mundo)
     {
         _mallas.Clear();
+        Sucias.Vaciar(); // se reconstruye todo: lo pendiente ya no hace falta
         int cx = (int)MathF.Ceiling(mundo.Ancho / (float)ChunkMalla.Tam);
         int cz = (int)MathF.Ceiling(mundo.Profundo / (float)ChunkMalla.Tam);
         for (int x = 0; x < cx; x++)

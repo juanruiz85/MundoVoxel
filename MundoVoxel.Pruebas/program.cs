@@ -59,6 +59,27 @@ Console.WriteLine("Streaming: al alejarse el servidor suelta regiones y al volve
     Ajustes.Actual.AntiCheatVelocidadMax = achVel; Ajustes.Actual.AntiCheatSaltoMax = achSal;
 }
 
+// ---------- cola de mallas sucias (soltar una region no debe dar un tiron) ----------
+Console.WriteLine("Mallas sucias: el trabajo de redibujar una region se reparte entre frames.");
+{
+    var ms = new MallasSucias();
+    Comprobar(ms.Vacia && ms.Pendientes == 0, "la cola de mallas empieza vacia");
+    ms.MarcarRectangulo(0, 0, 63, 63, 16, 256, 256); // una region entera de 64x64
+    Comprobar(ms.Pendientes == 25, "una region de 64x64 apunta 5x5 mallas (las 4x4 y el borde)");
+    var dos = ms.Sacar(2);
+    Comprobar(dos.Count == 2 && ms.Pendientes == 23, "el bucle de dibujo saca unas pocas por frame");
+    Comprobar(ms.Sacar(100).Count == 23 && ms.Vacia, "el resto se reconstruye despues y sin repetir");
+    ms.MarcarRectangulo(0, 0, 63, 63, 16, 256, 256);
+    ms.MarcarRectangulo(0, 0, 63, 63, 16, 256, 256);
+    Comprobar(ms.Pendientes == 25, "marcar dos veces la misma region no duplica el trabajo");
+    var msEsq = new MallasSucias();
+    msEsq.MarcarRectangulo(240, 240, 255, 255, 16, 256, 256);
+    Comprobar(msEsq.Pendientes == 4, "en la esquina del mundo se apuntan 2x2 mallas");
+    var msNada = new MallasSucias();
+    msNada.MarcarRectangulo(0, 0, 63, 63, 0, 256, 256);
+    Comprobar(msNada.Vacia, "con tamano de malla 0 no se apunta nada");
+}
+
 // La variedad de tipos de mob depende de la generacion probabilistica por tick:
 // en runners de CI puede no haber 3 tipos distintos en la ventana. En CI se
 // omite (y se indica); se cubre en corridas locales.

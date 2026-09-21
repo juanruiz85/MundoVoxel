@@ -402,6 +402,7 @@ public sealed class VistaJuego : IDrawable
     {
         var cam = new Camara { Pos = camPos, Yaw = yaw, Pitch = pitch };
         Raster.Inicializar(w, h);
+        Renderizador.ReconstruirSucias(Mundo); // mallas que el streaming dejo pendientes
         Renderizador.Rasterizar(Raster, Mundo, cam, w, h);
         foreach (var caja in cajas)
             Renderizador.RasterizarCaja(Raster, cam, caja.Min, caja.Max, caja.Color);

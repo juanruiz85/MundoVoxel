@@ -1,4 +1,4 @@
-# 🌍 MundoVoxel
+﻿# 🌍 MundoVoxel
 
 [![CI](https://github.com/juanruiz85/MundoVoxel/actions/workflows/ci.yml/badge.svg)](https://github.com/juanruiz85/MundoVoxel/actions/workflows/ci.yml)
 
@@ -235,32 +235,32 @@ Ideas a corto plazo:
 
 | Métrica | Valor |
 |---|---|
-| Período de desarrollo | 2026-08-13 → 2026-09-16 |
-| Sesiones de IA | 106 |
-| Prompts del desarrollador | 674 |
-| Respuestas generadas por IA | 10,185 |
-| Tokens de entrada (prompts + contexto) | 74,953,055 |
-| Tokens de salida (generación) | 9,380,683 |
-| **Tokens totales** | **84,333,738** |
-| Tokens de caché leídos | 2,665,462,656 |
+| Período de desarrollo | 2026-08-13 → 2026-09-20 |
+| Sesiones de IA | 220 |
+| Prompts del desarrollador | 699 |
+| Respuestas generadas por IA | 11,162 |
+| Tokens de entrada (prompts + contexto) | 80,848,587 |
+| Tokens de salida (generación) | 9,949,977 |
+| **Tokens totales** | **90,798,564** |
+| Tokens de caché leídos | 2,790,653,568 |
 | Costo real registrado | $0.00 (modelo ZAI sin cargo reportado) |
-| Costo estimado a tarifas de mercado | ~491.50 USD |
+| Costo estimado a tarifas de mercado | ~520.36 USD |
 | Agentes de IA con uso | auto-coder, main |
 
 ### Promedios
 
-- Tokens por prompt: ~111,206 de entrada / ~13,918 de salida.
-- Costo estimado por prompt: ~0.73 USD (a tarifas de mercado).
+- Tokens por prompt: ~115,663 de entrada / ~14,235 de salida.
+- Costo estimado por prompt: ~0.74 USD (a tarifas de mercado).
 
 ### Modelos utilizados
 
 | Modelo | Respuestas | % del total |
 |---|---|---|
-| zai_auto (ruteo automático) | 9843 | 96.6% |
-| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 2.1% |
+| zai_auto (ruteo automático) | 10815 | 96.9% |
+| dpskpro_deepseek-v4-flash (DeepSeek V4 Flash) | 210 | 1.9% |
 | zai/tdpsk_deepseek-v4-pro-202606 | 66 | 0.6% |
-| zai/zaicoding_glm-5.3 | 39 | 0.4% |
-| gateway-injected (mensaje interno) | 13 | 0.1% |
+| zai/zaicoding_glm-5.3 | 39 | 0.3% |
+| gateway-injected (mensaje interno) | 18 | 0.2% |
 | zai/zaicoding_glm-5.2 | 12 | 0.1% |
 | zai/tdpsk_deepseek-v4-flash-202605 | 2 | 0% |
 
