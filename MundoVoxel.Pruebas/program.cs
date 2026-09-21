@@ -1174,6 +1174,25 @@ try { Directory.Delete(Path.GetDirectoryName(rutaFav)!, true); } catch { }
 // ---------- TLS: la partida puede ir cifrada ----------
 Console.WriteLine("TLS: el servidor cifrado rechaza a los clientes sin TLS y atiende a los que lo negocian.");
 await servidor.DetenerAsync();   // el servidor de pruebas (sin TLS) ya no hace falta
+
+// ---------- ajustes.config.json: la ventana del delta se lee al iniciar ----------
+// "MinutosDeltaRapido": 0 desactiva el delta de reconexion (siempre el mundo entero).
+{
+    var dirCfgDelta = Path.Combine(Path.GetTempPath(), "mvcfg-delta-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dirCfgDelta);
+    File.WriteAllText(Path.Combine(dirCfgDelta, "ajustes.config.json"), "{ \"MinutosDeltaRapido\": 0 }");
+    Ajustes.Cargar(dirCfgDelta);
+    var srvCfgDelta = new GameServer(puerto, "Servidor de prueba con ajustes");
+    srvCfgDelta.Iniciar();
+    Comprobar(srvCfgDelta.MinutosDeltaRapido == 0, "ajustes.config.json: la ventana del delta se lee al iniciar (0 = nunca)");
+    await srvCfgDelta.DetenerAsync();
+    // Restaurar los ajustes por defecto (un archivo vacio) para el resto de la suite.
+    var dirCfgDef = Path.Combine(Path.GetTempPath(), "mvcfg-def-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dirCfgDef);
+    File.WriteAllText(Path.Combine(dirCfgDef, "ajustes.config.json"), "{}");
+    Ajustes.Cargar(dirCfgDef);
+    Comprobar(Ajustes.Actual.MinutosDeltaRapido == 5, "y sin la clave queda el valor por defecto (5 minutos)");
+}
 var servidorTls = new GameServer(puerto, "Servidor de prueba TLS", 4, 4) { TlsActivo = true };
 var logsTls = new System.Collections.Concurrent.ConcurrentQueue<string>();
 servidorTls.AlRegistrar += m => logsTls.Enqueue(m);
