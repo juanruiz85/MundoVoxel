@@ -201,7 +201,7 @@ public partial class PaginaMenu : ContentPage
 
     async Task QuitarFavorito(ServidorFavorito favorito)
     {
-        bool ok = await DisplayAlert(_idioma.O("menu.favoritos_borrar", favorito.Alias), "",
+        bool ok = await DisplayAlertAsync(_idioma.O("menu.favoritos_borrar", favorito.Alias), "",
             _idioma.O("mundos.borrar"), "✕");
         if (!ok) return;
         ServidoresFavoritos.Quitar(favorito.Ip, favorito.Puerto);
@@ -316,7 +316,7 @@ public partial class PaginaMenu : ContentPage
             BtnConectar.IsEnabled = true;
             BtnGuardarFavorito.IsEnabled = true;
             _conectando = false;
-            _ = Navigation.PushAsync(_paginaMundos);
+            _ = Navigation?.PushAsync(_paginaMundos);
         });
     }
 }

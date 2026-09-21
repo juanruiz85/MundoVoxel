@@ -189,6 +189,8 @@ public sealed class ServicioReconexion
         // Cancelar con la conexión ya establecida: cerrar para no aterrizar de
         // sorpresa en la lista de mundos tras haber cancelado.
         if (_red.Conectado) _red.Desconectar();
+        Fin();
+        LanzarEnPrincipal(() => AlCancelar?.Invoke(_idioma.O("juego.reconectando_cancelada")));
     }
 
     void Fallo(string mensaje)

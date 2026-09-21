@@ -21,6 +21,9 @@ Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Chan
 - **La versión de la release sale del tag**: el MSIX toma su `Version` del manifiesto, que el workflow ajusta con el tag (`0.11.23` -> `0.11.23.0`), y el APK toma el `versionCode` del tag (`0.11.23` -> `1123`). Antes el MSIX quedaba clavado en `1.0.0.0` y el APK en el código `1`, así que Windows y Android no habrían dejado actualizar en sitio.
 - **Ninguna prueba se omite ya en CI**: las dos comprobaciones de variedad de tipos de mob se hacen ahora sobre la generación inicial (determinista) de dos mundos con semilla fija --uno nocturno, con hostiles, y otro diurno, solo con pasivos y con el reloj congelado-- y la limpieza de inventarios corre también en CI. La suite se comporta igual en local y en CI: 237 correctas, 0 fallos.
 
+- **Los builds quedan sin avisos**: se migra `DisplayAlert` a `DisplayAlertAsync`, se dejan de desreferenciar referencias que pueden ser nulas y la lista de mundos usa enlace compilado (`x:DataType`), que además va más rápido en tiempo de ejecución. La suite y el cliente de Windows compilan con 0 avisos.
+- **Arreglado: cancelar la reconexión no hacía nada**: la partida se suscribe a `AlCancelar`, pero el servicio nunca lo disparaba, así que el panel de reconexión se quedaba puesto y no volvías al menú. Ahora el servicio cierra la conexión, avisa al cliente y este vuelve al menú con "Reconexión cancelada." (la clave ya existía en el idioma sin que nadie la usara).
+
 ### Corregido
 
 - **Saltos de línea espurios en los textos** (`MundoVoxel.Client/lang/es.lang`, `docs/arquitectura.md`, `changelog.md` y `docs/guia-de-texturas.md`): había palabras acentuadas partidas con un salto de línea (`Dejar vac` / `í` / `o si el servidor...`), que en el fichero de idioma dejaban el texto de la interfaz partido en pantalla. Se han vuelto a unir las 10 palabras afectadas.

@@ -1330,7 +1330,7 @@ public partial class PaginaJuego : ContentPage
 
     async void OnBorrarMundo(object? sender, EventArgs e)
     {
-        bool ok = await DisplayAlert(_idioma.O("mundos.borrar_confirmar", _datos.Nombre), "", T.Borrar, "✕");
+        bool ok = await DisplayAlertAsync(_idioma.O("mundos.borrar_confirmar", _datos.Nombre), "", T.Borrar, "✕");
         if (ok) _red.Enviar(new BorrarMundo { Id = _datos.Id });
     }
 
@@ -1352,10 +1352,12 @@ public partial class PaginaJuego : ContentPage
         _saliendo = true;
         _timer?.Stop();
         _reconexion.Cancelar();
-        if (Navigation?.NavigationStack.Count > 1)
-            await Navigation.PopAsync();
+        var navVolver = Navigation;
+        if (navVolver is null) return;
+        if (navVolver.NavigationStack.Count > 1)
+            await navVolver.PopAsync();
         else
-            await Navigation.PopToRootAsync();
+            await navVolver.PopToRootAsync();
     }
 
     void OnDesconectadoRed()

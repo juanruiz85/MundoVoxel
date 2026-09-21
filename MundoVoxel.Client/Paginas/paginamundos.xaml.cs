@@ -292,7 +292,7 @@ public partial class PaginaMundos : ContentPage
     async void OnBorrar(object? sender, EventArgs e)
     {
         if ((sender as Button)?.BindingContext is not InfoMundoView item) return;
-        bool ok = await DisplayAlert(_idioma.O("mundos.borrar_confirmar", item.Nombre), "", T.Borrar, "✕");
+        bool ok = await DisplayAlertAsync(_idioma.O("mundos.borrar_confirmar", item.Nombre), "", T.Borrar, "✕");
         if (ok) _red.Enviar(new BorrarMundo { Id = item.Info.Id });
     }
 

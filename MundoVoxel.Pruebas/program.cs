@@ -178,7 +178,7 @@ Comprobar(unidoPriv?.Id == idPrivado, "Ana entra con la clave correcta");
 // ---------- cofre inicial ----------
 Console.WriteLine("Cofre inicial: herramientas basicas en el spawn + 4 antorchas.");
 var mundoPriv = resPriv.Mundo!;
-int cfx = (int)unidoPriv.Ax + 1, cfz = (int)unidoPriv.Az, cfy = (int)unidoPriv.Ay - 1;
+int cfx = (int)unidoPriv!.Ax + 1, cfz = (int)unidoPriv!.Az, cfy = (int)unidoPriv!.Ay - 1;
 if (mundoPriv.Obtener(cfx, cfy, cfz) != Bloques.Cofre) { cfx = (int)unidoPriv.Ax; cfz = (int)unidoPriv.Az + 1; }
 Comprobar(mundoPriv.Obtener(cfx, cfy, cfz) == Bloques.Cofre, "cofre inicial en el spawn");
 int antorchas = 0;

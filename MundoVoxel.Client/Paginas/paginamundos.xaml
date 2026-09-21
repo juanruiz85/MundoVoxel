@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:svc="clr-namespace:MundoVoxel.Client.Servicios"
+             xmlns:pg="clr-namespace:MundoVoxel.Client.Paginas"
              x:Class="MundoVoxel.Client.Paginas.PaginaMundos"
              Title="Mundos">
 
@@ -16,7 +17,7 @@
                 <Label x:Name="LblVacio" TextColor="{StaticResource TextoSuave}" FontSize="15" HorizontalOptions="Center" Margin="0,48" />
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="pg:InfoMundoView">
                     <Border BackgroundColor="{StaticResource Superficie}" StrokeThickness="0" Margin="0,4"
                             Padding="14,10" StrokeShape="RoundRectangle 12">
                         <Grid ColumnDefinitions="*,132" ColumnSpacing="8">

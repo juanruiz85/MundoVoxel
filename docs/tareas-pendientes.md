@@ -43,6 +43,7 @@ Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows, mejoras 
 - [x] **CI: acelerar los builds** (v0.11.23): hecho lo razonable. Los paquetes NuGet se cachean (clave = hash de los .csproj), un push nuevo cancela el CI que estuviera corriendo del mismo ref y los push de solo documentación no disparan nada. Medido: job de MAUI 8,4 min con la caché en caliente frente a una mediana de 9,2 (rango 6,9-11,9, o sea que la mejora queda dentro del ruido) y la suite 5,3 min como siempre; la primera ejecución con la caché en frío costó 10,4 min (pagando la subida). Descartado cachear los packs del workload: la vez que se probó se colgó y el ahorro no compensa el riesgo.
 
 ### Cliente
+- [x] Builds sin avisos (v0.11.23): la suite y el cliente compilan con 0 avisos (`DisplayAlertAsync`, nulabilidad y enlace compilado en la lista de mundos). De paso se arregla que cancelar la reconexión no hiciera nada: ahora cierra la conexión, avisa y vuelve al menú.
 - [ ] Probar manualmente la reconexión automática en Android (el test de protocolo cubre el flujo; falta el tactil real).
 - [x] **Barra de progreso al minar** (v0.11.13): hecho (barra bajo la mira con golpes/necesarios y mejor herramienta; solo cliente, sin cambios de protocolo).
 
