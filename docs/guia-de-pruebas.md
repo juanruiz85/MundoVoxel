@@ -21,8 +21,8 @@ Todo lo demás (paquetes NuGet, plataformas MAUI) se descarga automáticamente l
 La suite `MundoVoxel.Pruebas` levanta un servidor real en memoria y valida el
 protocolo de extremo a extremo: mundos, bloques, inventario, crafteo, cocina,
 mobs, TNT, trigo, día/noche, soltar ítems, oxígeno, lava, muerte y respawn,
-con los mundos grandes (192×64×192) y el ciclo dinámico de mobs (día/noche)
-activos.
+con los mundos grandes (256×64×256) y el ciclo dinámico de mobs (día/noche)
+activos. Desde las ultimas versiones cubre también el mundo por regiones (streaming por proximidad), la reconexión rápida con delta (se conserva el terreno al volver) y las cuentas por jugador (registro, entrada y cambio de clave).
 
 ```powershell
 cd MundoVoxel
@@ -36,7 +36,7 @@ PRUEBAS SUPERADAS
 ```
 
 > Es una prueba con red local real (TCP en 127.0.0.1), así que tarda un poco
-> (~5-6 min, más si el trigo tarda en madurar). No cierres la ventana antes de
+> (varios minutos: ronda los 20 en un portátil normal, más si el trigo tarda en madurar). No cierres la ventana antes de
 > ver el resultado. La suite es repetible: debe salir verde en corridas
 > consecutivas. Si alguna vez falla el trigo o un crafteo, espera y vuelve a
 > ejecutar (la carga del servidor con 2 mundos grandes puede atrasar respuestas;
