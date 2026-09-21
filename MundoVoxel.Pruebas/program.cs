@@ -1387,6 +1387,71 @@ c1.Cerrar(); c2.Cerrar();
 await servidor.DetenerAsync();
 
 Console.WriteLine();
+// ---------- coherencia del idioma ----------
+// Es una comprobacion entre ficheros (codigo y es.lang), asi que necesita la raiz
+// del repositorio: se busca subiendo desde la carpeta de compilacion.
+string? langRaiz = null;
+var langDir = new DirectoryInfo(AppContext.BaseDirectory);
+while (langDir != null && langRaiz == null)
+{
+    if (Directory.Exists(Path.Combine(langDir.FullName, "MundoVoxel.Core")) &&
+        Directory.Exists(Path.Combine(langDir.FullName, "MundoVoxel.Client")))
+        langRaiz = langDir.FullName;
+    langDir = langDir.Parent;
+}
+Comprobar(langRaiz != null, "coherencia del idioma: se encuentra la raiz del repositorio");
+if (langRaiz != null)
+{
+    var langRuta = Path.Combine(langRaiz, "MundoVoxel.Client", "lang", "es.lang");
+    var langMapa = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var langRepetidas = new List<string>();
+    foreach (var langLinea in File.ReadAllLines(langRuta))
+    {
+        var langLimpia = langLinea.Trim();
+        if (langLimpia.Length == 0 || langLimpia.StartsWith('#')) continue;
+        int langIgual = langLimpia.IndexOf('=');
+        if (langIgual <= 0) continue;
+        var langClave = langLimpia[..langIgual].Trim();
+        if (langMapa.ContainsKey(langClave)) langRepetidas.Add(langClave);
+        langMapa[langClave] = langLimpia[(langIgual + 1)..].Trim();
+    }
+    Comprobar(langRepetidas.Count == 0, $"es.lang sin claves repetidas ({langRepetidas.Count} repetidas)");
+    var langVacias = langMapa.Where(p => p.Value.Length == 0).Select(p => p.Key).ToList();
+    Comprobar(langVacias.Count == 0, $"es.lang sin textos vacios ({langVacias.Count} vacios)");
+    var langPrefijos = new HashSet<string>(langMapa.Keys.Select(c => c.Split('.')[0]), StringComparer.Ordinal);
+    var langUsadas = new HashSet<string>(StringComparer.Ordinal);
+    var langFaltan = new List<string>();
+    foreach (var langCarpeta in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Server", "MundoVoxel.Pruebas" })
+    {
+        foreach (var langFichero in Directory.EnumerateFiles(Path.Combine(langRaiz, langCarpeta), "*.*", SearchOption.AllDirectories))
+        {
+            if (!langFichero.EndsWith(".cs") && !langFichero.EndsWith(".xaml")) continue;
+            if (langFichero.Contains("\\bin\\") || langFichero.Contains("\\obj\\") ||
+                langFichero.Contains("/bin/") || langFichero.Contains("/obj/")) continue;
+            foreach (var langLineaCodigo in File.ReadAllLines(langFichero))
+            {
+                var langTrozos = langLineaCodigo.Split('"');
+                for (int langPar = 1; langPar < langTrozos.Length; langPar += 2)
+                {
+                    var langTexto = langTrozos[langPar];
+                    // fuera las construcciones dinamicas ("error." + codigo) y lo que no es una clave
+                    if (langTexto.Contains('=') || langTexto.EndsWith('.')) continue;
+                    if (langTexto.Count(c => c == '.') != 1) continue;
+                    var langPartes = langTexto.Split('.');
+                    if (!langPrefijos.Contains(langPartes[0])) continue;
+                    if (langPartes[1].Length == 0) continue;
+                    if (!langPartes[1].All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_')) continue;
+langUsadas.Add(langTexto);
+                    if (!langMapa.ContainsKey(langTexto) && !langFaltan.Contains(langTexto)) langFaltan.Add(langTexto);
+                }
+            }
+        }
+    }
+    Comprobar(langFaltan.Count == 0, $"toda clave usada en el codigo existe en es.lang (sin texto: {string.Join(", ", langFaltan)})");
+    var langHuerfanas = langMapa.Keys
+        .Where(c => c.StartsWith("bloque.", StringComparison.Ordinal) && !langUsadas.Contains(c)).ToList();
+    Comprobar(langHuerfanas.Count == 0, $"sin textos de bloque huerfanos en es.lang ({langHuerfanas.Count} huerfanos)");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 
