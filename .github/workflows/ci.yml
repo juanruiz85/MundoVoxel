@@ -3,8 +3,18 @@ name: CI
 on:
   push:
     branches: [ main ]
+    # Los cambios solo de documentacion no necesitan la suite ni los builds:
+    # se saltan enteros (un push de solo textos ya no gasta ~9 min de CI).
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
   workflow_dispatch:
 
 jobs:

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
@@ -21,6 +21,9 @@
 
     <!-- Ejecutable independiente del paquete MSIX (más fácil de probar) -->
     <WindowsPackageType>None</WindowsPackageType>
+    <!-- El paquete MSIX se genera solo cuando se pide con -p:WindowsPackageType=MSIX;
+         el publish normal sigue siendo la carpeta suelta de siempre. -->
+    <EnableMsixTooling Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">true</EnableMsixTooling>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
   </PropertyGroup>
 
