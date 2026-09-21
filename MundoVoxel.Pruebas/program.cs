@@ -117,11 +117,6 @@ Console.WriteLine("Cuentas: alta, clave con sal y verificacion.");
     try { File.Delete(rutaCuentas); } catch { }
 }
 
-// La variedad de tipos de mob depende de la generacion probabilistica por tick:
-// en runners de CI puede no haber 3 tipos distintos en la ventana. En CI se
-// omite (y se indica); se cubre en corridas locales.
-bool ciMobs = Environment.GetEnvironmentVariable("CI") == "true";
-
 // ---------- ping / estado en vivo ----------
 Console.WriteLine("Ping: sondeo ligero de estado (latencia + jugadores en linea).");
 long pingMarca = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -135,8 +130,6 @@ Comprobar(pong != null && pong.JugadoresEnLinea >= 1, $"el Pong informa jugadore
 var mobsPublico = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
 Comprobar(mobsPublico != null && mobsPublico.Lista.Count > 0, $"mobs del mundo publico difundidos ({mobsPublico?.Lista.Count ?? 0})");
 Comprobar(mobsPublico != null && mobsPublico.Lista.All(m => m.Tipo <= 2), "de dia solo se generan mobs pasivos");
-if (ciMobs) Console.WriteLine("  [skip ci] variedad de tipos de mob (publico) omitida: depende de la generacion probabilistica; se cubre en corridas locales.");
-else Comprobar(mobsPublico != null && mobsPublico.Lista.Select(m => m.Tipo).Distinct().Count() >= 3, "hay variedad de tipos de mob (pasivos)");
 
 // ---------- cliente 2: mundo privado ----------
 Console.WriteLine("Cliente 2: mundo privado, clave correcta e incorrecta.");
@@ -202,8 +195,6 @@ Console.WriteLine("Mobs: el servidor genera y difunde mobs en el mundo.");
 var mobs = await c1.LeerHasta<Mobs>(timeoutMs: 8000);
 Comprobar(mobs != null && mobs.Lista.Count > 0, $"mobs difundidos ({mobs?.Lista.Count ?? 0})");
 Comprobar(mobs != null && mobs.Lista.All(m => m.Px >= 0 && m.Px < Ajustes.Actual.AnchoMundo && m.Pz >= 0 && m.Pz < Ajustes.Actual.ProfundoMundo && m.Py >= 1), "posiciones de mobs dentro del mundo");
-if (ciMobs) Console.WriteLine("  [skip ci] variedad de tipos de mob omitida: depende de la generacion probabilistica; se cubre en corridas locales.");
-else Comprobar(mobs != null && mobs.Lista.Select(m => m.Tipo).Distinct().Count() >= 3, "hay variedad de tipos de mob");
 
 // ---------- romper y colocar bloques ----------
 Console.WriteLine("Bloques: romper y colocar con difusion.");
@@ -1338,13 +1329,16 @@ Console.WriteLine("Mobs: el hostil que ataca al jugador (mundo nocturno con semi
 
     // La lista sembrada tiene que traer hostiles: zombi (3), creeper (4) o esqueleto (5).
     MobEstado? mbHostil = null;
+    var mbTiposNocturnos = new HashSet<byte>();
     for (int mbRonda = 0; mbRonda < 4 && mbHostil == null; mbRonda++)
     {
         var mbMsg = await mbCliente.LeerHasta<Mobs>(timeoutMs: 8000);
         if (mbMsg == null) break;
+        foreach (var mbMobNoche in mbMsg.Lista) mbTiposNocturnos.Add((byte)mbMobNoche.Tipo);
         mbHostil = mbMsg.Lista.FirstOrDefault(m => m.Tipo is 3 or 4 or 5);
     }
     Comprobar(mbHostil != null, "mobs: el mundo nocturno se siembra con hostiles (semilla fija)");
+    Comprobar(mbTiposNocturnos.Count >= 3, $"variedad de tipos de mob en un mundo nocturno sembrado ({mbTiposNocturnos.Count} tipos)");
 
     // Pegarse al hostil (con su posicion mas reciente) hasta que la vida baje.
     JugadorSalud? mbSalud = null;
@@ -1360,7 +1354,29 @@ Console.WriteLine("Mobs: el hostil que ataca al jugador (mundo nocturno con semi
         }
     Comprobar(mbSalud != null && mbSalud.Salud < 20, "un mob hostil ataca al jugador cercano (la vida baja)");
 
+    // La variedad se comprueba sobre mundos con semilla fija: su generacion inicial
+    // es determinista. En el mundo publico la repoblacion es aleatoria, y una sola
+    // foto puede pillar menos de 3 tipos por pura casualidad. El mundo diurno va con
+    // un cliente nuevo: en el socket del anterior quedan difusiones del mundo
+    // nocturno y el lector descarta lo que no sea Mobs, asi que se colarian.
     mbCliente.Cerrar();
+    var mbClienteDia = await Conectar(puerto);
+    await mbClienteDia.Enviar(new Hola { Nombre = "Vigia", Version = "1.0" });
+    Comprobar(await mbClienteDia.LeerHasta<Bienvenido>(5000) != null, "mobs: un segundo cliente entra en el servidor de mobs");
+    await mbClienteDia.Enviar(new CrearMundo { Nombre = "Dia claro", Abierto = true, Semilla = 20260922, HoraInicial = 9f, SegundosPorDia = 100000f, CantidadMobs = 20, Ancho = 96, Alto = 48, Profundo = 96 });
+    Comprobar(await mbClienteDia.LeerHasta<MundoCreado>(8000) != null, "mobs: se crea el mundo diurno sembrado");
+    var (mbDia, _, _) = await LeerUnidoCompleto(mbClienteDia, 20000);
+    Comprobar(mbDia != null, "mobs: se entra en el mundo diurno sembrado");
+    var mbTiposDia = new HashSet<byte>();
+    for (int mbRondaDia = 0; mbRondaDia < 5 && mbTiposDia.Count < 3; mbRondaDia++)
+    {
+        var mbMsgDia = await mbClienteDia.LeerHasta<Mobs>(timeoutMs: 8000);
+        if (mbMsgDia == null) break;
+        foreach (var mbMobDia in mbMsgDia.Lista) mbTiposDia.Add((byte)mbMobDia.Tipo);
+    }
+    Comprobar(mbTiposDia.Count >= 3, $"variedad de tipos de mob en un mundo diurno sembrado ({mbTiposDia.Count} tipos)");
+    Comprobar(mbTiposDia.Count > 0 && mbTiposDia.All(t => t <= 2), "el mundo diurno sembrado solo genera pasivos");
+    mbClienteDia.Cerrar();
     await mbServidor.DetenerAsync();
 }
 
@@ -1517,4 +1533,3 @@ sealed class ClientePrueba
 
     public void Cerrar() { try { _tcp.Close(); } catch { } }
 }
-
