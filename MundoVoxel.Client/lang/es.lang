@@ -16,13 +16,9 @@ menu.servidor_cifrado=Servidor cifrado (TLS)
 menu.clave_servidor=Clave del servidor (si la pide)
 menu.clave_servidor_opcional=Dejar vacío si el servidor no pide clave
 menu.usuario_cuenta=Usuario y clave de la cuenta (si el servidor los pide)
-menu.usuario_cuenta_opcional=Dejar vac
-í
-o si el servidor no pide cuenta
+menu.usuario_cuenta_opcional=Dejar vacío si el servidor no pide cuenta
 menu.clave_cuenta=Clave de la cuenta
-menu.clave_cuenta_opcional=Dejar vac
-í
-o si el servidor no pide cuenta
+menu.clave_cuenta_opcional=Dejar vacío si el servidor no pide cuenta
 menu.huella_nueva=Certificado TLS guardado para este servidor (huella {0}).
 menu.huella_cambiada=El certificado de este servidor CAMBIÓ (huella {0}). ConexiÓn rechazada: puede ser una intercepciÓn.
 menu.conectando=Conectando…
