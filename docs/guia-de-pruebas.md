@@ -276,3 +276,78 @@ adb emu kill                                   # cerrar el emulador
 | `sdkmanager` falla | Proxy malformado | `Remove-Item Env:HTTP_PROXY, Env:HTTPS_PROXY` |
 | Disco lleno al compilar | Cachés NuGet/obj | `dotnet clean` + `dotnet nuget locals all --clear` |
 | No se ven los personajes | Mundos distintos | Entrar al **mismo** mundo (mismo id/nombre) desde ambos clientes |
+
+---
+
+## 8. Pruebas manuales antes de publicar
+
+Lo que la suite automática no puede juzgar: hace falta pantalla y manos. Son las
+cuatro comprobaciones que bloquean las etiquetas `v0.11.20` (streaming),
+`v0.11.21` (cuentas), `v0.11.22` (delta) y `v0.11.23` (MSIX).
+
+### 8.1 Streaming por proximidad (v0.11.20)
+
+1. Arranca el servidor dedicado y el cliente Windows (secciones 5.1 y 5.2).
+2. En `ajustes.config.json` deja `"RadioRegiones": 1` (el anillo por defecto es 3x3
+   regiones de 64x64 columnas).
+3. Dentro del mundo, camina en línea recta unos 30 segundos (o usa el modo
+   espectador con `G` para volar y avanzar más rápido).
+4. Qué mirar: el terreno aparece según te acercas **sin huecos** y no te caes a
+   través de lo que aún llega (lo pendiente se trata como sólido). Al volver
+   atrás, el trozo que dejas se descarga de la memoria del cliente.
+5. No debe haber tirones ni errores en la consola del servidor ni en el cliente.
+6. Coste en Android: sube `"RadioRegiones": 3` (7x7) y repite en el emulador. Si
+   va fluido, se puede subir; si da tirones, se deja en 1. Con `adb logcat -d`
+   se ven los avisos de la app mientras caminas.
+
+### 8.2 Cuentas por jugador (v0.11.21)
+
+1. Para el servidor y edita `ajustes.config.json`: `"CuentasObligatorias": true` y
+   `"RegistroAbierto": true` (así puedes crear la primera cuenta). Arranca.
+2. En el menú del cliente escribe usuario y clave y entra. Debe registrarte y
+   crear el fichero `cuentas.json` junto a la configuración del servidor.
+3. Comprueba: sin usuario o sin clave no se entra; con la clave mal no se entra y
+   a los 5 intentos por minuto el servidor corta; el nombre conserva la grafía
+   guardada (entra cambiando mayúsculas y mira cómo aparece en el chat).
+4. Cambio de clave: en la partida, menú de pausa, cambia la clave pidiendo la
+   actual. Al volver a entrar, la nueva vale y la vieja no.
+5. Cierra `"RegistroAbierto": false` para que solo entren las cuentas ya creadas.
+
+### 8.3 Reconexión rápida con delta (v0.11.22)
+
+1. Entra al mundo y rompe o coloca un bloque para saber por dónde vas.
+2. Corta la conexión: para el servidor con `Ctrl+C` en su ventana. El cliente
+   avisa de la pérdida y abre el panel de reconexión (intento 1 de 3, con esperas
+   de 2, 4 y 8 segundos).
+3. Vuelve a arrancar el servidor antes de que se agoten los intentos. El cliente
+   debe volver solo, **rápido** (el servidor solo reenvía las regiones que
+   cambiaron) y en el mismo sitio, con el bloque que tocaste intacto.
+4. Prueba del camino largo: cambia `"MinutosDeltaRapido"` a 0 (o espera más de
+   5 minutos fuera) y repite: entonces el servidor reenvía el mundo entero (tarda
+   más, pero debe verse igual de bien).
+5. Botón **Cancelar** del panel: debe cerrar el panel, cortar el intento, volver
+   al menú y dejar el mensaje de reconexión cancelada.
+6. Repite en Android (mismo panel y mismo botón táctil).
+
+### 8.4 Instalar el MSIX (v0.11.23)
+
+El paquete va firmado. Con un certificado **autofirmado** de desarrollo, Windows
+solo lo instala si confías en él; el almacén del usuario no basta.
+
+1. Consigue el `.msix` y su `.cer` (del release, o compilando con
+   `-p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true`, mirando en
+   `MundoVoxel.Client\bin\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages\`).
+2. Desde una consola **como administrador**:
+
+```powershell
+Import-Certificate -FilePath .\MundoVoxel.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+Add-AppxPackage .\mundovoxel.client_0.11.23.0_x64.msix
+```
+
+3. Lanza **MundoVoxel** desde el menú de inicio y comprueba en Configuración 
+   Aplicaciones que la versión coincide con la etiqueta del release.
+4. Desinstalar: `Get-AppxPackage com.mundovoxel.app | Remove-AppxPackage`.
+5. Errores típicos: `0x800B0100` (el paquete no va firmado o la firma no se
+   reconoce) y `0x800B0109` (la raíz no es de confianza: falta el paso 2). Para
+   distribuir sin ese paso hay que firmar con un certificado de firma de código
+   real (ver `docs/releases.md`).
