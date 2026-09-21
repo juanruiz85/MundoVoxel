@@ -80,6 +80,43 @@ Console.WriteLine("Mallas sucias: el trabajo de redibujar una region se reparte 
     Comprobar(msNada.Vacia, "con tamano de malla 0 no se apunta nada");
 }
 
+// ---------- cuentas por jugador (paso 1: almacen en Core) ----------
+Console.WriteLine("Cuentas: alta, clave con sal y verificacion.");
+{
+    var cuentas = new Cuentas();
+    string errCuenta = "";
+    Comprobar(cuentas.Total == 0, "el almacen de cuentas empieza vacio");
+    Comprobar(cuentas.Registrar("Juan", "secreta123", out errCuenta), "se da de alta una cuenta nueva");
+    Comprobar(cuentas.Total == 1 && cuentas.Existe("juan"), "la cuenta queda dentro y no distingue mayusculas");
+    Comprobar(!cuentas.Registrar("JUAN", "otraclave1", out errCuenta) && errCuenta == "USUARIO_COGIDO", "no se repite un usuario ya usado");
+    Comprobar(!cuentas.Registrar("ab", "secreta123", out errCuenta) && errCuenta == "USUARIO_INVALIDO", "se rechaza un usuario demasiado corto");
+    Comprobar(!cuentas.Registrar("con espacio", "secreta123", out errCuenta), "se rechaza un usuario con espacios");
+    Comprobar(!cuentas.Registrar("pedro", "123", out errCuenta) && errCuenta == "CLAVE_CORTA", "se rechaza una clave demasiado corta");
+    Comprobar(cuentas.Verificar("juan", "secreta123"), "la clave correcta entra");
+    Comprobar(!cuentas.Verificar("juan", "secreta124"), "la clave incorrecta no entra");
+    Comprobar(!cuentas.Verificar("juan", ""), "sin clave no se entra");
+    Comprobar(!cuentas.Verificar("nadie", "secreta123"), "un usuario que no existe no entra");
+    cuentas.Registrar("ana", "secreta123", out errCuenta);
+    Comprobar(cuentas.Total == 2, "cada cuenta va por su lado");
+    var json = cuentas.AJson();
+    Comprobar(!json.Contains("secreta123"), "la clave no se guarda en claro");
+    var partes = json.Split(new string[] { "Sal" }, StringSplitOptions.None);
+    var sal1 = partes.Length > 1 && partes[1].Length >= 28 ? partes[1].Substring(4, 24) : "";
+    var sal2 = partes.Length > 2 && partes[2].Length >= 28 ? partes[2].Substring(4, 24) : "";
+    Comprobar(partes.Length == 3 && sal1.Length == 24 && sal2.Length == 24 && sal1 != sal2, "cada cuenta lleva su propia sal (misma clave, hash distinto)");
+    var rutaCuentas = Path.Combine(Path.GetTempPath(), "mv-cuentas-" + Guid.NewGuid().ToString("N") + ".json");
+    cuentas.Guardar(rutaCuentas);
+    var recargadas = Cuentas.Cargar(rutaCuentas);
+    Comprobar(recargadas.Total == 2, "las cuentas se guardan y se vuelven a cargar");
+    Comprobar(recargadas.Verificar("Juan", "secreta123") && !recargadas.Verificar("Juan", "mala"), "la clave sigue valiendo tras recargar");
+    Comprobar(Cuentas.Cargar(Path.Combine(Path.GetTempPath(), "mv-no-existe-" + Guid.NewGuid().ToString("N") + ".json")).Total == 0, "cargar un archivo que no existe da un almacen vacio");
+    Comprobar(cuentas.CambiarClave("juan", "secreta123", "nuevaclave1", out errCuenta), "se puede cambiar la clave sabiendo la vieja");
+    Comprobar(cuentas.Verificar("juan", "nuevaclave1") && !cuentas.Verificar("juan", "secreta123"), "tras el cambio solo vale la nueva");
+    Comprobar(!cuentas.CambiarClave("juan", "noeslavieja", "otraclave1", out errCuenta) && errCuenta == "CREDENCIALES", "no se cambia la clave sin saber la vieja");
+    Comprobar(!cuentas.Verificar("ana", "nuevaclave1"), "cambiar una clave no afecta a las demas");
+    try { File.Delete(rutaCuentas); } catch { }
+}
+
 // La variedad de tipos de mob depende de la generacion probabilistica por tick:
 // en runners de CI puede no haber 3 tipos distintos en la ventana. En CI se
 // omite (y se indica); se cubre en corridas locales.

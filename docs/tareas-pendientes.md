@@ -1,7 +1,7 @@
 ﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
-Ultima actualizacion: 2026-09-16 (tras v0.11.18).
+Ultima actualizacion: 2026-09-20 (streaming por proximidad y cuentas por jugador, en curso).
 
 ## Hecho recientemente (para contexto)
 
@@ -28,6 +28,7 @@ Ultima actualizacion: 2026-09-16 (tras v0.11.18).
 - [x] **Tokens de invitacion para mundos privados** (v0.11.15): hecho (token de 10 caracteres por mundo, visible solo para el dueno, validos en `Unirse` junto al PIN; la reconexión los reusa).
 - [x] **TLS opcional del servidor** (v0.11.16, cerrado en v0.11.17): hecho (certificado autofirmado autogenerado + casilla en el cliente con huella recordada + el favorito recuerda el modo y lo marca en la lista). La huella se comprueba en el handshake: si el certificado cambia, la conexión se rechaza antes de entrar, así que no hay ventana a mitad de partida.
 - [x] **Clave de acceso del servidor** (v0.11.18): hecho (clave única del servidor en `Ajustes.ClaveServidor`; el cliente la escribe en el menú, la recuerda y la reconexión la reusa; comparación en tiempo constante y el mismo tope de intentos que las claves de mundo). Si algún día se abre a internet, el siguiente paso sería contraseña **por jugador** (cuentas).
+- [ ] **Cuentas por jugador** (EN PROGRESO): hecho el paso 1, el almacén en Core (`Cuentas`: hash PBKDF2-SHA256 con sal, comparación en tiempo constante, validaciones, cambio de clave y persistencia en `cuentas.json`, con 20 pruebas en la suite). Falta el paso 2: pedir usuario y clave en `Hola` (cuando el servidor las exija), autenticar el nombre del jugador y añadir el tope de intentos. Con eso el nombre dejará de ser suplantable (hoy el inventario y la propiedad de los mundos van por nombre).
 - [x] v0.11.6: tope de memoria al deserializar mundos cargados (dimensiones validadas; completa el tope de descompresion).
 
 ### Infraestructura

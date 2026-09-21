@@ -97,6 +97,12 @@ mundo con `MundoRemoto` y el "Cargando el mundo... N %" cuenta regiones.
 Streaming por proximidad (primera parte): las regiones se envian de la más cercana al jugador a la más lejana, el cliente entra al mundo con la región de debajo de los pies y el resto se rellena dentro de la partida, dibujándose según llega; mientras falta una región sus bloques son sólidos (`Mundo.RegionRecibida`) para no caer al vacío.
 
 El radio de carga es `GameServer.RadioRegiones` (por defecto 1, o sea 3x3 regiones = 192x192 columnas): al entrar solo se mandan esas regiones, y al cambiar de region el servidor manda las nuevas y avisa con `MundoOlvida` de las que quedan atras. El cliente las descarga con `MundoRemoto.Olvidar` + `Mundo.OlvidarRegion` (bloques en aire y submallas redibujadas vacias), mientras que el terreno que aun no ha llegado sigue contando como sólido para la colision. Las regiones descargadas se vuelven a pedir solas si el jugador regresa. El redibujado no va de golpe: `MallasSucias` (Core) apunta las mallas que toca una región entera y `RenderizadorVoxel.ReconstruirSucias` reconstruye unas pocas por frame desde el bucle de dibujo. El radio se configura con `"RadioRegiones"` en `ajustes.config.json` (1 = 3x3) y la suite cubre el ciclo completo con un test de integración: el cliente se teletransporta lejos (llega `MundoOlvida`) y vuelve (llegan los `MundoRegion` que entran en el radio).
+### Cuentas por jugador (opcional, en curso)
+
+Paso 1 (almacén en Core): la clase `Cuentas` guarda nombre, sal (16 bytes aleatorios), hash PBKDF2-SHA256 (120.000 iteraciones), iteraciones y fecha de alta; la clave no se guarda nunca y la comparación es en tiempo constante (`CryptographicOperations.FixedTimeEquals`). El nombre no distingue mayúsculas y la verificación deriva siempre (también con un usuario inexistente) para no delatar qué nombres existen. Se persiste en `cuentas.json`.
+
+Paso 2 (pendiente): pedir usuario y clave en `Hola` cuando el servidor tenga las cuentas obligatorias, con el mismo tope de intentos que la clave de acceso del servidor.
+
 ### Concurrencia
 - Un `lock` global protege los diccionarios de mundos/conexiones; `ConcurrentDictionary` para las conexiones.
 - Hilo lector por conexión (async), hilo de difusión de posiciones (10 Hz) y hilo de aceptación.

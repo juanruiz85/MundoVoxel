@@ -2,6 +2,14 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.21] - 2026-09-20
+
+### Añadido
+
+- **Cuentas por jugador (paso 1: almacén en Core)**: `Cuentas` guarda las cuentas de un servidor abierto a internet. La clave **nunca se guarda**: se guarda su hash PBKDF2-SHA256 (120.000 iteraciones) con sal aleatoria de 16 bytes por cuenta, la comparación es en tiempo constante y al cambiar la clave se renueva la sal. El nombre no distingue mayúsculas y se valida (3-16 caracteres: letras, dígitos, `_`, `-` o `.`), igual que la clave (6-128). Se serializa a `cuentas.json` (solo nombre, sal, hash, iteraciones y fecha de alta); si el archivo falta o está roto, el servidor arranca con el almacén vacío. Pruebas: 20 comprobaciones en la suite (altas, nombre repetido, validaciones, clave correcta e incorrecta, usuario inexistente, que la clave no quede en claro y que dos cuentas con la misma clave lleven sales distintas).
+
+Falta el paso 2: pedir la clave en `Hola` para autenticar el nombre del jugador, con el mismo tope de intentos que la clave del servidor.
+
 ## [0.11.20] - 2026-09-16
 
 ### Cambiado
