@@ -1,7 +1,7 @@
 ﻿# Tareas pendientes — MundoVoxel
 
 Lista viva de lo que falta por hacer. Se actualiza con cada release.
-Ultima actualizacion: 2026-09-20 (streaming por proximidad y cuentas por jugador, en curso).
+Ultima actualizacion: 2026-09-21 (streaming por proximidad y cuentas por jugador, en curso).
 
 ## Hecho recientemente (para contexto)
 

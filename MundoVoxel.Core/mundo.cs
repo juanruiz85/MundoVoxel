@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Numerics;
 
 namespace MundoVoxel.Core;
@@ -30,7 +30,7 @@ public class Mundo
         if (Dentro(x, y, z)) Datos[Idx(x, y, z)] = tipo;
     }
 
-    /// <summary>Punto de apariciÃ³n: encima del bloque mÃ¡s alto del centro.</summary>
+    /// <summary>Punto de aparicion: encima del bloque mas alto del centro.</summary>
     public Vector3 ObtenerPuntoAparicion()
     {
         int cx = Ancho / 2, cz = Profundo / 2;

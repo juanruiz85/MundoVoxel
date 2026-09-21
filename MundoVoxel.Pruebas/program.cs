@@ -1,4 +1,4 @@
-﻿using System.Net.Security;
+using System.Net.Security;
 using System.Net.Sockets;
 using MundoVoxel.Core;
 
@@ -806,10 +806,10 @@ await c1.Enviar(new Posicion { Px = aparicionPriv.Ax, Py = aparicionPriv.Ay, Pz 
 
 // ---------- chat ----------
 Console.WriteLine($"[diag] Bruno antes del chat: conectado={c2.Conectado}, en cola={colaBruno.Count}, tipos={string.Join(",", tiposBruno.Select(kv => kv.Key + "=" + kv.Value))}");
-await c1.Enviar(new Chat { Texto = "Â¡Hola a todos!" });
+await c1.Enviar(new Chat { Texto = "Hola a todos!" });
 var chat = await EsperarChat(colaBruno);
 if (chat == null) Console.WriteLine($"[diag] chat difundido NO llego; conectado={c2.Conectado}, tipos={string.Join(",", tiposBruno.Select(kv => kv.Key + "=" + kv.Value))}");
-Comprobar(chat?.Nombre == "Ana" && chat.Texto == "Â¡Hola a todos!", "chat difundido");
+Comprobar(chat?.Nombre == "Ana" && chat.Texto == "Hola a todos!", "chat difundido");
 
 // Moderacion basica: los caracteres de control (saltos de linea, bell) se quitan
 await c1.Enviar(new Chat { Texto = "linea1\nlinea2\u0007" });

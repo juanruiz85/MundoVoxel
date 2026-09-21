@@ -11,8 +11,8 @@ namespace MundoVoxel.Core;
 
 /// <summary>
 /// Servidor multijugador: mantiene varios mundos en memoria.
-/// Cada mundo puede ser pÃºblico (cualquiera entra) o privado (requiere clave de 4 dÃ­gitos).
-/// El creador puede borrar su mundo; los mundos vacÃ­os se conservan en memoria para volver luego.
+/// Cada mundo puede ser publico (cualquiera entra) o privado (requiere clave de 6 digitos).
+/// El creador puede borrar su mundo; los mundos vacios se conservan en memoria para volver luego.
 /// </summary>
 public sealed class GameServer : IAsyncDisposable
 {
@@ -100,7 +100,7 @@ public sealed class GameServer : IAsyncDisposable
         }
         catch (SocketException ex)
         {
-            Log($"No se pudo abrir el puerto {Puerto}: {ex.Message} (Â¿ya hay otro servidor corriendo?).");
+            Log($"No se pudo abrir el puerto {Puerto}: {ex.Message} (ya hay otro servidor corriendo?).");
             return;
         }
         EnEjecucion = true;
@@ -117,7 +117,7 @@ public sealed class GameServer : IAsyncDisposable
                 Log($"No se pudo preparar el certificado TLS ({ex.Message}): el servidor sigue sin cifrar.");
             }
         }
-        Log($"Servidor Â«{NombreServidor}Â» escuchando en el puerto {Puerto}. Mundos en memoria: {MaxMundos} mÃ¡x., {MaxJugadoresPorMundo} jugadores por mundo.");
+        Log($"Servidor [{NombreServidor}] escuchando en el puerto {Puerto}. Mundos en memoria: {MaxMundos} max., {MaxJugadoresPorMundo} jugadores por mundo.");
         _ = AceptarCicloAsync(_cts.Token);
         _ = CicloPosicionesAsync(_cts.Token);
         _ = CicloMobsAsync(_cts.Token);
@@ -421,7 +421,7 @@ public sealed class GameServer : IAsyncDisposable
         _conexiones.TryRemove(c.Id, out _);
         SalirDelMundo(c, notificar: true);
         c.Cerrar();
-        if (!string.IsNullOrEmpty(c.Nombre)) Log($"{c.Nombre} se desconectÃ³.");
+        if (!string.IsNullOrEmpty(c.Nombre)) Log($"{c.Nombre} se desconecto.");
     }
 
     // ------------------------------------------------------------------ mensajes
@@ -444,7 +444,7 @@ public sealed class GameServer : IAsyncDisposable
                 }
                 Enviar(c, new Bienvenido { IdJugador = c.Id, NombreServidor = NombreServidor });
                 Enviar(c, ListaMundosActual());
-                Log($"{c.Nombre} se conectÃ³ ({c.Tcp.Client.RemoteEndPoint}).");
+                Log($"{c.Nombre} se conecto ({c.Tcp.Client.RemoteEndPoint}).");
                 break;
 
             case ListarMundos:
@@ -829,13 +829,13 @@ public sealed class GameServer : IAsyncDisposable
         {
             if (_mundos.Count >= MaxMundos)
             {
-                Enviar(c, new ErrorServidor { Codigo = "LIMITE_MUNDOS", Mensaje = "El servidor llegÃ³ al lÃ­mite de mundos." });
+                Enviar(c, new ErrorServidor { Codigo = "LIMITE_MUNDOS", Mensaje = "El servidor llego al limite de mundos." });
                 return;
             }
             var nombre = (cm.Nombre ?? "").Trim();
             if (nombre.Length == 0)
             {
-                Enviar(c, new ErrorServidor { Codigo = "NOMBRE_VACIO", Mensaje = "El nombre del mundo no puede estar vacÃ­o." });
+                Enviar(c, new ErrorServidor { Codigo = "NOMBRE_VACIO", Mensaje = "El nombre del mundo no puede estar vacio." });
                 return;
             }
             nombre = nombre[..Math.Min(24, nombre.Length)];
@@ -845,7 +845,7 @@ public sealed class GameServer : IAsyncDisposable
                 pin = (cm.Pin ?? "").Trim();
                 if (pin.Length != 6 || !pin.All(char.IsAsciiDigit))
                 {
-                    Enviar(c, new ErrorServidor { Codigo = "PIN_INVALIDO", Mensaje = "La clave debe tener exactamente 4 dÃ­gitos." });
+                    Enviar(c, new ErrorServidor { Codigo = "PIN_INVALIDO", Mensaje = "La clave debe tener exactamente 6 digitos." });
                     return;
                 }
             }
@@ -867,7 +867,7 @@ public sealed class GameServer : IAsyncDisposable
             ColocarCofreInicial(mundo);
             _mundos[mundo.Id] = mundo;
             GuardarMundos(); // persistir el mundo nuevo desde el primer momento
-            Log($"{c.Nombre} creÃ³ el mundo Â«{nombre}Â» ({(cm.Abierto ? "pÃºblico" : "privado")}).");
+            Log($"{c.Nombre} creo el mundo [{nombre}] ({(cm.Abierto ? "publico" : "privado")}).");
             Enviar(c, new MundoCreado { Id = mundo.Id, Token = mundo.Token });
             UnirseInterno(c, mundo);
             NotificarListas();
@@ -912,11 +912,11 @@ public sealed class GameServer : IAsyncDisposable
             if (mundo.Jugadores.ContainsKey(c.Id)) return;
             if (mundo.Conteo >= MaxJugadoresPorMundo)
             {
-                Enviar(c, new ErrorServidor { Codigo = "LLENO", Mensaje = "El mundo estÃ¡ lleno." });
+                Enviar(c, new ErrorServidor { Codigo = "LLENO", Mensaje = "El mundo esta lleno." });
                 return;
             }
             // Endurecimiento: maximo 5 claves erradas por minuto por conexion
-            // (frena el fuerza bruta de la clave de 4 digitos en mundos privados).
+            // (frena el fuerza bruta de la clave de 6 digitos en mundos privados).
             var ahoraPin = DateTime.UtcNow;
             if ((ahoraPin - c.VentanaPin).TotalSeconds > 60) { c.VentanaPin = ahoraPin; c.IntentosPin = 0; }
             if (c.IntentosPin >= 5)
@@ -1010,7 +1010,7 @@ public sealed class GameServer : IAsyncDisposable
             Enviar(c, InventarioActual(c));
         }
         Broadcast(mundo.Id, new JugadorEntro { Id = c.Id, Nombre = c.Nombre, Px = aparicion.X, Py = aparicion.Y, Pz = aparicion.Z });
-        Log($"{c.Nombre} entrÃ³ al mundo Â«{mundo.Nombre}Â».");
+        Log($"{c.Nombre} entro al mundo [{mundo.Nombre}].");
     }
 
     void SalirDelMundo(ConexionJugador c, bool notificar)
@@ -1029,8 +1029,8 @@ public sealed class GameServer : IAsyncDisposable
                 if (!c.Muerto) mundo.Posiciones[c.Nombre] = (c.Pos.X, c.Pos.Y, c.Pos.Z, c.Ry);
                 mundo.Jugadores.Remove(c.Id);
                 if (notificar) Broadcast(id, new JugadorSalio { Id = c.Id, Nombre = c.Nombre });
-                // El mundo se mantiene en memoria aunque quede vacÃ­o: se puede volver a entrar despuÃ©s.
-                Log($"{c.Nombre} saliÃ³ del mundo Â«{mundo.Nombre}Â» (quedan {mundo.Conteo}).");
+                // El mundo se mantiene en memoria aunque quede vacio: se puede volver a entrar despues.
+                Log($"{c.Nombre} salio del mundo [{mundo.Nombre}] (quedan {mundo.Conteo}).");
             }
         }
     }
@@ -1058,7 +1058,7 @@ public sealed class GameServer : IAsyncDisposable
                 j.EnMundo = false;
                 Enviar(j, new ErrorServidor { Codigo = "MUNDO_BORRADO", Mensaje = "El mundo fue borrado por su creador." });
             }
-            Log($"{c.Nombre} borrÃ³ el mundo Â«{mundo.Nombre}Â».");
+            Log($"{c.Nombre} borro el mundo [{mundo.Nombre}].");
             NotificarListas();
         }
     }
@@ -1389,7 +1389,7 @@ public sealed class GameServer : IAsyncDisposable
         j.Salud = 0;
         Enviar(j, new JugadorSalud { Salud = 0, MaxSalud = 20 });
         Enviar(j, new MuerteInfo { Causa = causa });
-        Log($"{j.Nombre} muriÃ³ ({causa}).");
+        Log($"{j.Nombre} murio ({causa}).");
     }
 
     /// <summary>Reaparece al jugador en el spawn (lo pide el cliente con Respawn).</summary>
@@ -2189,7 +2189,7 @@ public sealed class GameServer : IAsyncDisposable
         Slots = c.Inventario.Select(s => new SlotEstado { Material = s.Material, Cantidad = s.Cantidad }).ToList(),
     };
 
-    // ------------------------------------------------------------------ envÃ­o
+    // ------------------------------------------------------------------ envio
 
     // Streaming por proximidad: manda las regiones que entran en el radio de
     // carga alrededor de (x, z) y avisa de las que el jugador deja atras.
