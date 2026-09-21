@@ -55,6 +55,17 @@ certutil -encode release.keystore release.b64
 
 y se pega el contenido de `release.b64` (sin la primera y la última línea, que son adornos de certutil) en `ANDROID_KEYSTORE_B64`. Ojo: si algún día se pierde ese keystore, las versiones nuevas no podrán actualizar las instaladas (Android solo acepta la misma firma).
 
+
+## Comprobar la firma del APK
+
+Con las herramientas del SDK (`apksigner`, en `build-tools`) se puede ver con qué certificado va firmado un APK:
+
+```
+apksigner verify --print-certs MundoVoxel-0.11.23.apk
+```
+
+Sale el nombre del firmante (`Signer #1 certificate DN`) y, con `-v`, los esquemas de firma usados (v1, v2 y v3). Si el APK se firmó con el keystore propio, ahí aparece su nombre; si se firmó con la clave de depuración, aparece `Android Debug`.
+
 ## Comprobaciones antes de taggear
 
 - `dotnet build MundoVoxel.Pruebas` y la suite en local (o dejar que la haga el CI del push).
