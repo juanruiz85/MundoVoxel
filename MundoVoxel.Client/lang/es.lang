@@ -140,6 +140,13 @@ chat.entro={0} entró al mundo
 chat.salio={0} salió del mundo
 chat.sistema=» {0}
 
+
+# ---- Cuenta del jugador ----
+cuenta.cambiar_boton=Cambiar la clave de la cuenta
+cuenta.cambiar_titulo=Cambiar la clave de la cuenta
+cuenta.vieja=Clave actual
+cuenta.nueva=Clave nueva (6 a 128 caracteres)
+cuenta.cambiada=Clave de la cuenta cambiada.
 # ---- Botones táctiles ----
 boton.romper=Romper
 boton.colocar=Colocar

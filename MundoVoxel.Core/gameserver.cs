@@ -447,6 +447,42 @@ public sealed class GameServer : IAsyncDisposable
                 Log($"{c.Nombre} se conecto ({c.Tcp.Client.RemoteEndPoint}).");
                 break;
 
+            case CambiarClaveCuenta cambio:
+                // Cambio de la clave de la cuenta: solo vale si el servidor usa
+                // cuentas y esta conexion entro con una, de modo que el cambio va
+                // siempre sobre una sesion ya autenticada. Los intentos fallidos
+                // comparten el tope con el resto de claves.
+                if (!CuentasObligatorias || string.IsNullOrEmpty(c.Nombre) || !CuentasJugadores.Existe(c.Nombre))
+                {
+                    Enviar(c, new ErrorServidor { Codigo = "CREDENCIALES", Mensaje = "Usuario o clave incorrectos." });
+                    break;
+                }
+                var ahoraCambio = DateTime.UtcNow;
+                if ((ahoraCambio - c.VentanaPin).TotalSeconds > 60) { c.VentanaPin = ahoraCambio; c.IntentosPin = 0; }
+                if (c.IntentosPin >= 5)
+                {
+                    Enviar(c, new ErrorServidor { Codigo = "MUCHOS_INTENTOS", Mensaje = "Demasiados intentos de clave. Espera un minuto." });
+                    break;
+                }
+                if (!CuentasJugadores.CambiarClave(c.Nombre, cambio.Vieja ?? string.Empty, cambio.Nueva ?? string.Empty, out var errorCambioClave))
+                {
+                    c.IntentosPin++;
+                    Log($"{c.Nombre} no ha podido cambiar la clave de su cuenta ({errorCambioClave}).");
+                    Enviar(c, new ErrorServidor
+                    {
+                        Codigo = errorCambioClave,
+                        Mensaje = errorCambioClave == "CLAVE_CORTA"
+                            ? "La clave de la cuenta debe tener entre 6 y 128 caracteres."
+                            : "Usuario o clave incorrectos.",
+                    });
+                    break;
+                }
+                GuardarCuentas();
+                c.IntentosPin = 0;
+                Log($"{c.Nombre} ha cambiado la clave de su cuenta.");
+                Enviar(c, new ClaveCuentaCambiada());
+                break;
+
             case ListarMundos:
                 Enviar(c, ListaMundosActual());
                 break;

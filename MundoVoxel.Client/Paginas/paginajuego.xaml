@@ -70,6 +70,7 @@
                     <Button x:Name="BtnSalirMundo" Style="{StaticResource BtnSecundario}" Clicked="OnSalirMundo" />
                     <Button x:Name="BtnDesconectar" Style="{StaticResource BtnSecundario}" Clicked="OnDesconectar" />
                     <Button x:Name="BtnInventario" Style="{StaticResource BtnSecundario}" Clicked="OnInventario" />
+                    <Button x:Name="BtnCambiarClaveCuenta" Style="{StaticResource BtnSecundario}" IsVisible="False" Clicked="OnCambiarClaveCuenta" />
                     <Label x:Name="LblControlesPausa" FontSize="11" TextColor="{StaticResource TextoSuave}" LineBreakMode="WordWrap" />
                 </VerticalStackLayout>
             </ScrollView>

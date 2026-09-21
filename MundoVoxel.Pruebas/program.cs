@@ -1226,6 +1226,43 @@ Console.WriteLine("Cuentas: usuario y clave en el saludo (alta, clave mala, sin 
     var listaCuenta = await cNombreFalso.LeerHasta<ListaMundos>(5000);
     Comprobar(listaCuenta != null && listaCuenta.Mundos.Any(m => m.Nombre == "Mundo de cuenta" && m.Dueno == "marta"), "el mundo queda a nombre de la cuenta, no del nombre escrito en el cliente");
     cNombreFalso.Cerrar();
+    // Cambiar la clave de la cuenta (paso 4): hace falta la vieja, el cambio se
+    // confirma y despues se entra con la nueva (y ya no con la vieja).
+    var cCambio = await Conectar(puerto);
+    await cCambio.Enviar(new Hola { Usuario = "marta", ClaveCuenta = "clave1234" });
+    Comprobar(await cCambio.LeerHasta<Bienvenido>(5000) != null, "se entra con la cuenta para cambiar su clave");
+    await cCambio.Enviar(new CambiarClaveCuenta { Vieja = "equivocada", Nueva = "otraclave1" });
+    var errorCambio = await cCambio.LeerHasta<ErrorServidor>(5000);
+    Comprobar(errorCambio?.Codigo == "CREDENCIALES", "el servidor no cambia la clave sin saber la vieja");
+    await cCambio.Enviar(new CambiarClaveCuenta { Vieja = "clave1234", Nueva = "corta" });
+    var errorCorta = await cCambio.LeerHasta<ErrorServidor>(5000);
+    Comprobar(errorCorta?.Codigo == "CLAVE_CORTA", "la clave nueva demasiado corta se avisa");
+    await cCambio.Enviar(new CambiarClaveCuenta { Vieja = "clave1234", Nueva = "nuevaclave9" });
+    Comprobar(await cCambio.LeerHasta<ClaveCuentaCambiada>(5000) != null, "con la clave vieja correcta el cambio se acepta");
+    cCambio.Cerrar();
+
+    var cClaveNueva = await Conectar(puerto);
+    await cClaveNueva.Enviar(new Hola { Usuario = "marta", ClaveCuenta = "nuevaclave9" });
+    Comprobar(await cClaveNueva.LeerHasta<Bienvenido>(5000) != null, "la cuenta entra con la clave nueva");
+    cClaveNueva.Cerrar();
+
+    var cClaveVieja = await Conectar(puerto);
+    await cClaveVieja.Enviar(new Hola { Usuario = "marta", ClaveCuenta = "clave1234" });
+    var errorVieja = await cClaveVieja.LeerHasta<ErrorServidor>(5000);
+    Comprobar(errorVieja?.Codigo == "CREDENCIALES", "la clave vieja ya no vale");
+    cClaveVieja.Cerrar();
+
+    // Con las cuentas apagadas (opt-in) el mensaje no cambia nada: el servidor
+    // principal del suite ya esta parado a esta altura, asi que se apaga la
+    // opcion en este servidor y se comprueba que todo sigue igual que siempre.
+    servidorCuentas.CuentasObligatorias = false;
+    var cCambioSinCuentas = await Conectar(puerto);
+    await cCambioSinCuentas.Enviar(new Hola { Nombre = "Cambiador", Version = "1.0" });
+    Comprobar(await cCambioSinCuentas.LeerHasta<Bienvenido>(5000) != null, "con las cuentas apagadas el saludo sigue siendo el de siempre");
+    await cCambioSinCuentas.Enviar(new CambiarClaveCuenta { Vieja = "x", Nueva = "yyyyyy" });
+    var errorSinCuentas = await cCambioSinCuentas.LeerHasta<ErrorServidor>(5000);
+    Comprobar(errorSinCuentas?.Codigo == "CREDENCIALES", "con las cuentas apagadas no se cambia ninguna clave");
+    cCambioSinCuentas.Cerrar();
     await servidorCuentas.DetenerAsync();
     try { File.Delete(rutaCuentasPrueba); } catch { }
 }

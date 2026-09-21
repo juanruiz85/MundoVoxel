@@ -31,6 +31,8 @@ public partial class PaginaJuego : ContentPage
     bool _saliendo;
     readonly ServicioReconexion _reconexion;
     bool _renderizando;
+    // Clave nueva de la cuenta a la espera de que el servidor confirme el cambio
+    string? _claveNuevaCuenta;
     List<SlotEstado> _inventario = new();
 
     // Progreso de minado (barra en el HUD): golpes enviados vs necesarios del bloque actual
@@ -95,6 +97,10 @@ public partial class PaginaJuego : ContentPage
         BtnSalirMundo.Text = idioma.O("pausa.salir_mundo");
         BtnDesconectar.Text = idioma.O("pausa.desconectar");
         BtnInventario.Text = "Inventario (E)";
+        // Cambiar la clave de la cuenta: solo tiene sentido si la sesion entro con
+        // un usuario (el servidor lo exige para atender el cambio).
+        BtnCambiarClaveCuenta.Text = idioma.O("cuenta.cambiar_boton");
+        BtnCambiarClaveCuenta.IsVisible = EstadoSesion.Usuario.Length > 0;
         ConstruirPanelInventario();
         BtnDistancia.Text = idioma.O("juego.distancia", NombreDistancia());
         LblControlesPausa.Text = idioma.O("pausa.controles");
@@ -505,7 +511,22 @@ public partial class PaginaJuego : ContentPage
                 AgregarChat($"{ch.Nombre}: {ch.Texto}");
                 break;
 
+            case ClaveCuentaCambiada:
+                // Confirmado el cambio: la clave nueva pasa a ser la de la sesion
+                // (la reconexion automatica la reutiliza) y se recuerda en el equipo.
+                if (_claveNuevaCuenta is { Length: > 0 } claveNuevaCuenta)
+                {
+                    EstadoSesion.ClaveCuenta = claveNuevaCuenta;
+                    Preferences.Set("clave_cuenta", claveNuevaCuenta);
+                }
+                _claveNuevaCuenta = null;
+                AgregarChat("+ " + _idioma.O("cuenta.cambiada"));
+                break;
+
             case ErrorServidor er:
+                // Un aviso del servidor descarta cualquier cambio de clave pendiente:
+                // sin confirmacion no se da por buena la clave nueva.
+                _claveNuevaCuenta = null;
                 AgregarChat("✖ " + TextoError(er));
                 if (er.Codigo == "MUNDO_BORRADO")
                     _ = SalirAlMenu();
@@ -520,6 +541,19 @@ public partial class PaginaJuego : ContentPage
     {
         var clave = "error." + er.Codigo.ToLowerInvariant();
         return _idioma.Lang.Contiene(clave) ? _idioma.O(clave) : er.Mensaje;
+    }
+
+    /// <summary>Pide el cambio de clave de la cuenta: primero la vieja y luego la
+    /// nueva. El servidor confirma con ClaveCuentaCambiada (o avisa del error).</summary>
+    async void OnCambiarClaveCuenta(object? sender, EventArgs e)
+    {
+        if (EstadoSesion.Usuario.Length == 0) return;
+        var vieja = await DisplayPromptAsync(_idioma.O("cuenta.cambiar_titulo"), _idioma.O("cuenta.vieja"), _idioma.O("juego.si"));
+        if (string.IsNullOrEmpty(vieja)) return;
+        var nueva = await DisplayPromptAsync(_idioma.O("cuenta.cambiar_titulo"), _idioma.O("cuenta.nueva"), _idioma.O("juego.si"));
+        if (string.IsNullOrEmpty(nueva)) return;
+        _claveNuevaCuenta = nueva;
+        _red.Enviar(new CambiarClaveCuenta { Vieja = vieja, Nueva = nueva });
     }
 
     void AgregarChat(string linea)

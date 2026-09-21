@@ -55,6 +55,8 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(Pong), "Pong")]
 [JsonDerivedType(typeof(PedirToken), "PedirToken")]
 [JsonDerivedType(typeof(TokenMundo), "TokenMundo")]
+[JsonDerivedType(typeof(CambiarClaveCuenta), "CambiarClaveCuenta")]
+[JsonDerivedType(typeof(ClaveCuentaCambiada), "ClaveCuentaCambiada")]
 public abstract class Mensaje
 {
 }
@@ -71,6 +73,20 @@ public sealed class Hola : Mensaje
     public string? ClaveCuenta { get; set; }
 }
 public sealed class Bienvenido : Mensaje { public int IdJugador { get; set; } public string NombreServidor { get; set; } = ""; }
+
+/// <summary>Cambio de la clave de la cuenta del jugador conectado. Hace falta la
+/// clave vieja y solo lo atiende un servidor con cuentas obligatorias; la sesion
+/// ya viene autenticada, asi que el nombre no se toca.</summary>
+public sealed class CambiarClaveCuenta : Mensaje
+{
+    public string? Vieja { get; set; }
+    public string? Nueva { get; set; }
+}
+
+/// <summary>El servidor confirma que la clave de la cuenta ha cambiado.</summary>
+public sealed class ClaveCuentaCambiada : Mensaje
+{
+}
 
 // Ping/Pong: sondeo ligero para la lista de servidores favoritos del cliente
 // (latencia y jugadores en linea). El cliente envia Ping con su marca de tiempo;
