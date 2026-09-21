@@ -2,8 +2,8 @@ namespace MundoVoxel.Client.Servicios;
 
 /// <summary>
 /// Estado de las teclas del teclado. En Windows se enlaza al contenido de la ventana
-/// (KeyDown/KeyUp); en Android los botones táctiles simulan pulsaciones con códigos propios.
-/// Los códigos son enteros portables (ver Juego.Teclas).
+/// (KeyDown/KeyUp). En Android los botones táctiles de la pantalla de juego escriben
+/// el estado directamente en la vista. Los códigos son enteros portables (ver Juego.Teclas).
 /// </summary>
 public sealed class ServicioTeclado
 {
@@ -12,7 +12,6 @@ public sealed class ServicioTeclado
 
     public bool EstaPulsada(int codigo) => _pulsadas.Contains(codigo);
     public event Action<int>? AlPulsar;
-    public event Action<int>? AlSoltar;
 
 #if WINDOWS
     public void Vincular(Microsoft.UI.Xaml.UIElement elemento)
@@ -49,19 +48,7 @@ public sealed class ServicioTeclado
                         e.Handled = true;
                 }
                 _pulsadas.Remove((int)e.Key);
-                AlSoltar?.Invoke((int)e.Key);
             }), true);
     }
 #endif
-
-    public void SimularPulsacion(int codigo)
-    {
-        if (_pulsadas.Add(codigo)) AlPulsar?.Invoke(codigo);
-    }
-
-    public void SimularSoltar(int codigo)
-    {
-        _pulsadas.Remove(codigo);
-        AlSoltar?.Invoke(codigo);
-    }
 }
