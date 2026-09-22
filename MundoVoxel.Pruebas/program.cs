@@ -1682,6 +1682,74 @@ if (langRaiz != null)
     miSinUso.Sort(StringComparer.Ordinal);
     Comprobar(miSinUso.Count == 0, $"todo miembro declarado con visibilidad se usa (sin usar: {string.Join(", ", miSinUso)})");
 }
+// ---------- tipos declarados y sin usar ----------
+// Un nivel por encima del bloque anterior: un tipo (clase, record, struct, enum
+// o interface) que solo aparece en su propia declaracion es el mismo resto de
+// una funcion a medio hacer. El XAML cuenta como uso, como en los miembros, y
+// tambien los ficheros de configuracion y el manifiesto. Los puntos de entrada
+// que arranca el sistema estan exceptuados a mano, igual que Draw arriba.
+if (langRaiz != null)
+{
+    var tiTextos = new List<string>();
+    var tiDeclaraciones = new Dictionary<string, int>();
+    var tiNombres = new List<string>();
+    var tiPalabras = new[] { "class", "struct", "interface", "enum", "record" };
+    // MainActivity la lanza Android y Program es el Main del servidor: los llama el sistema.
+    var tiExentos = new[] { "MainActivity", "Program" };
+    foreach (var tiProyecto in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Server", "MundoVoxel.Pruebas" })
+    {
+        var tiCarpeta = Path.Combine(langRaiz, tiProyecto);
+        if (!Directory.Exists(tiCarpeta)) continue;
+        foreach (var tiFichero in Directory.EnumerateFiles(tiCarpeta, "*.*", SearchOption.AllDirectories))
+        {
+            if (tiFichero.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") || tiFichero.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+            bool tiCuenta = tiFichero.EndsWith(".cs") || tiFichero.EndsWith(".xaml") || tiFichero.EndsWith(".xml") || tiFichero.EndsWith(".json");
+            if (!tiCuenta) continue;
+            var tiTexto = File.ReadAllText(tiFichero);
+            tiTextos.Add(tiTexto);
+            if (!tiFichero.EndsWith(".cs")) continue;
+            foreach (var tiLinea in tiTexto.Split('\n'))
+            {
+                var tiRecorte = tiLinea.Trim();
+                if (tiRecorte.StartsWith("//") || tiRecorte.StartsWith("*") || tiRecorte.StartsWith("///")) continue;
+                int tiCorte = tiRecorte.IndexOf("//", StringComparison.Ordinal);
+                if (tiCorte >= 0) tiRecorte = tiRecorte.Substring(0, tiCorte);
+                var tiTrozos = tiRecorte.Split(new[] { ' ', '\t', '(', ')', '{', '}', '[', ']', ',', ':', ';', '<', '>', '=', '.', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                for (int tiT = 0; tiT < tiTrozos.Length; tiT++)
+                {
+                    if (Array.IndexOf(tiPalabras, tiTrozos[tiT]) < 0) continue;
+                    int tiSig = tiT + 1;
+                    while (tiSig < tiTrozos.Length && Array.IndexOf(tiPalabras, tiTrozos[tiSig]) >= 0) tiSig++;
+                    if (tiSig >= tiTrozos.Length) continue;
+                    var tiNombreDecl = tiTrozos[tiSig];
+                    if (Array.IndexOf(tiExentos, tiNombreDecl) >= 0) continue;
+                    if (tiDeclaraciones.ContainsKey(tiNombreDecl)) tiDeclaraciones[tiNombreDecl]++;
+                    else { tiDeclaraciones[tiNombreDecl] = 1; tiNombres.Add(tiNombreDecl); }
+                }
+            }
+        }
+    }
+    var tiTodo = string.Join("\n", tiTextos);
+    var tiSinUso = new List<string>();
+    foreach (var tiNombre in tiNombres)
+    {
+        int tiUsos = 0;
+        int tiDesde = 0;
+        while (tiDesde < tiTodo.Length)
+        {
+            int tiAqui = tiTodo.IndexOf(tiNombre, tiDesde, StringComparison.Ordinal);
+            if (tiAqui < 0) break;
+            bool tiIzq = tiAqui > 0 && (char.IsLetterOrDigit(tiTodo[tiAqui - 1]) || tiTodo[tiAqui - 1] == '_');
+            int tiSigUso = tiAqui + tiNombre.Length;
+            bool tiDer = tiSigUso < tiTodo.Length && (char.IsLetterOrDigit(tiTodo[tiSigUso]) || tiTodo[tiSigUso] == '_');
+            if (!tiIzq && !tiDer) tiUsos++;
+            tiDesde = tiSigUso;
+        }
+        if (tiUsos <= tiDeclaraciones[tiNombre]) tiSinUso.Add(tiNombre);
+    }
+    tiSinUso.Sort(StringComparer.Ordinal);
+    Comprobar(tiSinUso.Count == 0, $"todo tipo declarado lo usa alguien (sin usar: {string.Join(", ", tiSinUso)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 
