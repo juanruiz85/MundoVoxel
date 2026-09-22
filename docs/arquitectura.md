@@ -43,7 +43,7 @@
 | `PedirToken` / `TokenMundo` | CS / SC | El dueño pide el token de su mundo privado; solo él lo recibe (`NO_DUENO` para los demás, `MUNDO_PUBLICO` si el mundo es abierto). |
 | `Error` | SC | Cdigos: `PIN_INCORRECTO`, `LLENO`, `NO_EXISTE`, `NO_DUENO`, `PIN_INVALIDO`, `LIMITE_MUNDOS`, `MUNDO_BORRADO`, `MUNDO_PUBLICO`. |
 | `Salir` | C→S | Sale del mundo actual (el mundo queda en memoria). |
-| `BorrarMundo` / `MundoBorrado` | C→S / S→C | Solo el creador; expulsa a los jugadores dentro. |
+| `BorrarMundo` | CS | Solo el creador; el mundo desaparece y los jugadores que estaban dentro reciben el aviso `MUNDO_BORRADO`. |
 | `RomperBloque` / `ColocarBloque` / `BloqueCambio` | C→S / S→C | Coordenadas (+tipo al colocar); el servidor valida y difunde. |
 | `Posicion` / `Posiciones` | C→S / S→C | Posición + orientación; el servidor reenvía el estado de todos (10 Hz). |
 | `Chat` | C→S / S→C | Mensaje de chat difundido al mundo. |
@@ -52,7 +52,7 @@
 - Romper: dentro del mundo, distancia ≤ 7 bloques, no `Aire` ni `Lecho`.
 - Colocar: dentro del mundo, `y > 0`, tipo colocable, destino vacío, distancia ≤ 7 y **no dentro del espacio de otro jugador**.
 - Clave: solo mundos privados; debe coincidir exactamente con los 6 dígitos. El **token de invitación** (10 caracteres, ignorando mayúsculas) abre el mismo mundo sin revelar la clave; los intentos fallidos siguen contando para el tope de 5 por minuto y solo el dueño puede consultarlo.
-- Borrar: solo el `IdDueno` (la conexión que creó el mundo).
+- Borrar: solo el dueño del mundo, comprobado por **nombre** de jugador (no por id de conexión): si el creador reconecta con otro id no pierde su mundo.
 
 ### Cifrado (TLS, opcional)
 - `GameServer.TlsActivo` (o `"Tls": true` en `ajustes.config.json`): al aceptar una conexión se hace el handshake TLS antes de leer nada; el certificado es autofirmado y se genera/guarda en `%LOCALAPPDATA%\MundoVoxel\servidor.pfx`.
