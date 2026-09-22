@@ -75,7 +75,7 @@ jobs:
       - name: Publicar cliente Windows
         run: |
           $ver = $env:GITHUB_REF_NAME -replace "^v",""
-          $extra = if ($ver -match '^\d+\.\d+\.\d+$') { @("-p:Version=$ver","-p:ApplicationDisplayVersion=$ver.0") } else { @() }
+          $extra = @(); if ($ver -match '^\d+\.\d+\.\d+$') { $extra = @("-p:Version=$ver","-p:ApplicationDisplayVersion=$ver.0") }
           dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -o pub/cliente @extra 2>&1 | Tee-Object -FilePath publish.log
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Errores de publicacion
@@ -133,11 +133,9 @@ jobs:
             [IO.File]::WriteAllText($manifiesto, $textoManifiesto)
             Write-Output "MSIX: version del paquete $ver.0 (tomada del tag)"
           }
-          $extraMsix = if ($ver -match '^\d+\.\d+\.\d+$') { @("-p:ApplicationDisplayVersion=$ver.0") } else { @() }
-          dotnet publish MundoVoxel.Client -f net10.0-windows10.0.19041.0 -c Release -o pub/msix `
-            -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true `
-            @extraMsix `
-            -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="$env:MSIX_THUMB" 2>&1 | Tee-Object -FilePath msix.log
+          $argumentosMsix = @("publish","MundoVoxel.Client","-f","net10.0-windows10.0.19041.0","-c","Release","-o","pub/msix","-p:WindowsPackageType=MSIX","-p:GenerateAppxPackageOnBuild=true","-p:AppxPackageSigningEnabled=true","-p:PackageCertificateThumbprint=$env:MSIX_THUMB")
+          if ($ver -match '^\d+\.\d+\.\d+$') { $argumentosMsix += "-p:ApplicationDisplayVersion=$ver.0" }
+          & dotnet @argumentosMsix 2>&1 | Tee-Object -FilePath msix.log
           if ($LASTEXITCODE -ne 0) { exit 1 }
           $pkg = Get-ChildItem -Path pub/msix, MundoVoxel.Client/bin/Release -Recurse -Filter *.msix -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $pkg) { throw "No se genero el MSIX" }
