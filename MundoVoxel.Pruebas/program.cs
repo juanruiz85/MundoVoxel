@@ -1452,24 +1452,29 @@ langUsadas.Add(langTexto);
         .Where(c => c.StartsWith("bloque.", StringComparison.Ordinal) && !langUsadas.Contains(c)).ToList();
     Comprobar(langHuerfanas.Count == 0, $"sin textos de bloque huerfanos en es.lang ({langHuerfanas.Count} huerfanos)");
 }
+// ---------- helper comun ----------
+// Comprueba que una palabra aparece en el texto como palabra completa (no dentro
+// de un identificador mas largo). Lo usan las comprobaciones de protocolo, de
+// textos de idioma y de ajustes.
+static bool EsPalabraSuelta(string texto, string palabra)
+{
+    int hp = texto.IndexOf(palabra, StringComparison.Ordinal);
+    while (hp >= 0)
+    {
+        bool hIni = hp == 0 || !char.IsLetterOrDigit(texto[hp - 1]);
+        int hFin = hp + palabra.Length;
+        bool hOkFin = hFin >= texto.Length || !char.IsLetterOrDigit(texto[hFin]);
+        if (hIni && hOkFin) return true;
+        hp = texto.IndexOf(palabra, hp + 1, StringComparison.Ordinal);
+    }
+    return false;
+}
 // ---------- mensajes del protocolo ----------
 // Un mensaje declarado en protocolo.cs que no aparece en ningun otro fichero es un
 // resto: ni se envia ni se atiende. La raiz del repositorio la busca el bloque anterior.
 if (langRaiz != null)
 {
-    static bool EsPalabraEn(string texto, string palabra)
-    {
-        int p = texto.IndexOf(palabra, StringComparison.Ordinal);
-        while (p >= 0)
-        {
-            bool okIni = p == 0 || !char.IsLetterOrDigit(texto[p - 1]);
-            int pFin = p + palabra.Length;
-            bool okFin = pFin >= texto.Length || !char.IsLetterOrDigit(texto[pFin]);
-            if (okIni && okFin) return true;
-            p = texto.IndexOf(palabra, p + 1, StringComparison.Ordinal);
-        }
-        return false;
-    }
+
     var protoTipo = Path.Combine(langRaiz, "MundoVoxel.Core", "protocolo.cs");
     var protoFuera = "";
     foreach (var protoCarpeta in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Pruebas" })
@@ -1490,7 +1495,7 @@ if (langRaiz != null)
         int protoFin = protoLinea.IndexOf(')', protoIni);
         if (protoIni < 7 || protoFin <= protoIni) continue;
         var protoNombre = protoLinea[protoIni..protoFin].Trim();
-        if (!EsPalabraEn(protoFuera, protoNombre)) protoSinUso.Add(protoNombre);
+        if (!EsPalabraSuelta(protoFuera, protoNombre)) protoSinUso.Add(protoNombre);
     }
     Comprobar(protoSinUso.Count == 0, $"todos los mensajes del protocolo se usan fuera de protocolo.cs (sin uso: {string.Join(", ", protoSinUso)})");
 }
@@ -1500,19 +1505,7 @@ if (langRaiz != null)
 // bloque.* (los consume la tabla de bloques del nucleo, que este barrido ya lee).
 if (langRaiz != null)
 {
-    static bool EsPalabraSuelta(string texto, string palabra)
-    {
-        int p = texto.IndexOf(palabra, StringComparison.Ordinal);
-        while (p >= 0)
-        {
-            bool okIni = p == 0 || !char.IsLetterOrDigit(texto[p - 1]);
-            int pFin = p + palabra.Length;
-            bool okFin = pFin >= texto.Length || !char.IsLetterOrDigit(texto[pFin]);
-            if (okIni && okFin) return true;
-            p = texto.IndexOf(palabra, p + 1, StringComparison.Ordinal);
-        }
-        return false;
-    }
+
     var txtRuta = Path.Combine(langRaiz, "MundoVoxel.Client", "lang", "es.lang");
     var txtCodigo = "";
     foreach (var txtCarpeta in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Server", "MundoVoxel.Pruebas" })
@@ -1536,6 +1529,38 @@ if (langRaiz != null)
         if (!EsPalabraSuelta(txtCodigo, txtClave)) txtSobran.Add(txtClave);
     }
     Comprobar(txtSobran.Count == 0, $"todo texto de es.lang lo pide algun sitio (sin usar: {string.Join(", ", txtSobran)})");
+}
+// ---------- ajustes sin usar ----------
+// Un campo de Ajustes.Config que no lee nadie es un mando que no hace nada: el
+// archivo de ajustes lo acepta y el juego lo ignora. Paso de verdad con
+// MinutosDeltaRapido y con SensibilidadRaton, asi que la suite lo vigila.
+if (langRaiz != null)
+{
+    var ajRuta = Path.Combine(langRaiz, "MundoVoxel.Core", "ajustes.cs");
+    var ajCodigo = "";
+    foreach (var ajCarpeta in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Server", "MundoVoxel.Pruebas" })
+    {
+        foreach (var ajFichero in Directory.EnumerateFiles(Path.Combine(langRaiz, ajCarpeta), "*.cs", SearchOption.AllDirectories))
+        {
+            if (ajFichero == ajRuta) continue;
+            if (ajFichero.Contains("\\bin\\") || ajFichero.Contains("\\obj\\") ||
+                ajFichero.Contains("/bin/") || ajFichero.Contains("/obj/")) continue;
+            ajCodigo += File.ReadAllText(ajFichero) + "\n";
+        }
+    }
+    var ajSinUso = new List<string>();
+    foreach (var ajLinea in File.ReadAllLines(ajRuta))
+    {
+        int ajProp = ajLinea.IndexOf("{ get; set; }");
+        if (ajProp < 0) continue;
+        var ajCabeza = ajLinea[..ajProp].Trim();
+        int ajCorte = ajCabeza.LastIndexOf(' ');
+        if (ajCorte < 0) continue;
+        var ajNombre = ajCabeza[(ajCorte + 1)..];
+        if (ajNombre.Length == 0) continue;
+        if (!EsPalabraSuelta(ajCodigo, ajNombre)) ajSinUso.Add(ajNombre);
+    }
+    Comprobar(ajSinUso.Count == 0, $"todo ajuste de la configuracion lo lee alguien (sin leer: {string.Join(", ", ajSinUso)})");
 }
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;

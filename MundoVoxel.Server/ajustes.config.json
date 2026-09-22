@@ -28,6 +28,13 @@
   // manda solo las regiones que cambiaron en vez del mundo entero. Minutos
   // durante los que vale ese atajo (0 = desactivado: siempre el mundo entero).
   "MinutosDeltaRapido": 5,
+  // Anti-cheat de movimiento (servidor dedicado). "AntiCheatSaltoMax" = bloques
+  // maximos entre dos mensajes de posicion (caza teletransportes; 12 o mas con
+  // caidas rapidas y lag) y "AntiCheatVelocidadMax" = bloques por segundo
+  // sostenidos (caza speedhack; una caida libre pasa de 30, conviene generoso).
+  // Los dos a 0 = desactivado (por defecto se confia en la posicion del cliente).
+  "AntiCheatSaltoMax": 0,
+  "AntiCheatVelocidadMax": 0,
 
   // Cuentas por jugador (opcional). Con "CuentasObligatorias": true el servidor pide
   // usuario y clave antes de dejar entrar: el nombre deja de poder suplantarse (el

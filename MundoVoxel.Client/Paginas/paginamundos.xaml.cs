@@ -176,7 +176,7 @@ public partial class PaginaMundos : ContentPage
                         Mundo = rem.Mundo,
                         Remoto = rem.Completo ? null : rem,
                         Ax = up.Ax, Ay = up.Ay, Az = up.Az,
-                        Sensibilidad = Preferences.Get("sensibilidad_raton", 1f),
+                        Sensibilidad = Preferences.Get("sensibilidad_raton", Ajustes.Actual.SensibilidadRaton),
                         PinUsado = _pinPendiente,
                         TokenUsado = _tokenPendiente,
                     };
