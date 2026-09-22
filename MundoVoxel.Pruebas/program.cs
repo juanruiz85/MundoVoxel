@@ -1494,6 +1494,49 @@ if (langRaiz != null)
     }
     Comprobar(protoSinUso.Count == 0, $"todos los mensajes del protocolo se usan fuera de protocolo.cs (sin uso: {string.Join(", ", protoSinUso)})");
 }
+// ---------- textos del idioma sin usar ----------
+// Un texto del archivo de idioma que no pide nadie es un resto. Se exceptuan los
+// error.* (el cliente arma la clave con el codigo que manda el servidor) y los
+// bloque.* (los consume la tabla de bloques del nucleo, que este barrido ya lee).
+if (langRaiz != null)
+{
+    static bool EsPalabraSuelta(string texto, string palabra)
+    {
+        int p = texto.IndexOf(palabra, StringComparison.Ordinal);
+        while (p >= 0)
+        {
+            bool okIni = p == 0 || !char.IsLetterOrDigit(texto[p - 1]);
+            int pFin = p + palabra.Length;
+            bool okFin = pFin >= texto.Length || !char.IsLetterOrDigit(texto[pFin]);
+            if (okIni && okFin) return true;
+            p = texto.IndexOf(palabra, p + 1, StringComparison.Ordinal);
+        }
+        return false;
+    }
+    var txtRuta = Path.Combine(langRaiz, "MundoVoxel.Client", "lang", "es.lang");
+    var txtCodigo = "";
+    foreach (var txtCarpeta in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Server", "MundoVoxel.Pruebas" })
+    {
+        foreach (var txtFichero in Directory.EnumerateFiles(Path.Combine(langRaiz, txtCarpeta), "*.*", SearchOption.AllDirectories))
+        {
+            if (!txtFichero.EndsWith(".cs") && !txtFichero.EndsWith(".xaml")) continue;
+            if (txtFichero.Contains("\\bin\\") || txtFichero.Contains("\\obj\\") ||
+                txtFichero.Contains("/bin/") || txtFichero.Contains("/obj/")) continue;
+            txtCodigo += File.ReadAllText(txtFichero) + "\n";
+        }
+    }
+    var txtSobran = new List<string>();
+    foreach (var txtLinea in File.ReadAllLines(txtRuta))
+    {
+        if (txtLinea.StartsWith("#")) continue;
+        int txtIgual = txtLinea.IndexOf('=');
+        if (txtIgual <= 0) continue;
+        var txtClave = txtLinea[..txtIgual].Trim();
+        if (txtClave.StartsWith("error.")) continue;
+        if (!EsPalabraSuelta(txtCodigo, txtClave)) txtSobran.Add(txtClave);
+    }
+    Comprobar(txtSobran.Count == 0, $"todo texto de es.lang lo pide algun sitio (sin usar: {string.Join(", ", txtSobran)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 

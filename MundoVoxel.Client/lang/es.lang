@@ -71,7 +71,6 @@ mundos.token_copiar=Copiar
 mundos.token_copiado=Token copiado al portapapeles.
 mundos.pedir_clave_o_token=Este mundo es privado. Escribe la clave de 6 dígitos o el token de invitación:
 mundos.pedir_clave=Este mundo es privado. Escribe la clave de 6 dígitos:
-mundos.conectando=Conectando…
 
 # ---- Ajustes del mundo al crearlo ----
 mundos.cfg_tamano=Tamaño del mapa
@@ -114,8 +113,6 @@ juego.distancia=Renderizado: {0}
 juego.distancia_baja=Bajo
 juego.distancia_media=Medio
 juego.distancia_alta=Alto
-juego.mundo_descargando=Descargando mundo…
-juego.tu=Tú
 juego.jugadores_conectados=Jugadores: {0}
 juego.coordenadas=X {0:F1} · Y {1:F1} · Z {2:F1}
 juego.fps={0} FPS
@@ -123,11 +120,9 @@ juego.fps={0} FPS
 # ---- Pausa ----
 pausa.titulo=Pausa
 pausa.reanudar=Reanudar
-pausa.volar=Volar: {0}
 pausa.salir_mundo=Salir del mundo
 pausa.desconectar=Desconectar
 pausa.borrar_mundo=Borrar este mundo
-pausa.solo_dueno=(solo el creador)
 pausa.controles=Controles: WASD mover · Espacio saltar · F volar · T chat · 1-9 bloques · Clic colocar · Doble clic o R romper
 
 # ---- Chat ----
