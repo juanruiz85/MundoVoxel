@@ -43,7 +43,6 @@ public sealed class RenderizadorVoxel
     public const int NivelesNiebla = 16;
 
     readonly Dictionary<(int, int), ChunkMalla> _mallas = new();
-    public int NumMallas => _mallas.Count;
     readonly List<CaraVista> _visibles = new();
     byte[] _paletaRgb = Array.Empty<byte>(); // 4 bytes por entrada: R,G,B,alfa
     readonly float[] _sx = new float[4], _sy = new float[4], _zc = new float[4];
@@ -79,12 +78,6 @@ public sealed class RenderizadorVoxel
         _cieloArriba = new Color(0x6c / 255f * ar, 0xb6 / 255f * ag, 0xe8 / 255f * ab);
         _cieloAbajo = new Color(0xcf / 255f * ar, 0xe3 / 255f * ag, 0xf2 / 255f * ab);
         PrepararPaleta();
-    }
-
-    public Color ColorBloque(ushort b)
-    {
-        var c = ColoresBase[Math.Min(b, (ushort)(ColoresBase.Length - 1))];
-        return new Color(c.r / 255f, c.g / 255f, c.b / 255f);
     }
 
     struct CaraVista

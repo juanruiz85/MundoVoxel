@@ -91,5 +91,4 @@ public static class Bloques
     public static bool EsRompible(ushort b) => b != Aire && b != Lecho && b != Agua && b != Lava && b != PiedraMadre && b != Vacio;
     public static bool EsMineral(ushort b) => b == Carbon || b == Hierro || b == Oro || b == Diamante || b == Cobre;
     public static bool EsCultivo(ushort b) => b >= Trigo0 && b <= Trigo3;
-    public static bool EsTrigoMaduro(ushort b) => b == Trigo3;
 }

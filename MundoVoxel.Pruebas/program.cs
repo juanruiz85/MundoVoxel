@@ -1613,6 +1613,75 @@ if (langRaiz != null)
         if (!conReceta.Contains((ushort)it) && !deBotin.Contains((ushort)it)) iSinFuente.Add(it.ToString());
     Comprobar(iSinFuente.Count == 0, $"todo item sale de una receta, del horno, del botin de un mob o de romper un bloque (sin fuente: {string.Join(", ", iSinFuente)})");
 }
+// ---------- API declarada y sin usar ----------
+// Un miembro con modificador de visibilidad que no menciona nadie es un resto
+// de una funcion a medio hacer: es la misma clase de bug que el evento
+// AlCancelar (nadie lo disparaba) y que los ayudantes que se quedaron sin
+// llamadas. Se revisan los cuatro proyectos, y el XAML tambien cuenta como uso
+// (un enlace o el nombre de un control llama al miembro desde el codigo
+// generado). Los puntos de entrada del framework estan exceptuados a mano
+// porque los llama el arranque y no aparecen en el codigo.
+if (langRaiz != null)
+{
+    var miTextos = new List<string>();
+    foreach (var miProyecto in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Server", "MundoVoxel.Pruebas" })
+    {
+        var miCarpeta = Path.Combine(langRaiz, miProyecto);
+        if (!Directory.Exists(miCarpeta)) continue;
+        foreach (var miFichero in Directory.EnumerateFiles(miCarpeta, "*.*", SearchOption.AllDirectories))
+            if ((miFichero.EndsWith(".cs") || miFichero.EndsWith(".xaml")) && !miFichero.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !miFichero.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
+                miTextos.Add(File.ReadAllText(miFichero));
+    }
+    var miTodo = string.Join("\n", miTextos);
+    // Draw lo llama el GraphicsView de MAUI a traves de IDrawable (la clase lo implementa).
+    var miExentos = new[] { "Main", "CreateMauiApp", "ExecuteAsync", "DisposeAsync", "CreateWindow", "OnBackButtonPressed", "Draw" };
+    var miDeclaraciones = new Dictionary<string, int>();
+    var miNombres = new List<string>();
+    foreach (var miLinea in miTodo.Split('\n'))
+    {
+        var miRecorte = miLinea.Trim();
+        bool miVisible = miRecorte.StartsWith("public ") || miRecorte.StartsWith("private ")
+            || miRecorte.StartsWith("protected ") || miRecorte.StartsWith("internal ");
+        if (!miVisible) continue;
+        if (miRecorte.Contains(" class ") || miRecorte.Contains(" record ") || miRecorte.Contains(" struct ")
+            || miRecorte.Contains(" enum ") || miRecorte.Contains(" interface ") || miRecorte.Contains(" namespace ")
+            || miRecorte.Contains(" override ")) continue;
+        var miCorte = miRecorte;
+        foreach (var miMarca in new[] { "(", "=", "{", ";" })
+        {
+            int miDonde = miCorte.IndexOf(miMarca, StringComparison.Ordinal);
+            if (miDonde >= 0) miCorte = miCorte.Substring(0, miDonde);
+        }
+        int miFin = miCorte.Length;
+        while (miFin > 0 && !(char.IsLetterOrDigit(miCorte[miFin - 1]) || miCorte[miFin - 1] == '_')) miFin--;
+        int miIni = miFin;
+        while (miIni > 0 && (char.IsLetterOrDigit(miCorte[miIni - 1]) || miCorte[miIni - 1] == '_')) miIni--;
+        if (miFin - miIni < 2) continue;
+        var miNombre = miCorte.Substring(miIni, miFin - miIni);
+        if (Array.IndexOf(miExentos, miNombre) >= 0) continue;
+        if (miDeclaraciones.ContainsKey(miNombre)) miDeclaraciones[miNombre]++;
+        else { miDeclaraciones[miNombre] = 1; miNombres.Add(miNombre); }
+    }
+    var miSinUso = new List<string>();
+    foreach (var miNombre in miNombres)
+    {
+        int miUsos = 0;
+        int miDesde = 0;
+        while (miDesde < miTodo.Length)
+        {
+            int miAqui = miTodo.IndexOf(miNombre, miDesde, StringComparison.Ordinal);
+            if (miAqui < 0) break;
+            bool miIzq = miAqui > 0 && (char.IsLetterOrDigit(miTodo[miAqui - 1]) || miTodo[miAqui - 1] == '_');
+            int miSig = miAqui + miNombre.Length;
+            bool miDer = miSig < miTodo.Length && (char.IsLetterOrDigit(miTodo[miSig]) || miTodo[miSig] == '_');
+            if (!miIzq && !miDer) miUsos++;
+            miDesde = miSig;
+        }
+        if (miUsos <= miDeclaraciones[miNombre]) miSinUso.Add(miNombre);
+    }
+    miSinUso.Sort(StringComparer.Ordinal);
+    Comprobar(miSinUso.Count == 0, $"todo miembro declarado con visibilidad se usa (sin usar: {string.Join(", ", miSinUso)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 

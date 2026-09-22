@@ -88,14 +88,6 @@ public sealed class ControladorJugador
         return mundo.Obtener(bx, yPies, bz) == Bloques.Agua || mundo.Obtener(bx, yPecho, bz) == Bloques.Agua;
     }
 
-    /// <summary>True si la cabeza esta en lava (para el HUD).</summary>
-    public bool EnLava(Mundo mundo)
-    {
-        int bx = (int)MathF.Floor(Pos.X), bz = (int)MathF.Floor(Pos.Z);
-        int yCabeza = (int)MathF.Floor(Pos.Y + 1.6f);
-        return mundo.Obtener(bx, yCabeza, bz) == Bloques.Lava;
-    }
-
     /// <summary>True si el cuerpo (pies o pecho) esta en lava (para nadar).</summary>
     public bool EnLavaCuerpo(Mundo mundo)
     {

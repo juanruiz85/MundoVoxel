@@ -79,22 +79,6 @@ public sealed class VistaJuego : IDrawable
     public sealed record DropRemoto(ushort Material, Vector3 Pos);
     public readonly Dictionary<int, DropRemoto> Drops = new();
 
-    public static Color ColorMaterial(ushort m)
-    {
-        var (r, g, b) = Objetos.Color(m);
-        return Color.FromRgb(r, g, b);
-    }
-
-    public static Color ColorMob(TipoMob t) => t switch
-    {
-        TipoMob.Cerdo => Color.FromArgb("#e79a9a"),
-        TipoMob.Vaca => Color.FromArgb("#8b5a2b"),
-        TipoMob.Oveja => Color.FromArgb("#e6e6e6"),
-        TipoMob.Zombi => Color.FromArgb("#4e9a4e"),
-        TipoMob.Creeper => Color.FromArgb("#5fbf5f"),
-        _ => Color.FromArgb("#3a3a3a"),
-    };
-
     public static string NombreMob(TipoMob t) => t switch
     {
         TipoMob.Cerdo => "Cerdo",
@@ -243,7 +227,6 @@ public sealed class VistaJuego : IDrawable
     bool _joystickActivo;
     PointF _joystickOrigen;
     Vector2 _joystick;
-    public Vector2 Joystick => _joystick;
 
     /// <summary>Sensibilidad del ratA3n (multiplica el giro por pA-xel arrastrado).</summary>
     public float Sensibilidad = 1f;
@@ -319,21 +302,6 @@ public sealed class VistaJuego : IDrawable
     /// DibujarHud: slots de 40 px con 4 de separacion, centrados abajo). Si el
     /// toque cae en un slot lo selecciona y devuelve true (paridad movil: en
     /// escritorio se hace con las teclas 1-9 y la rueda del raton).</summary>
-    public bool TocarHotbar(PointF p)
-    {
-        if (_anchoCanvas <= 0 || _altoCanvas <= 0) return false;
-        int n = Hotbar.Length;
-        const float slot = 40, gap = 4;
-        float total = n * slot + (n - 1) * gap;
-        float x0 = (_anchoCanvas - total) / 2f, y0 = _altoCanvas - slot - 14;
-        if (p.Y < y0 - 8 || p.Y > y0 + slot + 8) return false;
-        if (p.X < x0 - 8 || p.X > x0 + total + 8) return false;
-        int idx = (int)((p.X - x0) / (slot + gap));
-        if (idx < 0 || idx >= n) return false;
-        Slot = idx;
-        return true;
-    }
-
     public void TerminarInteraccion(PointF p)
     {
         bool fueJoystick = _joystickActivo;

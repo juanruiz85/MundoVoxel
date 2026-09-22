@@ -101,8 +101,6 @@ public sealed class Receta
 /// <summary>Tablas de ítems, recetas (estilo Minecraft), botín de mobs y nombres.</summary>
 public static class Objetos
 {
-    public static bool EsBloque(ushort material) => material < 1000;
-
     /// <summary>Puntos de hambre que restaura un item comestible (0 = no comestible).
     /// Las carnes cocinadas sacian mas que las crudas.</summary>
     public static int ValorComida(ushort m) => m switch
@@ -388,9 +386,6 @@ public static class Objetos
 
     /// <summary>Indica si el ítem son semillas de trigo.</summary>
     public static bool EsSemilla(ushort item) => item == (ushort)ItemId.SemillasTrigo;
-
-    /// <summary>Bloques que solo sueltan su bloque si se rompen con un pico (piedra y menas).</summary>
-    public static bool RequierePico(ushort bloque) => bloque == Bloques.Piedra || Bloques.EsMineral(bloque);
 
     /// <summary>Nombre legible de un material (bloque o ítem).</summary>
     public static string Nombre(ushort material) => material switch
