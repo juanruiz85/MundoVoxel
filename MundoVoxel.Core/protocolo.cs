@@ -27,7 +27,6 @@ namespace MundoVoxel.Core;
 [JsonDerivedType(typeof(BloqueCambio), "BloqueCambio")]
 [JsonDerivedType(typeof(Chat), "Chat")]
 [JsonDerivedType(typeof(BorrarMundo), "BorrarMundo")]
-[JsonDerivedType(typeof(MundoBorrado), "MundoBorrado")]
 [JsonDerivedType(typeof(Mobs), "Mobs")]
 [JsonDerivedType(typeof(GolpearMob), "GolpearMob")]
 [JsonDerivedType(typeof(Drops), "Drops")]
@@ -188,7 +187,6 @@ public sealed class ColocarBloque : Mensaje { public int X { get; set; } public 
 public sealed class BloqueCambio : Mensaje { public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public ushort Bloque { get; set; } }
 public sealed class Chat : Mensaje { public string Nombre { get; set; } = ""; public string Texto { get; set; } = ""; }
 public sealed class BorrarMundo : Mensaje { public string Id { get; set; } = ""; }
-public sealed class MundoBorrado : Mensaje { public string Id { get; set; } = ""; }
 public sealed class MobEstado { public int Id { get; set; } public byte Tipo { get; set; } public float Px { get; set; } public float Py { get; set; } public float Pz { get; set; } public float Ry { get; set; } public int Salud { get; set; } public int MaxSalud { get; set; } public bool Quemando { get; set; } }
 public sealed class Mobs : Mensaje { public List<MobEstado> Lista { get; set; } = new(); }
 public sealed class GolpearMob : Mensaje { public int Id { get; set; } }

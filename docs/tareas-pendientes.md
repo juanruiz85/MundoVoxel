@@ -45,6 +45,7 @@ Ultima actualizacion: 2026-09-21 (reconexión rápida, MSIX de Windows, mejoras 
 ### Cliente
 - [x] Coherencia del idioma comprobada en la suite (v0.11.23): 5 comprobaciones nuevas (claves repetidas, textos vacíos, claves usadas que faltan y textos de bloque huérfanos). De paso se arregla el texto del cofre, que no estaba en el archivo de idioma.
 - [x] Restos del control táctil muerto retirados (v0.11.23): el evento de soltar tecla, los dos métodos de simulación y siete constantes de tecla que no usaba nadie. Los comentarios de las dos clases ya no mienten. Android sigue con su joystick y su panel de botones.
+- [x] Protocolo sin mensajes muertos (v0.11.23): se retira `MundoBorrado` (nadie lo enviaba ni lo atendía) y la suite comprueba que los 49 mensajes declarados se usan fuera de protocolo.cs.
 - [x] Builds sin avisos (v0.11.23): la suite y el cliente compilan con 0 avisos (`DisplayAlertAsync`, nulabilidad y enlace compilado en la lista de mundos). De paso se arregla que cancelar la reconexión no hiciera nada: ahora cierra la conexión, avisa y vuelve al menú.
 - [ ] Probar manualmente la reconexión automática en Android (el test de protocolo cubre el flujo; falta el tactil real).
 - [x] **Barra de progreso al minar** (v0.11.13): hecho (barra bajo la mira con golpes/necesarios y mejor herramienta; solo cliente, sin cambios de protocolo).

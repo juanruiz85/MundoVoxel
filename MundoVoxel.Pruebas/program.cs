@@ -1452,6 +1452,48 @@ langUsadas.Add(langTexto);
         .Where(c => c.StartsWith("bloque.", StringComparison.Ordinal) && !langUsadas.Contains(c)).ToList();
     Comprobar(langHuerfanas.Count == 0, $"sin textos de bloque huerfanos en es.lang ({langHuerfanas.Count} huerfanos)");
 }
+// ---------- mensajes del protocolo ----------
+// Un mensaje declarado en protocolo.cs que no aparece en ningun otro fichero es un
+// resto: ni se envia ni se atiende. La raiz del repositorio la busca el bloque anterior.
+if (langRaiz != null)
+{
+    static bool EsPalabraEn(string texto, string palabra)
+    {
+        int p = texto.IndexOf(palabra, StringComparison.Ordinal);
+        while (p >= 0)
+        {
+            bool okIni = p == 0 || !char.IsLetterOrDigit(texto[p - 1]);
+            int pFin = p + palabra.Length;
+            bool okFin = pFin >= texto.Length || !char.IsLetterOrDigit(texto[pFin]);
+            if (okIni && okFin) return true;
+            p = texto.IndexOf(palabra, p + 1, StringComparison.Ordinal);
+        }
+        return false;
+    }
+    var protoTipo = Path.Combine(langRaiz, "MundoVoxel.Core", "protocolo.cs");
+    var protoFuera = "";
+    foreach (var protoCarpeta in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Pruebas" })
+    {
+        foreach (var protoFichero in Directory.EnumerateFiles(Path.Combine(langRaiz, protoCarpeta), "*.cs", SearchOption.AllDirectories))
+        {
+            if (protoFichero == protoTipo) continue;
+            if (protoFichero.Contains("\\bin\\") || protoFichero.Contains("\\obj\\") ||
+                protoFichero.Contains("/bin/") || protoFichero.Contains("/obj/")) continue;
+            protoFuera += File.ReadAllText(protoFichero) + "\n";
+        }
+    }
+    var protoSinUso = new List<string>();
+    foreach (var protoLinea in File.ReadAllLines(protoTipo))
+    {
+        if (!protoLinea.Contains("[JsonDerivedType(typeof(")) continue;
+        int protoIni = protoLinea.IndexOf("typeof(") + 7;
+        int protoFin = protoLinea.IndexOf(')', protoIni);
+        if (protoIni < 7 || protoFin <= protoIni) continue;
+        var protoNombre = protoLinea[protoIni..protoFin].Trim();
+        if (!EsPalabraEn(protoFuera, protoNombre)) protoSinUso.Add(protoNombre);
+    }
+    Comprobar(protoSinUso.Count == 0, $"todos los mensajes del protocolo se usan fuera de protocolo.cs (sin uso: {string.Join(", ", protoSinUso)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 
