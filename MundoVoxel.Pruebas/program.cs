@@ -1562,6 +1562,57 @@ if (langRaiz != null)
     }
     Comprobar(ajSinUso.Count == 0, $"todo ajuste de la configuracion lo lee alguien (sin leer: {string.Join(", ", ajSinUso)})");
 }
+// ---------- de donde sale cada cosa ----------
+// Un bloque que el jugador puede colocar y que no sale de ningun sitio (ni del
+// mundo, ni de una receta, ni del horno) es contenido que nadie puede conseguir.
+// Paso con el ladrillo: estaba definido con dureza, nombre y color, y era el
+// unico bloque imposible de obtener. Lo mismo con los items: todo item tiene que
+// salir de una receta, del horno, del botin de un mob o de romper un bloque.
+if (langRaiz != null)
+{
+    // Bloques que coloca el generador (se leen de mundo.cs) y su id (de bloques.cs).
+    var csMundo = File.ReadAllText(Path.Combine(langRaiz, "MundoVoxel.Core", "mundo.cs"));
+    var nombreABloque = new Dictionary<string, ushort>();
+    foreach (var bLinea in File.ReadAllLines(Path.Combine(langRaiz, "MundoVoxel.Core", "bloques.cs")))
+    {
+        int bIni = bLinea.IndexOf("public const ushort ");
+        if (bIni < 0) continue;
+        var bResto = bLinea[(bIni + 20)..];
+        int bFin = bResto.IndexOf(' ');
+        int bEq = bResto.IndexOf('=');
+        if (bFin < 0 || bEq < 0) continue;
+        var bValor = bResto[(bEq + 1)..].Trim().Split(' ')[0].TrimEnd(';');
+        if (ushort.TryParse(bValor, out var bId)) nombreABloque[bResto[..bFin]] = bId;
+    }
+    var conMundo = new HashSet<ushort>();
+    foreach (var kv in nombreABloque)
+        if (csMundo.Contains("Bloques." + kv.Key)) conMundo.Add(kv.Value);
+
+    // Salidas de las tablas reales de crafteo y de horno.
+    var conReceta = new HashSet<ushort>();
+    foreach (var r in Objetos.RecetasCrafteo) conReceta.Add(r.Salida);
+    foreach (var r in Objetos.RecetasCocina) conReceta.Add(r.Salida);
+
+    // Botin de mobs y lo que sueltan los bloques al romperse (sembrado: igual siempre).
+    var deBotin = new HashSet<ushort>();
+    foreach (var tm in Enum.GetValues<TipoMob>())
+        foreach (var l in Objetos.Loot(tm)) deBotin.Add(l.material);
+    var rndFijo = new Random(12345);
+    for (ushort b = 0; b < Bloques.Info.Length; b++)
+        for (int vez = 0; vez < 40; vez++)
+            foreach (var d in Objetos.DropAlRomper(b, true, rndFijo)) deBotin.Add(d.material);
+
+    var bSinFuente = new List<string>();
+    foreach (var kv in nombreABloque)
+        if (Bloques.EsColocable(kv.Value) && !conMundo.Contains(kv.Value) && !conReceta.Contains(kv.Value))
+            bSinFuente.Add(kv.Key);
+    Comprobar(bSinFuente.Count == 0, $"todo bloque colocable sale del mundo, de una receta o del horno (sin fuente: {string.Join(", ", bSinFuente)})");
+
+    var iSinFuente = new List<string>();
+    foreach (var it in Enum.GetValues<ItemId>())
+        if (!conReceta.Contains((ushort)it) && !deBotin.Contains((ushort)it)) iSinFuente.Add(it.ToString());
+    Comprobar(iSinFuente.Count == 0, $"todo item sale de una receta, del horno, del botin de un mob o de romper un bloque (sin fuente: {string.Join(", ", iSinFuente)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 

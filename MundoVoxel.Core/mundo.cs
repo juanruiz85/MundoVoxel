@@ -125,7 +125,7 @@ public class Mundo
                 }
             }
         }
-        PonerMinerales(m, rnd, nivelMar);
+        PonerVetasBajoTierra(m, rnd, nivelMar);
         PonerLagosLava(m, rnd, nivelMar);
         PonerLagosAgua(m, rnd, nivelMar, lagosAgua);
         return m;
@@ -207,11 +207,12 @@ public class Mundo
     }
 
     /// <summary>
-    /// Vetas de minerales bajo tierra, como en Minecraft: el carbon es comun y
-    /// superficial, el diamante raro y profundo. Cada veta es un recorrido
-    /// aleatorio que solo reemplaza piedra.
+    /// Vetas bajo tierra, como en Minecraft: el carbon es comun y superficial, el
+    /// diamante raro y profundo, y la grava aparece en bolsas a poca profundidad.
+    /// Cada veta es un recorrido aleatorio que solo reemplaza piedra, asi que no
+    /// toca la superficie, los arboles ni los lagos.
     /// </summary>
-    static void PonerMinerales(Mundo m, Random rnd, int nivelMar)
+    static void PonerVetasBajoTierra(Mundo m, Random rnd, int nivelMar)
     {
         void Vetas(int cantidad, ushort bloque, int yMax, int yMin, int tamMin, int tamMax)
         {
@@ -225,6 +226,8 @@ public class Mundo
         }
 
         Vetas(420, Bloques.Carbon,   nivelMar + 8, 2, 4, 9);
+        // Grava: no es un mineral, pero se genera igual (bolsas de piedra suelta).
+        Vetas(90,  Bloques.Grava,    nivelMar + 6, 2, 5, 12);
         Vetas(220, Bloques.Hierro,   nivelMar + 2, 2, 3, 7);
         Vetas(110, Bloques.Oro,      nivelMar - 4, 2, 2, 5);
         Vetas(80,  Bloques.Cobre,    nivelMar - 2, 2, 2, 5);

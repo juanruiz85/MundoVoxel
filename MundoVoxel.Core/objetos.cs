@@ -193,7 +193,7 @@ public static class Objetos
         return lista.ToArray();
     }
 
-    /// <summary>Cocina/fundición (horno): carne cruda → cocinada y minerales → lingotes. Sin forma (1x1).</summary>
+    /// <summary>Cocina/fundición (horno): carne cruda → cocinada y minerales → lingotes. Sin forma (1x1). La tierra tambien se cuece: sale ladrillo.</summary>
     public static readonly Receta[] RecetasCocina =
     {
         new(new[]{ (ushort)ItemId.CarneCrudaCerdo }, 1, 1, (ushort)ItemId.CarneCocinadaCerdo, 1, "Cerdo cocinado"),
@@ -204,6 +204,7 @@ public static class Objetos
         new(new[]{ (ushort)ItemId.CobreBruto }, 1, 1, (ushort)ItemId.LingoteCobre, 1, "Fundir cobre"),
         new(new[]{ (ushort)ItemId.DiamanteBruto }, 1, 1, (ushort)ItemId.Diamante, 1, "Fundir diamante"),
         new(new[]{ Bloques.Arena }, 1, 1, Bloques.Cristal, 1, "Fundir arena"),
+        new(new[]{ Bloques.Tierra }, 1, 1, Bloques.Ladrillo, 1, "Fundir tierra"),
     };
 
     /// <summary>Índices de las recetas de fundición (requieren carbón como combustible).</summary>
@@ -214,7 +215,7 @@ public static class Objetos
         var m = ing[0].Material;
         return m == (ushort)ItemId.OroBruto || m == (ushort)ItemId.HierroBruto
             || m == (ushort)ItemId.CobreBruto || m == (ushort)ItemId.DiamanteBruto
-            || m == Bloques.Arena;
+            || m == Bloques.Arena || m == Bloques.Tierra;
     }
 
     /// <summary>
