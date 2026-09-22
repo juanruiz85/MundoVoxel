@@ -1809,6 +1809,46 @@ if (langRaiz != null)
     evSinDisparo.Sort(StringComparer.Ordinal);
     Comprobar(evSinDisparo.Count == 0, $"todo evento declarado se dispara en algun sitio (sin disparo: {string.Join(", ", evSinDisparo)})");
 }
+// ---------- claves de preferencias del cliente ----------
+// Un ajuste que se lee y no se escribe nunca vale siempre lo mismo, y un dato
+// que se escribe y no se lee es un resto. Las dos cosas se han visto ya en este
+// proyecto con ajustes de configuracion, y el cliente guarda parte de lo suyo
+// en Preferences, que es otro almacen. Aqui se comprueban esas claves. Son
+// literales; si algun dia una se compone en tiempo de ejecucion, habra que
+// exceptuarla a mano, como los puntos de entrada del bloque de tipos.
+if (langRaiz != null)
+{
+    var pfLee = new List<string>();
+    var pfEscribe = new List<string>();
+    var pfCarpeta = Path.Combine(langRaiz, "MundoVoxel.Client");
+    if (Directory.Exists(pfCarpeta))
+    {
+        foreach (var pfFichero in Directory.EnumerateFiles(pfCarpeta, "*.cs", SearchOption.AllDirectories))
+        {
+            if (pfFichero.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") || pfFichero.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+            foreach (var pfLinea in File.ReadAllText(pfFichero).Split('\n'))
+            {
+                string pfOp = "";
+                if (pfLinea.IndexOf("Preferences.Get", StringComparison.Ordinal) >= 0) pfOp = "Get";
+                else if (pfLinea.IndexOf("Preferences.Set", StringComparison.Ordinal) >= 0) pfOp = "Set";
+                if (pfOp.Length == 0) continue;
+                int pfPrimera = pfLinea.IndexOf('"');
+                if (pfPrimera < 0) continue;
+                int pfCierra = pfLinea.IndexOf('"', pfPrimera + 1);
+                if (pfCierra < 0) continue;
+                var pfClave = pfLinea.Substring(pfPrimera + 1, pfCierra - pfPrimera - 1);
+                if (pfClave.Length < 2) continue;
+                var pfLista = pfOp == "Get" ? pfLee : pfEscribe;
+                if (!pfLista.Contains(pfClave)) pfLista.Add(pfClave);
+            }
+        }
+    }
+    var pfSueltas = new List<string>();
+    foreach (var pfClave in pfLee) if (!pfEscribe.Contains(pfClave)) pfSueltas.Add($"{pfClave} (se lee y no se escribe)");
+    foreach (var pfClave in pfEscribe) if (!pfLee.Contains(pfClave)) pfSueltas.Add($"{pfClave} (se escribe y no se lee)");
+    pfSueltas.Sort(StringComparer.Ordinal);
+    Comprobar(pfSueltas.Count == 0, $"toda clave de Preferences del cliente se lee y se escribe (sueltas: {string.Join(", ", pfSueltas)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 
