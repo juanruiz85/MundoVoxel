@@ -139,3 +139,20 @@ Pendiente:
 2. Chunk streaming + mundos más grandes (128³ o infinitos por regiones).
 3. Portar el cliente a Linux cuando MAUI lo soporte oficialmente.
 4. Publicar APK y paquetes (MSIX/instalador Windows) con CI.
+
+## Coherencia que vigila la suite
+
+Además de las pruebas de comportamiento, la suite recorre el propio código y falla si algo declarado se queda sin usar. Es la familia de bugs del evento `AlCancelar`: un contrato escrito y nunca cumplido, que no da error ni aviso, solo una función que parece estar y no está. Cada comprobación mira los cuatro proyectos, ignora `bin` y `obj`, cuenta palabras completas (no subcadenas) y, cuando falla, dice en el mensaje qué elementos sobran.
+
+| Comprobación | Qué impide |
+| --- | --- |
+| Mensajes del protocolo | Un mensaje declarado que nadie envía ni atiende |
+| Textos de `es.lang`, en las dos direcciones | Una clave que se pide y no existe, y un texto que ya no pide nadie |
+| Ajustes de la configuración | Una opción del servidor que nadie lee |
+| Fuentes de bloques e items | Un bloque o item que no sale de ningún sitio (le pasó a la grava y al ladrillo) |
+| Miembros con visibilidad | Un método o propiedad que no llama nadie |
+| Tipos declarados | Una clase, record, enum o interfaz que solo aparece en su declaración |
+| Eventos declarados | Un evento suscrito que nadie dispara (el caso `AlCancelar`) |
+| Claves de `Preferences` | Un ajuste del cliente que se guarda y no se lee, o al revés |
+
+Los puntos de entrada que arranca el sistema (la actividad de Android, los `Main`, `CreateMauiApp` y `Draw` a través de `IDrawable`) están exceptuados a mano y comentados en el sitio, porque quien los llama está fuera del repositorio. Varias de estas comprobaciones se han cazado a sí mismas en su primera pasada: escaneaban `bin` y `obj` (donde MAUI genera nombres de su cosecha) o leían una cadena del propio guard como si fuera código. Cada trampa quedó comentada para no volver a caer en ella.
