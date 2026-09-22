@@ -1750,6 +1750,65 @@ if (langRaiz != null)
     tiSinUso.Sort(StringComparer.Ordinal);
     Comprobar(tiSinUso.Count == 0, $"todo tipo declarado lo usa alguien (sin usar: {string.Join(", ", tiSinUso)})");
 }
+// ---------- eventos declarados y nunca disparados ----------
+// El caso que se escapo una vez (AlCancelar: suscrito en el cliente y sin
+// disparar en el servidor) es de la misma familia que los dos bloques de
+// arriba, pero con un matiz: que el nombre se mencione no basta, porque
+// suscribirse ya lo menciona. Tiene que haber un sitio que lo dispare, es
+// decir, el nombre seguido de una llamada.
+if (langRaiz != null)
+{
+    var evDeclarados = new List<string>();
+    var evTextos = new List<string>();
+    foreach (var evProyecto in new[] { "MundoVoxel.Core", "MundoVoxel.Client", "MundoVoxel.Server", "MundoVoxel.Pruebas" })
+    {
+        var evCarpeta = Path.Combine(langRaiz, evProyecto);
+        if (!Directory.Exists(evCarpeta)) continue;
+        foreach (var evFichero in Directory.EnumerateFiles(evCarpeta, "*.cs", SearchOption.AllDirectories))
+        {
+            if (evFichero.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") || evFichero.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+            var evTexto = File.ReadAllText(evFichero);
+            evTextos.Add(evTexto);
+            foreach (var evLinea in evTexto.Split('\n'))
+            {
+                var evRecorte = evLinea.Trim();
+                if (evRecorte.StartsWith("//")) continue;
+                int evCorte = evRecorte.IndexOf("//", StringComparison.Ordinal);
+                if (evCorte >= 0) evRecorte = evRecorte.Substring(0, evCorte).TrimEnd();
+                bool evEsDeclaracion = evRecorte.StartsWith("public ") || evRecorte.StartsWith("private ") || evRecorte.StartsWith("protected ") || evRecorte.StartsWith("internal ") || evRecorte.StartsWith("event ");
+                if (!evEsDeclaracion) continue;
+                if (evRecorte.IndexOf(" event ", StringComparison.Ordinal) < 0) continue;
+                if (!evRecorte.EndsWith(";")) continue;
+                var evCuerpo = evRecorte.Substring(0, evRecorte.Length - 1).TrimEnd();
+                int evFin = evCuerpo.Length;
+                int evIni = evFin;
+                while (evIni > 0 && (char.IsLetterOrDigit(evCuerpo[evIni - 1]) || evCuerpo[evIni - 1] == '_')) evIni--;
+                var evNombre = evCuerpo.Substring(evIni, evFin - evIni);
+                if (evNombre.Length < 2) continue;
+                if (!evDeclarados.Contains(evNombre)) evDeclarados.Add(evNombre);
+            }
+        }
+    }
+    var evTodo = string.Join("\n", evTextos);
+    var evSinDisparo = new List<string>();
+    foreach (var evNombre in evDeclarados)
+    {
+        bool evDispara = false;
+        int evDesde = 0;
+        while (evDesde < evTodo.Length && !evDispara)
+        {
+            int evAqui = evTodo.IndexOf(evNombre, evDesde, StringComparison.Ordinal);
+            if (evAqui < 0) break;
+            bool evIzq = evAqui > 0 && (char.IsLetterOrDigit(evTodo[evAqui - 1]) || evTodo[evAqui - 1] == '_');
+            int evSig = evAqui + evNombre.Length;
+            if (!evIzq && evSig < evTodo.Length && (evTodo[evSig] == '(' || evTodo[evSig] == '?')) evDispara = true;
+            evDesde = evSig;
+        }
+        if (!evDispara) evSinDisparo.Add(evNombre);
+    }
+    evSinDisparo.Sort(StringComparer.Ordinal);
+    Comprobar(evSinDisparo.Count == 0, $"todo evento declarado se dispara en algun sitio (sin disparo: {string.Join(", ", evSinDisparo)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 
