@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:svc="clr-namespace:MundoVoxel.Client.Servicios"
              x:Class="MundoVoxel.Client.Paginas.PaginaJuego"
              Shell.NavBarIsVisible="False"
              BackgroundColor="Black">
 
-    <Grid x:Name="Raiz">
+    <Grid>
         <!-- Frame rasterizado en segundo plano (decodificado por la plataforma) -->
         <Image x:Name="Pantalla" Aspect="Fill" InputTransparent="True" />
         <GraphicsView x:Name="Vista" />
@@ -19,7 +20,7 @@
             <Label x:Name="LblBloque" FontSize="13" TextColor="White" Margin="0,6,0,0" />
         </VerticalStackLayout>
 
-        <Button x:Name="BtnMenu" Text="☰" Clicked="OnPausa" HorizontalOptions="End" VerticalOptions="Start"
+        <Button x:Name="BtnMenu" Text="{x:Static svc:T.Menu}" Clicked="OnPausa" HorizontalOptions="End" VerticalOptions="Start"
                 Margin="0,10,10,0" WidthRequest="46" HeightRequest="46" BackgroundColor="#55000000"
                 TextColor="White" FontSize="20" Padding="0" />
 
@@ -60,7 +61,7 @@
                     <Button x:Name="BtnPausaVolar" Style="{StaticResource BtnSecundario}" Clicked="OnBtnVolar" />
                     <Button x:Name="BtnDistancia" Style="{StaticResource BtnSecundario}" Clicked="OnCambiarDistancia" />
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                        <Label Text="Sensibilidad ratón" FontSize="13" TextColor="{StaticResource TextoSuave}" VerticalOptions="Center" />
+                        <Label Text="{x:Static svc:T.Sensibilidad}" FontSize="13" TextColor="{StaticResource TextoSuave}" VerticalOptions="Center" />
                         <Slider x:Name="SldSensibilidad" Grid.Column="1" Minimum="0.25" Maximum="3" Value="1"
                                 ValueChanged="OnSldSensibilidad" VerticalOptions="Center" />
                         <Label x:Name="LblSensibilidadValor" Grid.Column="2" FontSize="12" TextColor="#ffe08a"
@@ -90,11 +91,11 @@
         <!-- Pantalla de muerte: causa + boton reaparecer -->
         <Border x:Name="PanelMuerte" BackgroundColor="#b0101016" IsVisible="False" StrokeThickness="0">
             <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="14" Padding="30" WidthRequest="360">
-                <Label x:Name="LblMuerteTitulo" Text="Has muerto" FontSize="30" FontAttributes="Bold"
+                <Label Text="{x:Static svc:T.MuerteTitulo}" FontSize="30" FontAttributes="Bold"
                        TextColor="#ff5555" HorizontalOptions="Center" />
                 <Label x:Name="LblMuerteCausa" FontSize="16" TextColor="White" HorizontalOptions="Center"
                        LineBreakMode="WordWrap" HorizontalTextAlignment="Center" />
-                <Button x:Name="BtnReaparecer" Text="Reaparecer" Clicked="OnReaparecer"
+                <Button Text="{x:Static svc:T.Reaparecer}" Clicked="OnReaparecer"
                         BackgroundColor="#4a9e4a" TextColor="White" FontSize="16" Padding="18,10"
                         HorizontalOptions="Center" />
             </VerticalStackLayout>
@@ -104,19 +105,19 @@
         <Border x:Name="PanelInv" BackgroundColor="#d010161f" IsVisible="False" Stroke="#6b5a40" StrokeThickness="2">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="24" Padding="24" HorizontalOptions="Center" VerticalOptions="Center">
                 <VerticalStackLayout Grid.Column="0" Spacing="6" VerticalOptions="Center">
-                    <Label x:Name="LblInvCrafteo" Text="Crafteo" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                    <Label x:Name="LblInvCrafteo" Text="" FontSize="16" FontAttributes="Bold" TextColor="White" />
                     <Grid x:Name="GridCraft" WidthRequest="162" HeightRequest="162" RowSpacing="3" ColumnSpacing="3" />
-                    <Label Text="Resultado" FontSize="12" TextColor="#cfe0f0" />
+                    <Label Text="{x:Static svc:T.InvResultado}" FontSize="12" TextColor="#cfe0f0" />
                     <Button x:Name="BtnResultado" Clicked="OnResultado" BackgroundColor="#333a45" TextColor="White" WidthRequest="50" HeightRequest="50" FontSize="16" Padding="0" CornerRadius="4" />
                     <Label x:Name="LblRecetaInfo" FontSize="12" TextColor="#ffe08a" LineBreakMode="WordWrap" WidthRequest="170" />
-                    <Label x:Name="LblInvCocina" Text="Cocina (horno)" FontSize="14" FontAttributes="Bold" TextColor="White" Margin="0,6,0,0" />
+                    <Label Text="{x:Static svc:T.InvCocina}" FontSize="14" FontAttributes="Bold" TextColor="White" Margin="0,6,0,0" />
                     <VerticalStackLayout x:Name="ListaCocina" Spacing="3" WidthRequest="170" />
                 </VerticalStackLayout>
                 <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
-                    <Label x:Name="LblInvTitulo" Text="Inventario" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                    <Label Text="{x:Static svc:T.InvTitulo}" FontSize="16" FontAttributes="Bold" TextColor="White" />
                     <Grid x:Name="GridInv" WidthRequest="474" HeightRequest="162" RowSpacing="3" ColumnSpacing="3" />
-                    <Label x:Name="LblCursor" Text="Cursor: (vacío)" FontSize="12" TextColor="#ffe08a" />
-                    <Button x:Name="BtnCerrarInv" Text="Cerrar" Clicked="OnCerrarInv" HorizontalOptions="Start" />
+                    <Label x:Name="LblCursor" Text="" FontSize="12" TextColor="#ffe08a" />
+                    <Button Text="{x:Static svc:T.InvCerrar}" Clicked="OnCerrarInv" HorizontalOptions="Start" />
                 </VerticalStackLayout>
             </Grid>
         </Border>
@@ -125,14 +126,14 @@
         <Border x:Name="PanelCofre" BackgroundColor="#d010161f" IsVisible="False" Stroke="#8a6a30" StrokeThickness="2">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="24" Padding="24" HorizontalOptions="Center" VerticalOptions="Center">
                 <VerticalStackLayout Grid.Column="0" Spacing="6" VerticalOptions="Center">
-                    <Label x:Name="LblCofreTitulo" Text="Cofre" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                    <Label Text="{x:Static svc:T.CofreTitulo}" FontSize="16" FontAttributes="Bold" TextColor="White" />
                     <Grid x:Name="GridCofre" WidthRequest="474" HeightRequest="162" RowSpacing="3" ColumnSpacing="3" />
-                    <Button x:Name="BtnCerrarCofre" Text="Cerrar cofre" Clicked="OnCerrarCofre" HorizontalOptions="Start" />
+                    <Button Text="{x:Static svc:T.CofreCerrar}" Clicked="OnCerrarCofre" HorizontalOptions="Start" />
                 </VerticalStackLayout>
                 <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
-                    <Label Text="Tu inventario" FontSize="14" FontAttributes="Bold" TextColor="White" />
+                    <Label Text="{x:Static svc:T.InvTuInventario}" FontSize="14" FontAttributes="Bold" TextColor="White" />
                     <Grid x:Name="GridInvCofre" WidthRequest="474" HeightRequest="162" RowSpacing="3" ColumnSpacing="3" />
-                    <Label x:Name="LblCursorCofre" Text="Cursor: (vacío)" FontSize="12" TextColor="#ffe08a" />
+                    <Label x:Name="LblCursorCofre" Text="" FontSize="12" TextColor="#ffe08a" />
                 </VerticalStackLayout>
             </Grid>
         </Border>

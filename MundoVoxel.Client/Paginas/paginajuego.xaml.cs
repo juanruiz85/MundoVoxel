@@ -96,7 +96,7 @@ public partial class PaginaJuego : ContentPage
         BtnBorrarMundo.Text = idioma.O("pausa.borrar_mundo");
         BtnSalirMundo.Text = idioma.O("pausa.salir_mundo");
         BtnDesconectar.Text = idioma.O("pausa.desconectar");
-        BtnInventario.Text = "Inventario (E)";
+        BtnInventario.Text = _idioma.O("inv.boton");
         // Cambiar la clave de la cuenta: solo tiene sentido si la sesion entro con
         // un usuario (el servidor lo exige para atender el cambio).
         BtnCambiarClaveCuenta.Text = idioma.O("cuenta.cambiar_boton");
@@ -869,7 +869,7 @@ public partial class PaginaJuego : ContentPage
             _pausado = true;
             PanelInv.IsVisible = true;
             _gridTamaño = HayMesaCerca() ? 3 : 2;
-            LblInvCrafteo.Text = _gridTamaño == 3 ? "Mesa de trabajo (3x3)" : "Crafteo (2x2)";
+            LblInvCrafteo.Text = _gridTamaño == 3 ? _idioma.O("inv.crafteo_3x3") : _idioma.O("inv.crafteo_2x2");
             RefrescarCrafteo();
             RefrescarInventario();
         }
@@ -1098,8 +1098,8 @@ public partial class PaginaJuego : ContentPage
         for (int i = 0; i < 27; i++)
             PintarSlot(_botonesInv[i / 9, i % 9], _slots[i]);
         LblCursor.Text = _cursorMaterial == 0
-            ? "Cursor: (vacío)"
-            : $"Cursor: {Objetos.Nombre(_cursorMaterial)} x {_cursorCantidad}";
+            ? _idioma.O("inv.cursor_vacio")
+            : _idioma.O("inv.cursor", Objetos.Nombre(_cursorMaterial), _cursorCantidad);
         // La hotbar refleja los primeros 9 slots del inventario: al mover items
         // dentro del inventario (tecla E) la barra inferior se actualiza al momento.
         for (int k = 0; k < 9; k++)
@@ -1232,8 +1232,8 @@ public partial class PaginaJuego : ContentPage
         for (int i = 0; i < 27; i++)
             PintarSlot(_botonesInvCofre[i / 9, i % 9], _slots[i]);
         LblCursorCofre.Text = _cursorMaterial == 0
-            ? "Cursor: (vacA-o)"
-            : $"Cursor: {Objetos.Nombre(_cursorMaterial)} x {_cursorCantidad}";
+            ? _idioma.O("inv.cursor_vacio")
+            : _idioma.O("inv.cursor", Objetos.Nombre(_cursorMaterial), _cursorCantidad);
     }
 
     void AlternarVolar()
@@ -1309,7 +1309,7 @@ public partial class PaginaJuego : ContentPage
             Pausa.IsVisible = false;
             PanelInv.IsVisible = false;
             PanelCofre.IsVisible = false;
-            LblMuerteCausa.Text = string.IsNullOrEmpty(causa) ? "" : $"Causa: {causa}";
+            LblMuerteCausa.Text = string.IsNullOrEmpty(causa) ? "" : _idioma.O("juego.muerte_causa", causa);
             PanelMuerte.IsVisible = true;
         });
     }

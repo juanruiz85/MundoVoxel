@@ -19,6 +19,18 @@ public static class T
     public static string Volar = "Volar";
     public static string Chat = "Chat";
     public static string Menu = "☰";
+    public static string Sensibilidad = "Sensibilidad ratón";
+    public static string InvTitulo = "Inventario";
+    public static string InvTuInventario = "Tu inventario";
+    public static string InvCocina = "Cocina (horno)";
+    public static string InvResultado = "Resultado";
+    public static string InvCerrar = "Cerrar";
+    public static string CofreTitulo = "Cofre";
+    public static string CofreCerrar = "Cerrar cofre";
+    public static string MuerteTitulo = "Has muerto";
+    public static string Reaparecer = "Reaparecer";
+    public static string App = "MundoVoxel";
+    public static string Mundos = "Mundos";
 
     public static void Cargar(ServicioIdioma i)
     {
@@ -35,5 +47,17 @@ public static class T
         Volar = i.O("boton.volar");
         Chat = i.O("boton.chat");
         Menu = i.O("boton.menu");
+        Sensibilidad = i.O("pausa.sensibilidad");
+        InvTitulo = i.O("inv.titulo");
+        InvTuInventario = i.O("inv.tu_inventario");
+        InvCocina = i.O("inv.cocina");
+        InvResultado = i.O("inv.resultado");
+        InvCerrar = i.O("inv.cerrar");
+        CofreTitulo = i.O("cofre.titulo");
+        CofreCerrar = i.O("cofre.cerrar");
+        MuerteTitulo = i.O("juego.muerte_titulo");
+        Reaparecer = i.O("juego.reaparecer");
+        App = i.O("app.titulo");
+        Mundos = i.O("mundos.pagina");
     }
 }

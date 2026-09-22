@@ -41,6 +41,7 @@ menu.favoritos_sin_respuesta=Sin respuesta (servidor apagado o inaccesible)
 
 # ---- Lista de mundos ----
 mundos.titulo=Mundos en {0}
+mundos.pagina=Mundos
 mundos.vacio=No hay mundos todavía. ¡Crea el primero!
 mundos.refrescar=Actualizar
 mundos.desconectar=Desconectar
@@ -181,3 +182,20 @@ bloque.nieve=Nieve
 bloque.cactus=Cactus
 juego.espectador_on=Modo espectador activado (G para salir): vuelas y atraviesas bloques
 juego.espectador_off=Modo espectador desactivado
+# ---- Inventario, crafteo, cofre y muerte ----
+inv.boton=Inventario (E)
+inv.titulo=Inventario
+inv.tu_inventario=Tu inventario
+inv.crafteo_2x2=Crafteo (2x2)
+inv.crafteo_3x3=Mesa de trabajo (3x3)
+inv.cocina=Cocina (horno)
+inv.resultado=Resultado
+inv.cerrar=Cerrar
+inv.cursor=Cursor: {0} x {1}
+inv.cursor_vacio=Cursor: (vacío)
+cofre.titulo=Cofre
+cofre.cerrar=Cerrar cofre
+juego.muerte_titulo=Has muerto
+juego.muerte_causa=Causa: {0}
+juego.reaparecer=Reaparecer
+pausa.sensibilidad=Sensibilidad ratón

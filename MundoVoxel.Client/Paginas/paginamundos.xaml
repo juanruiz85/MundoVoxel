@@ -4,7 +4,7 @@
              xmlns:svc="clr-namespace:MundoVoxel.Client.Servicios"
              xmlns:pg="clr-namespace:MundoVoxel.Client.Paginas"
              x:Class="MundoVoxel.Client.Paginas.PaginaMundos"
-             Title="Mundos">
+             Title="{x:Static svc:T.Mundos}">
 
     <Grid RowDefinitions="Auto,*,Auto" Padding="16,10">
         <VerticalStackLayout Grid.Row="0" Spacing="4">

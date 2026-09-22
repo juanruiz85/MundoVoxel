@@ -32,7 +32,7 @@ public partial class App : Application
             BarTextColor = Colors.White,
         })
         {
-            Title = "MundoVoxel",
+            Title = Servicios.T.App,
         };
     }
 }

@@ -1849,6 +1849,62 @@ if (langRaiz != null)
     pfSueltas.Sort(StringComparer.Ordinal);
     Comprobar(pfSueltas.Count == 0, $"toda clave de Preferences del cliente se lee y se escribe (sueltas: {string.Join(", ", pfSueltas)})");
 }
+// ---------- textos visibles escritos a mano ----------
+// El idioma tiene que ser la unica fuente de lo que se ve. Un texto escrito a
+// pelo en el XAML o en un .Text del codigo se queda en espanol para siempre:
+// no da error, no avisa, simplemente no se traduce jamas. Se mira lo que se
+// ensena (Text, Title y Placeholder, tanto en el XAML como en el codigo) y se
+// deja fuera este proyecto, que escribe sus mensajes a mano a proposito. Las
+// cadenas sin letras no cuentan: Text="" lo rellena el codigo y Text="25575"
+// es un valor por defecto, no un texto. Los valores que empiezan por llave son
+// marcas de XAML ({x:Static, {Binding), no textos.
+if (langRaiz != null)
+{
+    var txAmano = new List<string>();
+    var txFicheros = new List<string>();
+    txFicheros.AddRange(Directory.EnumerateFiles(langRaiz, "*.xaml", SearchOption.AllDirectories));
+    txFicheros.AddRange(Directory.EnumerateFiles(langRaiz, "*.cs", SearchOption.AllDirectories));
+    foreach (var txFichero in txFicheros)
+    {
+        if (txFichero.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") || txFichero.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+        if (txFichero.Contains($"{Path.DirectorySeparatorChar}MundoVoxel.Pruebas{Path.DirectorySeparatorChar}")) continue;
+        bool txEsXaml = txFichero.EndsWith(".xaml", StringComparison.Ordinal);
+        int txNumero = 0;
+        foreach (var txLinea in File.ReadAllText(txFichero).Split('\n'))
+        {
+            txNumero++;
+            foreach (var txAtributo in new[] { "Text", "Title", "Placeholder" })
+            {
+                string txAguja = txEsXaml ? $"{txAtributo}=" : $".{txAtributo} = ";
+                int txDonde = txLinea.IndexOf(txAguja, StringComparison.Ordinal);
+                while (txDonde >= 0)
+                {
+                    // El valor tiene que venir justo detras. Si entre el igual y la
+                    // comilla hay algo mas es una llamada (Text = _idioma.O("clave"))
+                    // y esa cadena es una clave, no el texto que se ve.
+                    int txSonda = txDonde + txAguja.Length;
+                    while (txSonda < txLinea.Length && txLinea[txSonda] == ' ') txSonda++;
+                    if (!txEsXaml && txSonda < txLinea.Length && txLinea[txSonda] == '$') txSonda++;
+                    int txIni = txSonda < txLinea.Length && txLinea[txSonda] == '"' ? txSonda : -1;
+                    int txFin = txIni < 0 ? -1 : txLinea.IndexOf('"', txIni + 1);
+                    if (txIni >= 0 && txFin > txIni)
+                    {
+                        var txTexto = txLinea.Substring(txIni + 1, txFin - txIni - 1);
+                        if (!txTexto.StartsWith("{", StringComparison.Ordinal))
+                        {
+                            int txLetras = 0;
+                            foreach (var txCar in txTexto) if (char.IsLetter(txCar)) txLetras++;
+                            if (txLetras >= 2) txAmano.Add($"{txFichero.Substring(langRaiz.Length)} L{txNumero}: {txTexto}");
+                        }
+                    }
+                    txDonde = txLinea.IndexOf(txAguja, txDonde + 1, StringComparison.Ordinal);
+                }
+            }
+        }
+    }
+    txAmano.Sort(StringComparer.Ordinal);
+    Comprobar(txAmano.Count == 0, $"ningun texto visible escrito a mano fuera del idioma (a mano: {string.Join(", ", txAmano)})");
+}
 Console.WriteLine(errores == 0 ? "PRUEBAS SUPERADAS" : $"{errores} PRUEBAS FALLARON");
 return errores == 0 ? 0 : 1;
 
