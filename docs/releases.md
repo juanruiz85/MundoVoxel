@@ -44,7 +44,8 @@ Import-Certificate -FilePath .\MundoVoxel.cer -CertStoreLocation Cert:\LocalMach
 ```
 
 Sin ese paso, `Add-AppxPackage` falla con `0x80073CF0` / `0x800B0100` (sin firmar) o con `0x800B0109` (raíz no confiable). Para que el paquete se instale sin tocar nada, hay que firmarlo con un certificado de firma de código real: el PFX en base64 en `MSIX_CERT_B64` y su clave en `MSIX_CERT_PASS`. La versión del paquete se toma del tag (`v0.11.23` -> `0.11.23.0`) y el `versionCode` del APK también (`v0.11.23` -> `1123`), de modo que las releases se pueden actualizar en sitio.
-## Secretos (opcionales)
+
+**Actualizar en sitio exige además una firma estable.** El `versionCode` del APK y la `Version` del MSIX son necesarios, pero no bastan: para actualizar una app ya instalada, la firma nueva tiene que venir de la **misma identidad** que la anterior. Comprobado comparando las releases publicadas: los APK de `v0.11.19` y `v0.11.23` están firmados con claves distintas (`CN=Android Debug`, huellas SHA-256 `5dfc448e...` y `71867eaf...`), porque sin los secretos cada ejecución genera una clave de depuración nueva; Android rechaza entonces la actualización. Con el MSIX pasa lo mismo de otra forma: un certificado autofirmado nuevo por release obliga a confiar el `.cer` de cada una. Para que la actualización funcione de verdad hay que configurar los secretos (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASS`, `MSIX_CERT_B64`, `MSIX_CERT_PASS`).## Secretos (opcionales)
 
 | Secreto | Qué es |
 | --- | --- |
