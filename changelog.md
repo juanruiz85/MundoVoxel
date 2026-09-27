@@ -2,6 +2,14 @@
 
 Todas las etapas del proyecto se registran aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.11.24] - 2026-09-25
+
+### Corregido
+
+- **El MSIX publicado no se instalaba** (`MundoVoxel.Client/Platforms/Windows/Package.appxmanifest`): el manifiesto citaba `Assets\StoreLogo.png` y sus cinco compañeras, que son las imágenes de la plantilla y **no entran** en el `.msix`; MAUI genera las suyas en la raíz a partir de `Recursos\AppIcon` y `Recursos\Splash` (`appiconStoreLogo.png`, `appiconMediumTile.png`, `appiconLogo.png`, `appiconWideTile.png`, `appiconLargeTile.png`, `appiconSmallTile.png` y `splashSplashScreen.png`, con sus sufijos `.scale-XX`). Windows se negaba a registrar el paquete (`0x80073CF6`, y el detalle `AppxManifest.xml(31,27): 0x80070003` sobre la imagen de arranque), así que el MSIX de **v0.11.23 no se podía instalar en ningún PC**: lo destapó la prueba manual 8.4 al instalarlo de verdad con los artefactos publicados. Ahora el manifiesto cita los nombres reales, los seis restos de plantilla se retiran, y el flujo de release comprueba que cada imagen del manifiesto exista dentro del `.msix` (nombre exacto o familia `.scale-XX`/`.targetsize-XX`) y además instala y desinstala el paquete en el runner de Windows, que es la comprobación que lo habría cazado.
+
+- **Crear un mundo no sacaba al jugador del anterior** (`MundoVoxel.Core/gameserver.cs`): `UnirseMundo` sí sacaba al jugador de su mundo antes de entrar en el nuevo, pero `CrearMundo` no, así que el jugador quedaba apuntado a los dos a la vez. Los síntomas eran de los que cuesta relacionar con la causa: seguía llegando la hora y los mobs del mundo viejo (mobs fantasma, porque el servidor recorre todos los mundos y manda los de cada uno a sus jugadores), el mundo abandonado no se vaciaba nunca (seguía simulando y ocupando memoria) y el cupo de jugadores por mundo contaba de más. Ahora crear un mundo sale del anterior, igual que unirse, y cinco comprobaciones nuevas de la suite lo habrían cazado: un cliente crea un mundo, entra, crea otro y se mira que el primero quede a cero jugadores y el segundo a uno. Suite: 257 correctas, 0 fallos.
+
 ## [0.11.23] - 2026-09-21
 
 ### Añadido

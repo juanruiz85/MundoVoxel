@@ -934,6 +934,10 @@ public sealed class GameServer : IAsyncDisposable
             _mundos[mundo.Id] = mundo;
             GuardarMundos(); // persistir el mundo nuevo desde el primer momento
             Log($"{c.Nombre} creo el mundo [{nombre}] ({(cm.Abierto ? "publico" : "privado")}).");
+            // Si el jugador ya estaba dentro de otro mundo, sale de el antes de entrar al
+            // nuevo: si no, seguiria apuntado al anterior (mobs fantasma, la hora del mundo
+            // viejo, el mundo viejo sin vaciarse y el cupo de jugadores mal contado).
+            if (c.EnMundo) SalirDelMundo(c, notificar: true);
             Enviar(c, new MundoCreado { Id = mundo.Id, Token = mundo.Token });
             UnirseInterno(c, mundo, false); // el creador entra al mundo entero
             NotificarListas();

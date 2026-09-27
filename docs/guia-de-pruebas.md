@@ -329,7 +329,14 @@ cuatro comprobaciones que bloquean las etiquetas `v0.11.20` (streaming),
    al menú y dejar el mensaje de reconexión cancelada.
 6. Repite en Android (mismo panel y mismo botón táctil).
 
-### 8.4 Instalar el MSIX (v0.11.23)
+### 8.4 Instalar el MSIX (v0.11.24)
+
+> El flujo de release ya hace esta comparación por su cuenta: verifica que cada imagen
+> del manifiesto exista dentro del `.msix` y **instala y desinstala el paquete de verdad** en
+> el runner de Windows. Esta prueba queda para comprobar el artefacto publicado a mano. En
+> `v0.11.23` el paquete no se instalaba (el manifiesto apuntaba a la carpeta `Assets` de la
+> plantilla, que no entra en el paquete: `0x80073CF6`/`0x80070003`); quedó corregido en
+> `v0.11.24`.
 
 El paquete va firmado. Con un certificado **autofirmado** de desarrollo, Windows
 solo lo instala si confías en él; el almacén del usuario no basta.
@@ -341,13 +348,13 @@ solo lo instala si confías en él; el almacén del usuario no basta.
 
 ```powershell
 Import-Certificate -FilePath .\MundoVoxel.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
-Add-AppxPackage .\mundovoxel.client_0.11.23.0_x64.msix
+Add-AppxPackage .\mundovoxel.client_0.11.24.0_x64.msix
 ```
 
 3. Lanza **MundoVoxel** desde el menú de inicio y comprueba en Configuración 
    Aplicaciones que la versión coincide con la etiqueta del release.
 4. Desinstalar: `Get-AppxPackage com.mundovoxel.app | Remove-AppxPackage`.
 5. Errores típicos: `0x800B0100` (el paquete no va firmado o la firma no se
-   reconoce) y `0x800B0109` (la raíz no es de confianza: falta el paso 2). Para
+   reconoce) y `0x80073CF6`/`0x80070003` (el manifiesto cita imágenes que no están en el paquete) o `0x800B0109` (la raíz no es de confianza: falta el paso 2). Para
    distribuir sin ese paso hay que firmar con un certificado de firma de código
    real (ver `docs/releases.md`).

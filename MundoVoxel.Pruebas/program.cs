@@ -1382,11 +1382,48 @@ Console.WriteLine("Mobs: el hostil que ataca al jugador (mundo nocturno con semi
     await mbServidor.DetenerAsync();
 }
 
+// ---------- crear un mundo estando dentro de otro ----------
+// UnirseMundo saca al jugador del mundo anterior antes de entrar al nuevo, pero
+// CrearMundo no lo hacia: el jugador quedaba apuntado a los dos a la vez. Seguia
+// recibiendo los mobs y la hora del mundo viejo (mobs fantasma), el mundo viejo no
+// se vaciaba nunca (seguia simulando) y el cupo de jugadores contaba de mas.
+// El servidor principal del suite ya esta parado a esta altura: este bloque arranca el suyo
+// propio (como el de los mobs) para poder conectar.
+Console.WriteLine("Crear un mundo desde dentro de otro: el jugador sale del anterior.");
+{
+    var srvDoble = new GameServer(puerto, "Servidor de prueba de crear mundo", 4, 4);
+    srvDoble.Iniciar();
+    await Task.Delay(400);
+    var cDoble = await Conectar(puerto);
+    await cDoble.Enviar(new Hola { Nombre = "Doble", Version = "1.0" });
+    Comprobar(await cDoble.LeerHasta<Bienvenido>(8000) != null, "doble: el cliente entra al servidor");
+    await cDoble.LeerHasta<ListaMundos>(8000);
+
+    await cDoble.Enviar(new CrearMundo { Nombre = "Primero", Abierto = true, Ancho = 64, Alto = 32, Profundo = 64 });
+    var creadoDoble1 = await cDoble.LeerHasta<MundoCreado>(8000);
+    var unidoDoble1 = (await LeerUnidoCompleto(cDoble)).Unido;
+    Comprobar(creadoDoble1 != null && unidoDoble1 != null, "doble: crea el primer mundo y entra en el");
+
+    await cDoble.Enviar(new CrearMundo { Nombre = "Segundo", Abierto = true, Ancho = 64, Alto = 32, Profundo = 64 });
+    var creadoDoble2 = await cDoble.LeerHasta<MundoCreado>(8000);
+    var unidoDoble2 = (await LeerUnidoCompleto(cDoble)).Unido;
+    Comprobar(creadoDoble2 != null && unidoDoble2?.Id == creadoDoble2!.Id, "doble: crea el segundo mundo y entra en el");
+
+    await cDoble.DrenarAsync(200);
+    await cDoble.Enviar(new ListarMundos());
+    var listaDoble = await cDoble.LeerHasta<ListaMundos>(8000);
+    var primero = listaDoble?.Mundos.FirstOrDefault(m => m.Id == creadoDoble1!.Id);
+    var segundo = listaDoble?.Mundos.FirstOrDefault(m => m.Id == creadoDoble2!.Id);
+    Comprobar(primero != null && primero.Jugadores == 0, $"al crear otro mundo, el jugador sale del primero (jugadores del primero: {primero?.Jugadores})");
+    Comprobar(segundo != null && segundo.Jugadores == 1, $"y figura en el nuevo (jugadores del segundo: {segundo?.Jugadores})");
+    cDoble.Cerrar();
+    await srvDoble.DetenerAsync();
+}
+
 // ---------- cierre ----------
 c1.Cerrar(); c2.Cerrar();
 await servidor.DetenerAsync();
 
-Console.WriteLine();
 // ---------- coherencia del idioma ----------
 // Es una comprobacion entre ficheros (codigo y es.lang), asi que necesita la raiz
 // del repositorio: se busca subiendo desde la carpeta de compilacion.

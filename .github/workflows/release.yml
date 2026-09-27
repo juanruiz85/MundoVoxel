@@ -143,8 +143,55 @@ jobs:
           $z = [IO.Compression.ZipFile]::OpenRead($pkg.FullName)
           try { $firmado = ($z.Entries | Where-Object { $_.FullName -eq "AppxSignature.p7x" }).Count -gt 0 } finally { $z.Dispose() }
           if (-not $firmado) { throw "El MSIX no lleva firma (falta AppxSignature.p7x)" }
+          # Las imagenes que cita el manifiesto tienen que estar DENTRO del paquete: si no,
+          # Windows rechaza la instalacion con 0x80070003 (asi salio el MSIX de v0.11.23,
+          # apuntando a Assets\*.png, que son restos de plantilla y no se empaquetan).
+          $z = [IO.Compression.ZipFile]::OpenRead($pkg.FullName)
+          try {
+            $entradas = @($z.Entries | ForEach-Object { $_.FullName })
+            $entradaManifiesto = $z.Entries | Where-Object { $_.FullName -eq "AppxManifest.xml" }
+            if (-not $entradaManifiesto) { throw "El MSIX no lleva AppxManifest.xml" }
+            $lector = New-Object IO.StreamReader($entradaManifiesto.Open())
+            try { $xmlManifiesto = [xml]$lector.ReadToEnd() } finally { $lector.Dispose() }
+            $imagenes = @()
+            foreach ($nodo in $xmlManifiesto.SelectNodes("//*")) {
+              foreach ($atributo in $nodo.Attributes) {
+                if ($atributo.Value -match '\.(png|jpg|jpeg|ico)$') { $imagenes += $atributo.Value }
+              }
+            }
+            $imagenes = @($imagenes | Sort-Object -Unique)
+            $faltan = @()
+            foreach ($imagen in $imagenes) {
+              $ruta = $imagen -replace '\\','/'
+              if ($entradas -contains $ruta) { continue }
+              $base = [IO.Path]::GetFileNameWithoutExtension($ruta)
+              $carpeta = [IO.Path]::GetDirectoryName($ruta) -replace '\\','/'
+              $prefijo = if ($carpeta) { "$carpeta/$base." } else { "$base." }
+              $variantes = @($entradas | Where-Object { $_.StartsWith($prefijo) })
+              if (-not $variantes) { $faltan += $imagen } else { Write-Output "MSIX: $imagen -> $($variantes.Count) variantes" }
+            }
+            if ($faltan.Count -gt 0) { throw "El manifiesto cita imagenes que no estan en el paquete: $($faltan -join ', ')" }
+            Write-Output "MSIX: las $($imagenes.Count) imagenes del manifiesto resuelven dentro del paquete"
+          } finally { $z.Dispose() }
           Copy-Item $pkg.FullName "MundoVoxel-$ver.msix"
           Write-Output "MSIX: $($pkg.Name)"
+      - name: Instalar el MSIX de verdad
+        shell: pwsh
+        run: |
+          # El runner es administrador: aqui se confia en el certificado y se instala el
+          # paquete de verdad. Es la unica comprobacion que caza un manifiesto roto: el de
+          # v0.11.23 pasaba el resto de comprobaciones y no se instalaba en ningun PC.
+          if (-not (Test-Path "MundoVoxel.cer")) {
+            Export-Certificate -Cert "Cert:\CurrentUser\My\$env:MSIX_THUMB" -FilePath "MundoVoxel.cer" | Out-Null
+          }
+          Import-Certificate -FilePath "MundoVoxel.cer" -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" | Out-Null
+          $paquete = (Get-ChildItem -Filter "MundoVoxel-*.msix" | Select-Object -First 1).FullName
+          Add-AppxPackage -Path $paquete
+          $instalado = Get-AppxPackage -Name "com.mundovoxel.app" | Select-Object -First 1
+          if (-not $instalado) { throw "El MSIX no aparece como paquete instalado" }
+          Write-Output "MSIX: instalado $($instalado.PackageFullName)"
+          Remove-AppxPackage -Package $instalado.PackageFullName
+          Write-Output "MSIX: desinstalado tras la comprobacion"
       - name: Errores del MSIX
         if: failure()
         shell: pwsh
