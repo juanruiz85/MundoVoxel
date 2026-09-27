@@ -22,7 +22,7 @@ Cómo se generan los binarios y qué secretos hay que configurar. El repositorio
 | `MundoVoxel-<ver>.apk` | cliente Android (firmado con tu keystore si están los secretos) |
 
 ## El MSIX de Windows
-> **Aviso (v0.11.23):** el `.msix` de esa version no se puede instalar: su manifiesto citaba la carpeta `Assets` de la plantilla, que no entra en el paquete, y Windows lo rechaza con `0x80073CF6` y el detalle `0x80070003`. Esta corregido desde `v0.11.24`; ademas, el flujo de release comprueba ahora que cada imagen del manifiesto exista dentro del paquete y lo instala y lo desinstala de verdad en el runner de Windows.
+> **Aviso (v0.11.23):** el `.msix` de esa version no se puede instalar: su manifiesto citaba la carpeta `Assets` de la plantilla, que no entra en el paquete, y Windows lo rechaza con `0x80073CF6` y el detalle `0x80070003`. Esta corregido desde `v0.11.24`; ademas, el flujo de release comprueba ahora que cada imagen del manifiesto exista dentro del paquete y lo instala y lo desinstala de verdad en el runner de Windows. Ojo, ademas, con el manifiesto: no admite comentarios XML, porque el Resizetizer de MAUI los parsea al empaquetar y la compilacion del cliente falla.
 
 Se genera pidiendo el empaquetado (`-p:WindowsPackageType=MSIX`) a partir de `MundoVoxel.Client/Platforms/Windows/Package.appxmanifest` y sus iconos. El publish normal (el zip) sigue siendo la carpeta suelta de siempre: empaquetar solo se pide en el workflow de release.
 

@@ -120,6 +120,8 @@ jobs:
           "MSIX_THUMB=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "PFX=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "PFXPASS=$pass" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      # El manifiesto NO lleva comentarios XML: el Resizetizer de MAUI los parsea al
+      # empaquetar y falla la compilacion del cliente (paso en CI con 0.11.24).
       - name: Publicar cliente Windows como MSIX
         shell: pwsh
         run: |
